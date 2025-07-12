@@ -192,6 +192,7 @@ public class RequestResponseViewer extends JSplitPane {
                     originalRequestViewer.setRequest(original.getOriginalRequest());
                     originalResponseViewer.setResponse(original.getOriginalResponse());
                     requestViewer.setRequest(modified.getModifiedRequest());
+                    requestViewer.setSearchExpression(modified.getExpression());
                     responseViewer.setResponse(modified.getModifiedResponse());
                 } catch (Exception e) {
                     // Handle potential exceptions during viewer updates

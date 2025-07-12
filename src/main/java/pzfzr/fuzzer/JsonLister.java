@@ -139,7 +139,11 @@ public class JsonLister {
                     // 创建污染参数: email=victim@gmail.com&email=attacker@gmail.com
                     HttpParameter newParam = HttpParameter.parameter(param.name(), ATTACKER_EMAIL, HttpParameterType.URL);
                     HttpRequest modifiedRequest = originalRequest.withAddedParameters(newParam);
-                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_QUERY");
+
+                    // 生成 expression
+                    String expression = param.name() + "=" + TARGET_EMAIL + "&" + param.name() + "=" + ATTACKER_EMAIL;
+
+                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_QUERY", expression);
                 }
             }
         } catch (Exception e) {
@@ -183,10 +187,15 @@ public class JsonLister {
                 // 替换字段值
                 setFieldValue(newRoot, fieldPath, emailArray);
 
+                JsonNode originalValue = entry.getValue(); // 添加这一行来获取原始值
+
+                // 生成 expression
+                String expression = generateJsonExpression(fieldPath, originalValue, emailArray);
+
                 // 发送修改后的请求
                 String modifiedBody = objectMapper.writeValueAsString(newRoot);
                 HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_JSON");
+                sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_JSON", expression);
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -249,10 +258,13 @@ public class JsonLister {
                         }
 
                         HttpRequest modifiedRequest;
+                        String expression;
+
                         if (variant.equals("[]") || variant.equals("null")) {
                             // 直接替换参数值
                             HttpParameter newParam = HttpParameter.parameter(param.name(), variant, HttpParameterType.URL);
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
+                            expression = param.name() + "=" + variant;
                         } else if (variant.contains("&")) {
                             // 参数污染情况
                             String[] parts = variant.split("&");
@@ -264,12 +276,14 @@ public class JsonLister {
                                 }
                             }
                             modifiedRequest = originalRequest.withUpdatedParameters(newParams);
+                            expression = variant;
                         } else {
                             HttpParameter newParam = HttpParameter.parameter(param.name(), variant, HttpParameterType.URL);
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
+                            expression = param.name() + "=" + variant;
                         }
 
-                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY");
+                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY", expression);
                     }
                 }
             }
@@ -314,10 +328,13 @@ public class JsonLister {
                     ObjectNode newRoot = rootNode.deepCopy();
                     setFieldValue(newRoot, fieldPath, variant);
 
+                    // 生成 expression
+                    String expression = generateJsonExpression(fieldPath, originalValue, variant);
+
                     String modifiedBody = objectMapper.writeValueAsString(newRoot);
 
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                    sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON");
+                    sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON", expression);
                 }
             }
         } catch (Exception e) {
@@ -327,13 +344,50 @@ public class JsonLister {
     }
 
     /**
+     * 生成 JSON 变体的 expression 字符串 - 简化版本
+     * @param fieldPath 字段路径
+     * @param originalValue 原始值
+     * @param variant 变体值
+     * @return expression 字符串
+     */
+    private String generateJsonExpression(String fieldPath, JsonNode originalValue, JsonNode variant) {
+        // 取字段路径的最后一段
+        String[] pathParts = fieldPath.split("\\.");
+        String lastFieldName = pathParts[pathParts.length - 1];
+
+        // 处理数组索引的情况 (如 "field[0]")
+        if (lastFieldName.contains("[") && lastFieldName.contains("]")) {
+            lastFieldName = lastFieldName.substring(0, lastFieldName.indexOf("["));
+        }
+
+        // 生成变体值的字符串表示
+        String variantStr;
+        if (variant.isNull()) {
+            variantStr = "null";
+        } else if (variant.isArray() || variant.isObject()) {
+            try {
+                variantStr = objectMapper.writeValueAsString(variant);
+            } catch (Exception e) {
+                variantStr = variant.toString();
+            }
+        } else if (variant.isTextual()) {
+            variantStr = "\"" + variant.asText() + "\"";
+        } else {
+            variantStr = variant.toString();
+        }
+
+        return "\"" + lastFieldName + "\":" + variantStr;
+    }
+
+    /**
      * 发送修改后的请求并保存响应
      * @param modifiedRequest 修改后的请求
      * @param messageId 消息ID
      * @param host 主机名
      * @param testType 测试类型
+     * @param expression 变体修改的参数表达式
      */
-    private void sendModifiedRequest(HttpRequest modifiedRequest, int messageId, String host, String testType) {
+    private void sendModifiedRequest(HttpRequest modifiedRequest, int messageId, String host, String testType, String expression) {
         if (isShuttingDown) {
             return;
         }
@@ -352,11 +406,12 @@ public class JsonLister {
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
             int tempID = nextModifiedId.getAndIncrement();
 
-            // 保存修改后的请求和响应
+            // 保存修改后的请求和响应，传递 expression 参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
                     testType,
+                    expression, // 传递 expression 参数
                     requestResponseSaver,
                     logging
             );

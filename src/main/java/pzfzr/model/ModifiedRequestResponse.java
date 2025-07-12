@@ -11,22 +11,27 @@ public class ModifiedRequestResponse implements Serializable {
     private final int id;
     private final Integer originalMessageId;
     private final String testType;
+    private final String expression; // 新增字段：存储变体修改的参数表达式
     private int StatusCode = -1;
     private int ModifiedBodyLength = -1;
     private long ResponseTime = -1;
     private String ReflectType = null;
     private final Logging logging;
 
+    // 修改构造函数，添加 expression 参数
     public ModifiedRequestResponse(int id, Integer originalMessageId,
-                                   String testType, RequestResponseSaver requestResponseSaver, Logging logging) {
+                                   String testType, String expression, RequestResponseSaver requestResponseSaver, Logging logging) {
         this.id = id;
         this.originalMessageId = originalMessageId;
         this.testType = testType;
+        this.expression = expression;
         this.requestResponseSaver = requestResponseSaver;
         this.logging = logging;
     }
+
     // Getters
     public int getId() { return id; }
+
     public HttpRequest getModifiedRequest() {
         try {
             ByteArray requestData = requestResponseSaver.loadData("ModReq_" + id + ".lz4");
@@ -57,12 +62,15 @@ public class ModifiedRequestResponse implements Serializable {
     public int getStatusCode() {
         return StatusCode;
     }
+
     public int getModifiedBodyLength() {
         return ModifiedBodyLength;
     }
+
     public String getReflectType() {
         return ReflectType;
     }
+
     public long getResponseTime() {
         return ResponseTime;
     }
@@ -70,13 +78,20 @@ public class ModifiedRequestResponse implements Serializable {
     public Integer getOriginalMessageId() { return originalMessageId; }
 
     public String getTestType() { return testType; }
+
+    // 新增方法：获取 expression
+    public String getExpression() {
+        return expression;
+    }
+
     // 新增方法：设置 ModifiedResponse 并异步计算元数据
     public void setModifiedResponseAndCalculateMetadata(Short StatusCode ,int ModifiedBodyLength, String ReflectType, long responseTime) {
-                this.StatusCode = StatusCode;//response.statusCode();
-                this.ModifiedBodyLength = ModifiedBodyLength;
-                this.ResponseTime = responseTime;
-                this.ReflectType = ReflectType;
+        this.StatusCode = StatusCode;//response.statusCode();
+        this.ModifiedBodyLength = ModifiedBodyLength;
+        this.ResponseTime = responseTime;
+        this.ReflectType = ReflectType;
     }
+
     // 添加资源清理方法，关闭线程池
     public void cleanup() {
 
