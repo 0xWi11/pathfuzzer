@@ -46,14 +46,14 @@ public class JsonLister {
     private static final String TARGET_EMAIL = "victim@gmail.com";
     private static final String ATTACKER_EMAIL = "attacker@gmail.com";
     private static final Pattern EMAIL_REGEX = Pattern.compile("victim@gmail\\.com");
-    private static final Pattern ID_REGEX = Pattern.compile(".*id[s]?[=:]");
+    private static final Pattern ID_REGEX = Pattern.compile("(\"[^\"]*ids?\":|[?&][^=&]*ids?=)", Pattern.CASE_INSENSITIVE);
 
     public JsonLister(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                       RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
         this.api = api;
         this.objectMapper = new ObjectMapper();
         this.emailPattern = Pattern.compile("victim@gmail\\.com");
-        this.idPattern = Pattern.compile(".*id[s]?[=:]");
+        this.idPattern = Pattern.compile("(\"[^\"]*ids?\":|[?&][^=&]*ids?=)", Pattern.CASE_INSENSITIVE);
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
         this.logging = api.logging();
@@ -75,22 +75,48 @@ public class JsonLister {
 
         try {
             String requestString = originalRequest.toString();
+            logging.logToOutput("=== JsonLister Processing Request ===");
+            logging.logToOutput("Request URL: " + originalRequest.url());
+            logging.logToOutput("Request Method: " + originalRequest.method());
+            logging.logToOutput("Content Type: " + originalRequest.contentType());
+            logging.logToOutput("Request Body: " + originalRequest.bodyToString());
 
             // 检查是否包含邮箱模式
             boolean hasEmail = emailPattern.matcher(requestString).find();
+            logging.logToOutput("Has Email Pattern: " + hasEmail);
 
             // 检查是否包含ID模式
             boolean hasId = idPattern.matcher(requestString).find();
+            logging.logToOutput("Has ID Pattern: " + hasId);
+            if (hasId) {
+                logging.logToOutput("ID Pattern matched in request");
+            } else {
+                logging.logToOutput("ID Pattern did NOT match. Checking for common ID patterns:");
+                logging.logToOutput("  Contains '\"id\":': " + requestString.contains("\"id\":"));
+                logging.logToOutput("  Contains '\"spaceId\":': " + requestString.contains("\"spaceId\":"));
+                logging.logToOutput("  Contains 'id=': " + requestString.contains("id="));
+                logging.logToOutput("  Pattern used: " + idPattern.pattern());
+                logging.logToOutput("  Testing some examples:");
+                logging.logToOutput("    'windowWidth\":' matches: " + idPattern.matcher("\"windowWidth\":").find());
+                logging.logToOutput("    '\"id\":' matches: " + idPattern.matcher("\"id\":").find());
+                logging.logToOutput("    '\"spaceId\":' matches: " + idPattern.matcher("\"spaceId\":").find());
+                logging.logToOutput("    '?user_id=' matches: " + idPattern.matcher("?user_id=").find());
+            }
 
             if (hasEmail) {
+                logging.logToOutput("Processing Email Replacements...");
                 processEmailReplacements(originalRequest, messageId, host);
             }
 
             if (hasId) {
+                logging.logToOutput("Processing ID Replacements...");
                 processIdReplacements(originalRequest, messageId, host);
             }
+
+            logging.logToOutput("=== JsonLister Processing Complete ===");
         } catch (Exception e) {
-            // 静默处理异常
+            logging.logToOutput("Exception in processRequest: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -239,10 +265,11 @@ public class JsonLister {
                 }
 
                 if (isIdParameter(param.name()) && isNumericId(param.value())) {
-                    int originalId = Integer.parseInt(param.value());
+                    // 直接使用字符串值，支持长整数
+                    String originalIdStr = param.value();
 
                     // 生成各种ID替换变体
-                    List<String> variants = generateIdVariants(originalId);
+                    List<String> variants = generateIdVariants(originalIdStr);
 
                     for (String variant : variants) {
                         if (isShuttingDown) {
@@ -275,7 +302,8 @@ public class JsonLister {
                 }
             }
         } catch (Exception e) {
-            // 静默处理异常
+            logging.logToOutput("Exception in processQueryIdReplacements: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -292,10 +320,22 @@ public class JsonLister {
 
         try {
             String body = originalRequest.bodyToString();
-            if (body.isEmpty()) return;
+            logging.logToOutput("Processing JSON ID Replacements...");
+            logging.logToOutput("JSON Body: " + body);
+
+            if (body.isEmpty()) {
+                logging.logToOutput("Body is empty, skipping JSON ID processing");
+                return;
+            }
 
             JsonNode rootNode = objectMapper.readTree(body);
+            logging.logToOutput("Successfully parsed JSON");
+
             Map<String, JsonNode> idFields = findIdFields(rootNode);
+            logging.logToOutput("Found " + idFields.size() + " ID fields:");
+            for (Map.Entry<String, JsonNode> entry : idFields.entrySet()) {
+                logging.logToOutput("  - Path: " + entry.getKey() + ", Value: " + entry.getValue());
+            }
 
             for (Map.Entry<String, JsonNode> entry : idFields.entrySet()) {
                 if (isShuttingDown) {
@@ -305,7 +345,10 @@ public class JsonLister {
                 String fieldPath = entry.getKey();
                 JsonNode originalValue = entry.getValue();
 
+                logging.logToOutput("Processing ID field: " + fieldPath + " with value: " + originalValue);
+
                 List<JsonNode> variants = generateJsonIdVariants(originalValue);
+                logging.logToOutput("Generated " + variants.size() + " variants for " + fieldPath);
 
                 for (JsonNode variant : variants) {
                     if (isShuttingDown) {
@@ -316,12 +359,15 @@ public class JsonLister {
                     setFieldValue(newRoot, fieldPath, variant);
 
                     String modifiedBody = objectMapper.writeValueAsString(newRoot);
+                    logging.logToOutput("Modified JSON: " + modifiedBody);
+
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
                     sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON");
                 }
             }
         } catch (Exception e) {
-            // 静默处理异常
+            logging.logToOutput("Exception in processJsonIdReplacements: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -385,7 +431,7 @@ public class JsonLister {
     }
 
     /**
-     * 递归查找邮箱字段
+     * 递归查找邮箱字段 - 修改版本，支持数组中对象的email字段
      * @param node 当前JSON节点
      * @param currentPath 当前路径
      * @param emailFields 结果映射
@@ -402,10 +448,23 @@ public class JsonLister {
                 if (fieldValue.isTextual() && TARGET_EMAIL.equals(fieldValue.asText())) {
                     emailFields.put(fieldPath, fieldValue);
                 } else if (fieldValue.isArray()) {
+                    // 检查数组是否直接包含目标email
                     for (JsonNode arrayItem : fieldValue) {
                         if (arrayItem.isTextual() && TARGET_EMAIL.equals(arrayItem.asText())) {
                             emailFields.put(fieldPath, fieldValue);
                             break;
+                        }
+                    }
+                }
+
+                // 不管是否已经找到email，都要继续递归处理嵌套结构
+                if (fieldValue.isArray()) {
+                    // 检查数组第一个元素是否为对象，如果是，递归查找其中的email字段
+                    if (fieldValue.size() > 0) {
+                        JsonNode firstElement = fieldValue.get(0);
+                        if (firstElement.isObject()) {
+                            String arrayFirstPath = fieldPath + "[0]";
+                            findEmailFieldsRecursive(firstElement, arrayFirstPath, emailFields);
                         }
                     }
                 } else if (fieldValue.isObject()) {
@@ -427,12 +486,14 @@ public class JsonLister {
     }
 
     /**
-     * 递归查找ID字段
+     * 递归查找ID字段 - 修改版本，支持数组中对象的ID字段
      * @param node 当前JSON节点
      * @param currentPath 当前路径
      * @param idFields 结果映射
      */
     private void findIdFieldsRecursive(JsonNode node, String currentPath, Map<String, JsonNode> idFields) {
+        logging.logToOutput("Searching for ID fields at path: '" + currentPath + "', node type: " + node.getNodeType());
+
         if (node.isObject()) {
             Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
             while (fields.hasNext()) {
@@ -441,13 +502,55 @@ public class JsonLister {
                 JsonNode fieldValue = field.getValue();
                 String fieldPath = currentPath.isEmpty() ? fieldName : currentPath + "." + fieldName;
 
-                if (isIdParameter(fieldName)) {
-                    if (fieldValue.isInt() ||
-                            (fieldValue.isTextual() && isNumericId(fieldValue.asText())) ||
-                            (fieldValue.isArray() && containsNumericIds(fieldValue))) {
+                logging.logToOutput("  Examining field: " + fieldName + " at path: " + fieldPath + ", value type: " + fieldValue.getNodeType() + ", value: " + fieldValue);
+
+                // 检查是否为ID参数
+                boolean isIdParam = isIdParameter(fieldName);
+                logging.logToOutput("    -> isIdParameter('" + fieldName + "'): " + isIdParam);
+
+                if (isIdParam) {
+                    logging.logToOutput("    -> Field '" + fieldName + "' is ID parameter");
+
+                    boolean isValidId = false;
+                    if (fieldValue.isInt()) {
+                        logging.logToOutput("    -> Value is integer (32-bit): " + fieldValue.asInt());
+                        isValidId = true;
+                    } else if (fieldValue.isLong()) {
+                        logging.logToOutput("    -> Value is long integer (64-bit): " + fieldValue.asLong());
+                        isValidId = true;
+                    } else if (fieldValue.isTextual() && isNumericId(fieldValue.asText())) {
+                        logging.logToOutput("    -> Value is numeric string: " + fieldValue.asText());
+                        isValidId = true;
+                    } else if (fieldValue.isArray() && containsNumericIds(fieldValue)) {
+                        logging.logToOutput("    -> Value is array with numeric IDs");
+                        isValidId = true;
+                    } else {
+                        logging.logToOutput("    -> Value is not valid ID format: " + fieldValue + " (type: " + fieldValue.getNodeType() + ")");
+                    }
+
+                    if (isValidId) {
+                        logging.logToOutput("    -> Adding ID field: " + fieldPath);
                         idFields.put(fieldPath, fieldValue);
                     }
+                } else {
+                    logging.logToOutput("    -> Field '" + fieldName + "' is NOT an ID parameter");
+                }
+
+                // 不管是否是ID字段，都要继续递归处理嵌套结构
+                if (fieldValue.isArray()) {
+                    logging.logToOutput("    -> Processing array field: " + fieldPath);
+                    // 检查数组第一个元素是否为对象，如果是，递归查找其中的ID字段
+                    if (fieldValue.size() > 0) {
+                        JsonNode firstElement = fieldValue.get(0);
+                        logging.logToOutput("    -> Array first element type: " + firstElement.getNodeType());
+                        if (firstElement.isObject()) {
+                            String arrayFirstPath = fieldPath + "[0]";
+                            logging.logToOutput("    -> Recursing into array element: " + arrayFirstPath);
+                            findIdFieldsRecursive(firstElement, arrayFirstPath, idFields);
+                        }
+                    }
                 } else if (fieldValue.isObject()) {
+                    logging.logToOutput("    -> Recursing into object field: " + fieldPath);
                     findIdFieldsRecursive(fieldValue, fieldPath, idFields);
                 }
             }
@@ -455,22 +558,24 @@ public class JsonLister {
     }
 
     /**
-     * 检查是否为ID参数
+     * 检查是否为ID参数 - 修复版本，只匹配以id/ids结尾的字段名
      * @param paramName 参数名
      * @return 是否为ID参数
      */
     private boolean isIdParameter(String paramName) {
-        return paramName.toLowerCase().contains("id");
+        String lowerName = paramName.toLowerCase();
+        return lowerName.endsWith("id") || lowerName.endsWith("ids");
     }
 
     /**
-     * 检查是否为数字ID
+     * 检查是否为数字ID - 修复版本，支持长整数
      * @param value 值
      * @return 是否为数字ID
      */
     private boolean isNumericId(String value) {
         try {
-            Integer.parseInt(value);
+            // 使用Long.parseLong()支持长整数，而不是Integer.parseInt()
+            Long.parseLong(value);
             return true;
         } catch (NumberFormatException e) {
             return false;
@@ -478,13 +583,13 @@ public class JsonLister {
     }
 
     /**
-     * 检查数组是否包含数字ID
+     * 检查数组是否包含数字ID - 修复版本，支持长整数
      * @param arrayNode 数组节点
      * @return 是否包含数字ID
      */
     private boolean containsNumericIds(JsonNode arrayNode) {
         for (JsonNode item : arrayNode) {
-            if (item.isInt() || (item.isTextual() && isNumericId(item.asText()))) {
+            if (item.isInt() || item.isLong() || (item.isTextual() && isNumericId(item.asText()))) {
                 return true;
             }
         }
@@ -492,32 +597,40 @@ public class JsonLister {
     }
 
     /**
-     * 生成ID变体
-     * @param originalId 原始ID
+     * 生成ID变体 - 修复版本，支持长整数
+     * @param originalIdStr 原始ID字符串
      * @return ID变体列表
      */
-    private List<String> generateIdVariants(int originalId) {
+    private List<String> generateIdVariants(String originalIdStr) {
         List<String> variants = new ArrayList<>();
 
-        // 基本变体
-        variants.add("[]");
-        variants.add("null");
+        try {
+            long originalId = Long.parseLong(originalIdStr);
 
-        // 参数污染变体
-        variants.add("id=" + originalId + "&id=" + (originalId - 4));
-        variants.add("id=" + originalId + "&id=" + (originalId - 10));
-        variants.add("id=" + originalId + "&id=" + (originalId - 100));
+            // 基本变体
+            variants.add("[]");
+            variants.add("null");
 
-        // 路径遍历变体
-        variants.add(originalId + "/../" + (originalId - 4));
-        variants.add(originalId + "/../" + (originalId - 10));
-        variants.add(originalId + "/../" + (originalId - 100));
+            // 参数污染变体
+            variants.add("id=" + originalId + "&id=" + (originalId - 4));
+            variants.add("id=" + originalId + "&id=" + (originalId - 10));
+            variants.add("id=" + originalId + "&id=" + (originalId - 100));
+
+            // 路径遍历变体
+            variants.add(originalId + "/../" + (originalId - 4));
+            variants.add(originalId + "/../" + (originalId - 10));
+            variants.add(originalId + "/../" + (originalId - 100));
+        } catch (NumberFormatException e) {
+            // 如果不是数字，只添加基本变体
+            variants.add("[]");
+            variants.add("null");
+        }
 
         return variants;
     }
 
     /**
-     * 生成JSON ID变体
+     * 生成JSON ID变体 - 修复版本，支持长整数
      * @param originalValue 原始值
      * @return JSON变体列表
      */
@@ -525,6 +638,7 @@ public class JsonLister {
         List<JsonNode> variants = new ArrayList<>();
 
         if (originalValue.isInt()) {
+            // 处理32位整数
             int id = originalValue.asInt();
 
             // 空数组和null
@@ -555,37 +669,60 @@ public class JsonLister {
             variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)));
             variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)));
 
-        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
-            String idStr = originalValue.asText();
-            int id = Integer.parseInt(idStr);
+        } else if (originalValue.isLong()) {
+            // 处理64位长整数
+            long id = originalValue.asLong();
 
             // 空数组和null
             variants.add(JsonNodeFactory.instance.arrayNode());
             variants.add(JsonNodeFactory.instance.nullNode());
-            // 字符串型但是数值递减的变体
-            variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 4)));
-            variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)));
-            variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)));
-            // 字符串数组变体
+            // 长整型的递减变体
+            variants.add(JsonNodeFactory.instance.numberNode(id - 4));
+            variants.add(JsonNodeFactory.instance.numberNode(id - 10));
+            variants.add(JsonNodeFactory.instance.numberNode(id - 100));
+            // 数组变体
             ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant1.add(idStr);
-            arrayVariant1.add(String.valueOf(id - 4));
+            arrayVariant1.add(id);
+            arrayVariant1.add(id - 4);
+            arrayVariant1.add(id - 10);
+            arrayVariant1.add(id - 100);
             variants.add(arrayVariant1);
 
-            ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant2.add(idStr);
-            arrayVariant2.add(String.valueOf(id - 10));
-            variants.add(arrayVariant2);
-
-            ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant3.add(idStr);
-            arrayVariant3.add(String.valueOf(id - 100));
-            variants.add(arrayVariant3);
 
             // 路径遍历变体
-            variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 4)));
-            variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 10)));
-            variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 100)));
+            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)));
+            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)));
+            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)));
+
+        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
+            String idStr = originalValue.asText();
+            try {
+                long id = Long.parseLong(idStr);
+
+                // 空数组和null
+                variants.add(JsonNodeFactory.instance.arrayNode());
+                variants.add(JsonNodeFactory.instance.nullNode());
+                // 字符串型但是数值递减的变体
+                variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 4)));
+                variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)));
+                variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)));
+                // 字符串数组变体
+                ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
+                arrayVariant1.add(idStr);
+                arrayVariant1.add(String.valueOf(id - 4));
+                arrayVariant1.add(String.valueOf(id - 10));
+                arrayVariant1.add(String.valueOf(id - 100));
+                variants.add(arrayVariant1);
+
+                // 路径遍历变体
+                variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 4)));
+                variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 10)));
+                variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 100)));
+            } catch (NumberFormatException e) {
+                // 如果解析失败，只添加基本变体
+                variants.add(JsonNodeFactory.instance.arrayNode());
+                variants.add(JsonNodeFactory.instance.nullNode());
+            }
 
         } else if (originalValue.isArray()) {
             // 数组情况
@@ -603,15 +740,27 @@ public class JsonLister {
                     arrayVariant.add(id - 10);
                     arrayVariant.add(id - 100);
                     variants.add(arrayVariant);
+                } else if (firstItem.isLong()) {
+                    long id = firstItem.asLong();
+                    ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
+                    arrayVariant.add(id);
+                    arrayVariant.add(id - 4);
+                    arrayVariant.add(id - 10);
+                    arrayVariant.add(id - 100);
+                    variants.add(arrayVariant);
                 } else if (firstItem.isTextual() && isNumericId(firstItem.asText())) {
                     String idStr = firstItem.asText();
-                    int id = Integer.parseInt(idStr);
-                    ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
-                    arrayVariant.add(idStr);
-                    arrayVariant.add(String.valueOf(id - 4));
-                    arrayVariant.add(String.valueOf(id - 10));
-                    arrayVariant.add(String.valueOf(id - 100));
-                    variants.add(arrayVariant);
+                    try {
+                        long id = Long.parseLong(idStr);
+                        ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
+                        arrayVariant.add(idStr);
+                        arrayVariant.add(String.valueOf(id - 4));
+                        arrayVariant.add(String.valueOf(id - 10));
+                        arrayVariant.add(String.valueOf(id - 100));
+                        variants.add(arrayVariant);
+                    } catch (NumberFormatException e) {
+                        // 如果解析失败，跳过数组变体生成
+                    }
                 }
             }
         }
@@ -620,24 +769,60 @@ public class JsonLister {
     }
 
     /**
-     * 设置字段值
+     * 设置字段值 - 支持数组索引路径
      * @param node 根节点
-     * @param path 字段路径
+     * @param path 字段路径 (支持 "field[0].subfield" 格式)
      * @param value 新值
      */
     private void setFieldValue(ObjectNode node, String path, JsonNode value) {
+        logging.logToOutput("Setting field value for path: " + path + " to value: " + value);
+
         String[] pathParts = path.split("\\.");
+        logging.logToOutput("Path parts: " + Arrays.toString(pathParts));
+
         JsonNode current = node;
 
         for (int i = 0; i < pathParts.length - 1; i++) {
-            current = current.get(pathParts[i]);
-            if (current == null) {
-                return;
+            String part = pathParts[i];
+            logging.logToOutput("Processing path part " + i + ": " + part);
+
+            // 检查是否包含数组索引
+            if (part.contains("[") && part.contains("]")) {
+                String fieldName = part.substring(0, part.indexOf("["));
+                String indexStr = part.substring(part.indexOf("[") + 1, part.indexOf("]"));
+                int index = Integer.parseInt(indexStr);
+
+                logging.logToOutput("  Array access: field=" + fieldName + ", index=" + index);
+
+                current = current.get(fieldName);
+                if (current != null && current.isArray() && index < current.size()) {
+                    current = current.get(index);
+                    logging.logToOutput("  Successfully accessed array element: " + current.getNodeType());
+                } else {
+                    logging.logToOutput("  Failed to access array element: current=" + current + ", isArray=" + (current != null && current.isArray()) + ", size=" + (current != null && current.isArray() ? current.size() : "N/A"));
+                    return;
+                }
+            } else {
+                logging.logToOutput("  Object field access: " + part);
+                current = current.get(part);
+                if (current == null) {
+                    logging.logToOutput("  Failed to access field: " + part);
+                    return;
+                } else {
+                    logging.logToOutput("  Successfully accessed field: " + current.getNodeType());
+                }
             }
         }
 
+        // 处理最后一个路径部分
+        String lastPart = pathParts[pathParts.length - 1];
+        logging.logToOutput("Setting final field: " + lastPart + " on node type: " + current.getNodeType());
+
         if (current instanceof ObjectNode) {
-            ((ObjectNode) current).set(pathParts[pathParts.length - 1], value);
+            ((ObjectNode) current).set(lastPart, value);
+            logging.logToOutput("Successfully set field value");
+        } else {
+            logging.logToOutput("Cannot set field - current node is not ObjectNode: " + current.getClass());
         }
     }
 
