@@ -37,7 +37,7 @@ public class RequestResponseSaver {
     private final ConcurrentMap<Integer, Integer> pollingRetries = new ConcurrentHashMap<>();
     private final String dailyDirHash;
     private final TableModel tableModel;
-    private static final Path BASE_DIR = Paths.get(System.getProperty("user.home"), ".burp", "header_intruder");
+    private static final Path BASE_DIR = Paths.get(System.getProperty("user.home"), ".burp", "path_fuzzer");
     private static final Path HISTORY_DIR = BASE_DIR.resolve("project_request_history");
     private final Set<Integer> pendingResponseIds = new ConcurrentSkipListSet<>();
     private volatile boolean pollingScheduled = false;

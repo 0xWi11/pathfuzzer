@@ -53,7 +53,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         }
 
         // 创建子菜单
-        JMenu headerIntruderMenu = new JMenu("Header Intruder");
+        JMenu headerIntruderMenu = new JMenu("Path Fuzzer");
 
         // 添加各种测试选项
         JMenuItem allTests = new JMenuItem("Run All Tests");

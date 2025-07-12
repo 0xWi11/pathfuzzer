@@ -12,6 +12,7 @@ import burp.api.montoya.logging.Logging;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.KnownTestSets;
 import pzfzr.config.SwitchState;
+import pzfzr.fuzzer.JsonLister;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -36,6 +37,8 @@ public class ValueReplacer {
     private final Logging logging; // 添加 Logging
     private final RateLimiter rateLimiter;
     private final CookieChanger cookieChanger; // 添加 CookieChanger
+    private final JsonLister jsonLister; // 添加 JsonLister
+
 
 
     public ValueReplacer(MontoyaApi api, TableModel tableModel, ConfigManager configManager,
@@ -47,6 +50,9 @@ public class ValueReplacer {
         this.logging = api.logging(); // 初始化 Logging
         this.rateLimiter = rateLimiter;
         this.cookieChanger = CookieChanger.getInstance(); // 获取 CookieChanger 单例实例
+
+        // 初始化 JsonLister
+        this.jsonLister = new JsonLister(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
     }
 
     /**
@@ -100,7 +106,7 @@ public class ValueReplacer {
         String host = extractHostFromRequest(originalRequest.url());
         try {
             if (switchState.isBuiltInSwitch()) {
-                ProtoTest(originalRequest, messageId, host);
+                jsonLister.processRequest(originalRequest, messageId, host);
             }
 
             if (switchState.isCollectedSwitch()) {
@@ -120,7 +126,7 @@ public class ValueReplacer {
     }
 
     public void ProtoTest(HttpRequest originalRequest, int messageId, String host) {
-
+        jsonLister.processRequest(originalRequest, messageId, host);
     }
 
     public void CollectedTest(HttpRequest originalRequest, int messageId, String host) {

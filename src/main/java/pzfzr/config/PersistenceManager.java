@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class PersistenceManager {
-    private static final Path BASE_DIR = Paths.get(System.getProperty("user.home"), ".burp", "header_intruder");
+    private static final Path BASE_DIR = Paths.get(System.getProperty("user.home"), ".burp", "path_fuzzer");
     private static final Path CONFIG_DIR = BASE_DIR.resolve("config");
     private static final Path CONFIG_FILE = CONFIG_DIR.resolve("config.json");
     private static final Path COLLECTED_LIST_FILE = CONFIG_DIR.resolve("CollectedList.txt");
