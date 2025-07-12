@@ -93,7 +93,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             });
         });
 
-        JMenuItem protoTest = new JMenuItem("Run JsonLister Only");
+        JMenuItem protoTest = new JMenuItem("Run JsonLister Test");
         protoTest.addActionListener(e -> {
             executor.submit(() -> {
                 try {
@@ -117,19 +117,19 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        valueReplacer.ProtoTest(requestResponse.request(),
+                        valueReplacer.JsonListerTest(requestResponse.request(),
                                 original.getMessageId(),
                                 valueReplacer.extractHostFromRequest(requestResponse.request().url()));
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
                     }
                 } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running proto test: " + ex.getMessage());
+                    api.logging().logToError("[ContextMenuProvider] Error running JsonListerTest: " + ex.getMessage());
                 }
             });
         });
 
-        JMenuItem collectedTest = new JMenuItem("Run Collected Test Only");
+        JMenuItem collectedTest = new JMenuItem("Run RouteFuzzer Test");
         collectedTest.addActionListener(e -> {
             executor.submit(() -> {
                 try {
@@ -153,14 +153,14 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        valueReplacer.CollectedTest(requestResponse.request(),
+                        valueReplacer.RouteFuzzerTest(requestResponse.request(),
                                 original.getMessageId(),
                                 valueReplacer.extractHostFromRequest(requestResponse.request().url()));
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
                     }
                 } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running collected test: " + ex.getMessage());
+                    api.logging().logToError("[ContextMenuProvider] Error running RouteFuzzerTest: " + ex.getMessage());
                 }
             });
         });
