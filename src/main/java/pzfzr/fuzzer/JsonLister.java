@@ -75,45 +75,19 @@ public class JsonLister {
 
         try {
             String requestString = originalRequest.toString();
-            logging.logToOutput("=== JsonLister Processing Request ===");
-            logging.logToOutput("Request URL: " + originalRequest.url());
-            logging.logToOutput("Request Method: " + originalRequest.method());
-            logging.logToOutput("Content Type: " + originalRequest.contentType());
-            logging.logToOutput("Request Body: " + originalRequest.bodyToString());
 
             // 检查是否包含邮箱模式
             boolean hasEmail = emailPattern.matcher(requestString).find();
-            logging.logToOutput("Has Email Pattern: " + hasEmail);
-
             // 检查是否包含ID模式
             boolean hasId = idPattern.matcher(requestString).find();
-            logging.logToOutput("Has ID Pattern: " + hasId);
-            if (hasId) {
-                logging.logToOutput("ID Pattern matched in request");
-            } else {
-                logging.logToOutput("ID Pattern did NOT match. Checking for common ID patterns:");
-                logging.logToOutput("  Contains '\"id\":': " + requestString.contains("\"id\":"));
-                logging.logToOutput("  Contains '\"spaceId\":': " + requestString.contains("\"spaceId\":"));
-                logging.logToOutput("  Contains 'id=': " + requestString.contains("id="));
-                logging.logToOutput("  Pattern used: " + idPattern.pattern());
-                logging.logToOutput("  Testing some examples:");
-                logging.logToOutput("    'windowWidth\":' matches: " + idPattern.matcher("\"windowWidth\":").find());
-                logging.logToOutput("    '\"id\":' matches: " + idPattern.matcher("\"id\":").find());
-                logging.logToOutput("    '\"spaceId\":' matches: " + idPattern.matcher("\"spaceId\":").find());
-                logging.logToOutput("    '?user_id=' matches: " + idPattern.matcher("?user_id=").find());
-            }
 
             if (hasEmail) {
-                logging.logToOutput("Processing Email Replacements...");
                 processEmailReplacements(originalRequest, messageId, host);
             }
-
             if (hasId) {
-                logging.logToOutput("Processing ID Replacements...");
                 processIdReplacements(originalRequest, messageId, host);
             }
 
-            logging.logToOutput("=== JsonLister Processing Complete ===");
         } catch (Exception e) {
             logging.logToOutput("Exception in processRequest: " + e.getMessage());
             e.printStackTrace();
@@ -130,11 +104,9 @@ public class JsonLister {
         if (isShuttingDown) {
             return;
         }
-
         try {
             // 处理Query参数中的邮箱
             processQueryEmailReplacements(originalRequest, messageId, host);
-
             // 处理JSON参数中的邮箱
             if (originalRequest.contentType() == ContentType.JSON) {
                 processJsonEmailReplacements(originalRequest, messageId, host);
@@ -317,25 +289,13 @@ public class JsonLister {
         if (isShuttingDown) {
             return;
         }
-
         try {
             String body = originalRequest.bodyToString();
-            logging.logToOutput("Processing JSON ID Replacements...");
-            logging.logToOutput("JSON Body: " + body);
-
             if (body.isEmpty()) {
-                logging.logToOutput("Body is empty, skipping JSON ID processing");
                 return;
             }
-
             JsonNode rootNode = objectMapper.readTree(body);
-            logging.logToOutput("Successfully parsed JSON");
-
             Map<String, JsonNode> idFields = findIdFields(rootNode);
-            logging.logToOutput("Found " + idFields.size() + " ID fields:");
-            for (Map.Entry<String, JsonNode> entry : idFields.entrySet()) {
-                logging.logToOutput("  - Path: " + entry.getKey() + ", Value: " + entry.getValue());
-            }
 
             for (Map.Entry<String, JsonNode> entry : idFields.entrySet()) {
                 if (isShuttingDown) {
@@ -345,11 +305,7 @@ public class JsonLister {
                 String fieldPath = entry.getKey();
                 JsonNode originalValue = entry.getValue();
 
-                logging.logToOutput("Processing ID field: " + fieldPath + " with value: " + originalValue);
-
                 List<JsonNode> variants = generateJsonIdVariants(originalValue);
-                logging.logToOutput("Generated " + variants.size() + " variants for " + fieldPath);
-
                 for (JsonNode variant : variants) {
                     if (isShuttingDown) {
                         return;
@@ -359,7 +315,6 @@ public class JsonLister {
                     setFieldValue(newRoot, fieldPath, variant);
 
                     String modifiedBody = objectMapper.writeValueAsString(newRoot);
-                    logging.logToOutput("Modified JSON: " + modifiedBody);
 
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
                     sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON");
@@ -652,17 +607,9 @@ public class JsonLister {
             ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
             arrayVariant1.add(id);
             arrayVariant1.add(id - 4);
+            arrayVariant1.add(id - 10);
+            arrayVariant1.add(id - 100);
             variants.add(arrayVariant1);
-
-            ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant2.add(id);
-            arrayVariant2.add(id - 10);
-            variants.add(arrayVariant2);
-
-            ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant3.add(id);
-            arrayVariant3.add(id - 100);
-            variants.add(arrayVariant3);
 
             // 路径遍历变体
             variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)));
@@ -687,7 +634,6 @@ public class JsonLister {
             arrayVariant1.add(id - 10);
             arrayVariant1.add(id - 100);
             variants.add(arrayVariant1);
-
 
             // 路径遍历变体
             variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)));

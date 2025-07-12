@@ -93,7 +93,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             });
         });
 
-        JMenuItem protoTest = new JMenuItem("Run Proto Test Only");
+        JMenuItem protoTest = new JMenuItem("Run JsonLister Only");
         protoTest.addActionListener(e -> {
             executor.submit(() -> {
                 try {
