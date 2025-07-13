@@ -122,10 +122,17 @@ public class JsonLister {
         try {
             // 处理Query参数中的邮箱
             processQueryEmailReplacements(originalRequest, messageId, host);
-            // 处理JSON参数中的邮箱 - 修改：不依赖Content-Type，直接检查body是否为JSON
+
+            // 处理POST body参数
             String bodyString = originalRequest.bodyToString();
-            if (isJsonFormat(bodyString)) {
-                processJsonEmailReplacements(originalRequest, messageId, host);
+            if (!bodyString.isEmpty()) {
+                if (isJsonFormat(bodyString)) {
+                    // 处理JSON格式的body参数
+                    processJsonEmailReplacements(originalRequest, messageId, host);
+                } else {
+                    // 处理URL编码格式的body参数
+                    processBodyEmailReplacements(originalRequest, messageId, host);
+                }
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -168,7 +175,40 @@ public class JsonLister {
     }
 
     /**
-     * 处理JSON参数中的邮箱替换
+     * 处理POST body中URL编码格式的邮箱替换
+     * @param originalRequest 原始HTTP请求
+     * @param messageId 消息ID
+     * @param host 主机名
+     */
+    private void processBodyEmailReplacements(HttpRequest originalRequest, int messageId, String host) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            List<ParsedHttpParameter> bodyParams = originalRequest.parameters(HttpParameterType.BODY);
+
+            for (ParsedHttpParameter param : bodyParams) {
+                if (isShuttingDown) {
+                    return;
+                }
+
+                if (TARGET_EMAIL.equals(param.value())) {
+                    // 创建污染参数: email=victim@gmail.com&email=attacker@gmail.com
+                    HttpParameter newParam = HttpParameter.parameter(param.name(), ATTACKER_EMAIL, HttpParameterType.BODY);
+                    HttpRequest modifiedRequest = originalRequest.withAddedParameters(newParam);
+
+                    // 生成 expression
+                    String expression = param.name() + "=" + TARGET_EMAIL + "&" + param.name() + "=" + ATTACKER_EMAIL;
+
+                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_BODY", expression);
+                }
+            }
+        } catch (Exception e) {
+            // 静默处理异常
+        }
+    }
+    /**
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
      * @param host 主机名
@@ -233,10 +273,16 @@ public class JsonLister {
             // 处理Query参数中的ID
             processQueryIdReplacements(originalRequest, messageId, host);
 
-            // 处理JSON参数中的ID - 修改：不依赖Content-Type，直接检查body是否为JSON
+            // 处理POST body参数
             String bodyString = originalRequest.bodyToString();
-            if (isJsonFormat(bodyString)) {
-                processJsonIdReplacements(originalRequest, messageId, host);
+            if (!bodyString.isEmpty()) {
+                if (isJsonFormat(bodyString)) {
+                    // 处理JSON格式的body参数
+                    processJsonIdReplacements(originalRequest, messageId, host);
+                } else {
+                    // 处理URL编码格式的body参数
+                    processBodyIdReplacements(originalRequest, messageId, host);
+                }
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -244,7 +290,58 @@ public class JsonLister {
     }
 
     /**
-     * 处理Query参数中的ID替换
+     * 处理POST body中URL编码格式的ID替换
+     * @param originalRequest 原始HTTP请求
+     * @param messageId 消息ID
+     * @param host 主机名
+     */
+    private void processBodyIdReplacements(HttpRequest originalRequest, int messageId, String host) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            List<ParsedHttpParameter> bodyParams = originalRequest.parameters(HttpParameterType.BODY);
+
+            for (ParsedHttpParameter param : bodyParams) {
+                if (isShuttingDown) {
+                    return;
+                }
+
+                if (isIdParameter(param.name()) && isNumericId(param.value())) {
+                    // 直接使用字符串值，支持长整数
+                    String originalIdStr = param.value();
+
+                    // 生成各种ID替换变体
+                    List<IdVariant> variants = generateIdVariants(originalIdStr, param.name());
+
+                    for (IdVariant variant : variants) {
+                        if (isShuttingDown) {
+                            return;
+                        }
+
+                        HttpRequest modifiedRequest;
+
+                        if (variant.isParameterPollution()) {
+                            // 参数污染情况 - 添加新的参数
+                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant.getSecondValue(), HttpParameterType.BODY);
+                            modifiedRequest = originalRequest.withAddedParameters(newParam);
+                        } else {
+                            // 直接替换参数值
+                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant.getValue(), HttpParameterType.BODY);
+                            modifiedRequest = originalRequest.withUpdatedParameters(newParam);
+                        }
+
+                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_BODY", variant.getExpression());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logging.logToOutput("Exception in processBodyIdReplacements: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    /**
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
      * @param host 主机名
@@ -267,40 +364,30 @@ public class JsonLister {
                     String originalIdStr = param.value();
 
                     // 生成各种ID替换变体
-                    List<String> variants = generateIdVariants(originalIdStr);
+                    List<IdVariant> variants = generateIdVariants(originalIdStr, param.name());
 
-                    for (String variant : variants) {
+                    for (IdVariant variant : variants) {
                         if (isShuttingDown) {
                             return;
                         }
 
                         HttpRequest modifiedRequest;
-                        String expression;
 
-                        if (variant.equals("[]") || variant.equals("null")) {
-                            // 直接替换参数值
-                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant, HttpParameterType.URL);
+                        if (variant.isParameterPollution()) {
+                            // 参数污染情况 - 添加新的参数
+                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant.getSecondValue(), HttpParameterType.URL);
+                            modifiedRequest = originalRequest.withAddedParameters(newParam);
+                        } else if (variant.isArrayFormat()) {
+                            // 数组格式 - 修复：添加新的数组格式变体 [500,496,490,400]
+                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant.getValue(), HttpParameterType.URL);
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
-                            expression = param.name() + "=" + variant;
-                        } else if (variant.contains("&")) {
-                            // 参数污染情况
-                            String[] parts = variant.split("&");
-                            List<HttpParameter> newParams = new ArrayList<>();
-                            for (String part : parts) {
-                                String[] keyValue = part.split("=");
-                                if (keyValue.length == 2) {
-                                    newParams.add(HttpParameter.parameter(keyValue[0], keyValue[1], HttpParameterType.URL));
-                                }
-                            }
-                            modifiedRequest = originalRequest.withUpdatedParameters(newParams);
-                            expression = variant;
                         } else {
-                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant, HttpParameterType.URL);
+                            // 直接替换参数值
+                            HttpParameter newParam = HttpParameter.parameter(param.name(), variant.getValue(), HttpParameterType.URL);
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
-                            expression = param.name() + "=" + variant;
                         }
 
-                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY", expression);
+                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY", variant.getExpression());
                     }
                 }
             }
@@ -358,6 +445,31 @@ public class JsonLister {
             logging.logToOutput("Exception in processJsonIdReplacements: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * ID变体内部类
+     */
+    private static class IdVariant {
+        private final String value;
+        private final String expression;
+        private final boolean isParameterPollution;
+        private final boolean isArrayFormat;
+        private final String secondValue;
+
+        public IdVariant(String value, String expression, boolean isParameterPollution, boolean isArrayFormat, String secondValue) {
+            this.value = value;
+            this.expression = expression;
+            this.isParameterPollution = isParameterPollution;
+            this.isArrayFormat = isArrayFormat;
+            this.secondValue = secondValue;
+        }
+
+        public String getValue() { return value; }
+        public String getExpression() { return expression; }
+        public boolean isParameterPollution() { return isParameterPollution; }
+        public boolean isArrayFormat() { return isArrayFormat; }
+        public String getSecondValue() { return secondValue; }
     }
 
     /**
@@ -624,40 +736,50 @@ public class JsonLister {
     }
 
     /**
-     * 生成ID变体 - 修复版本，支持长整数
+     * 生成ID变体 - 修复版本，支持长整数和新的数组格式
      * @param originalIdStr 原始ID字符串
+     * @param paramName 参数名称
      * @return ID变体列表
      */
-    private List<String> generateIdVariants(String originalIdStr) {
-        List<String> variants = new ArrayList<>();
+    private List<IdVariant> generateIdVariants(String originalIdStr, String paramName) {
+        List<IdVariant> variants = new ArrayList<>();
 
         try {
             long originalId = Long.parseLong(originalIdStr);
 
             // 基本变体
-            variants.add("[]");
-            variants.add("null");
+            variants.add(new IdVariant("[]", paramName + "=[]", false, true, null));
+            variants.add(new IdVariant("null", paramName + "=null", false, false, null));
 
-            // 参数污染变体
-            variants.add("id=" + originalId + "&id=" + (originalId - 4));
-            variants.add("id=" + originalId + "&id=" + (originalId - 10));
-            variants.add("id=" + originalId + "&id=" + (originalId - 100));
+            // 整型的递减变体
+            variants.add(new IdVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), false, false, null));
+            variants.add(new IdVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), false, false, null));
+            variants.add(new IdVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), false, false, null));
+
+            // 参数污染变体 - 修复格式
+            variants.add(new IdVariant(originalIdStr, paramName + "=" + originalId + "&" + paramName + "=" + (originalId - 4), true, false, String.valueOf(originalId - 4)));
+            variants.add(new IdVariant(originalIdStr, paramName + "=" + originalId + "&" + paramName + "=" + (originalId - 10), true, false, String.valueOf(originalId - 10)));
+            variants.add(new IdVariant(originalIdStr, paramName + "=" + originalId + "&" + paramName + "=" + (originalId - 100), true, false, String.valueOf(originalId - 100)));
+
+            // 新增：数组格式变体 XXID=500 -> XXID=[500,496,490,400]
+            String arrayFormat = "[" + originalId + "," + (originalId - 4) + "," + (originalId - 10) + "," + (originalId - 100) + "]";
+            variants.add(new IdVariant(arrayFormat, paramName + "=" + arrayFormat, false, true, null));
 
             // 路径遍历变体
-            variants.add(originalId + "/../" + (originalId - 4));
-            variants.add(originalId + "/../" + (originalId - 10));
-            variants.add(originalId + "/../" + (originalId - 100));
+            variants.add(new IdVariant(originalId + "/../" + (originalId - 4), paramName + "=" + originalId + "/../" + (originalId - 4), false, false, null));
+            variants.add(new IdVariant(originalId + "/../" + (originalId - 10), paramName + "=" + originalId + "/../" + (originalId - 10), false, false, null));
+            variants.add(new IdVariant(originalId + "/../" + (originalId - 100), paramName + "=" + originalId + "/../" + (originalId - 100), false, false, null));
         } catch (NumberFormatException e) {
             // 如果不是数字，只添加基本变体
-            variants.add("[]");
-            variants.add("null");
+            variants.add(new IdVariant("[]", paramName + "=[]", false, true, null));
+            variants.add(new IdVariant("null", paramName + "=null", false, false, null));
         }
 
         return variants;
     }
 
     /**
-     * 生成JSON ID变体 - 修复版本，支持长整数
+     * 生成JSON ID变体 - 修复版本，支持长整数和新的数组格式
      * @param originalValue 原始值
      * @return JSON变体列表
      */
@@ -675,7 +797,7 @@ public class JsonLister {
             variants.add(JsonNodeFactory.instance.numberNode(id - 4));
             variants.add(JsonNodeFactory.instance.numberNode(id - 10));
             variants.add(JsonNodeFactory.instance.numberNode(id - 100));
-            // 数组变体
+            // 数组变体 [原值,递减4,递减10,递减100]
             ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
             arrayVariant1.add(id);
             arrayVariant1.add(id - 4);
@@ -700,12 +822,12 @@ public class JsonLister {
             variants.add(JsonNodeFactory.instance.numberNode(id - 10));
             variants.add(JsonNodeFactory.instance.numberNode(id - 100));
             // 数组变体
-            ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant1.add(id);
-            arrayVariant1.add(id - 4);
-            arrayVariant1.add(id - 10);
-            arrayVariant1.add(id - 100);
-            variants.add(arrayVariant1);
+            ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
+            arrayVariant2.add(id);
+            arrayVariant2.add(id - 4);
+            arrayVariant2.add(id - 10);
+            arrayVariant2.add(id - 100);
+            variants.add(arrayVariant2);
 
             // 路径遍历变体
             variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)));
@@ -725,12 +847,12 @@ public class JsonLister {
                 variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)));
                 variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)));
                 // 字符串数组变体
-                ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
-                arrayVariant1.add(idStr);
-                arrayVariant1.add(String.valueOf(id - 4));
-                arrayVariant1.add(String.valueOf(id - 10));
-                arrayVariant1.add(String.valueOf(id - 100));
-                variants.add(arrayVariant1);
+                ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
+                arrayVariant3.add(idStr);
+                arrayVariant3.add(String.valueOf(id - 4));
+                arrayVariant3.add(String.valueOf(id - 10));
+                arrayVariant3.add(String.valueOf(id - 100));
+                variants.add(arrayVariant3);
 
                 // 路径遍历变体
                 variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 4)));
