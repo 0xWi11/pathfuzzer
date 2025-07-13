@@ -141,16 +141,12 @@ public class ValueReplacer {
 
     }
 
-    // ValueReplacer.java 新增方法
-// ValueReplacer.java 修改后的 KnownTest 方法
     public void KnownTest(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) { // 在方法开始处添加检查
             return;
         }
 //        api.logging().logToOutput(" KnownTest testing!!!");
         try {
-            // 提取host，用于获取认证相关的header
-//            String host = extractHostFromRequest(originalRequest.url());
 
             // 遍历每个测试集
             for (KnownTestSets.TestSet testSet : KnownTestSets.TEST_SETS) {
