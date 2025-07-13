@@ -13,6 +13,7 @@ import pzfzr.config.ConfigManager;
 import pzfzr.config.KnownTestSets;
 import pzfzr.config.SwitchState;
 import pzfzr.fuzzer.JsonLister;
+import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.RouteFuzzer;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
@@ -40,6 +41,7 @@ public class ValueReplacer {
     private final CookieChanger cookieChanger; // 添加 CookieChanger
     private final JsonLister jsonLister; // 添加 JsonLister
     private final RouteFuzzer routeFuzzer;
+    private final ParamFuzzer paramFuzzer;
 
 
 
@@ -57,6 +59,9 @@ public class ValueReplacer {
         this.jsonLister = new JsonLister(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
 // 在 ValueReplacer 构造函数中
         this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter);
+
+        this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+
     }
 
     /**
@@ -118,7 +123,7 @@ public class ValueReplacer {
             }
 
             if (switchState.isSuspiciousSwitch()) {
-                SuspiciousTest(originalRequest, messageId, host);
+                paramFuzzer.processRequest(originalRequest, messageId, host);
             }
             if (switchState.isKnownSwitch()) {  // 新增
                 KnownTest(originalRequest, messageId, host);
@@ -138,7 +143,7 @@ public class ValueReplacer {
     }
 
     public void SuspiciousTest(HttpRequest originalRequest, int messageId, String host) {
-
+        paramFuzzer.processRequest(originalRequest, messageId, host);
     }
 
     public void KnownTest(HttpRequest originalRequest, int messageId, String host) {
