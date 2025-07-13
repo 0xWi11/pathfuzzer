@@ -57,8 +57,9 @@ public class ValueReplacer {
 
         // 初始化 JsonLister
         this.jsonLister = new JsonLister(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
-// 在 ValueReplacer 构造函数中
-        this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter);
+
+        // 在 ValueReplacer 构造函数中 - 修复：传入nextModifiedId
+        this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
 
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
 

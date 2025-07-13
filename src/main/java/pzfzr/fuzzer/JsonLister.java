@@ -95,6 +95,21 @@ public class JsonLister {
     }
 
     /**
+     * 检查字符串是否为JSON格式
+     */
+    private boolean isJsonFormat(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            objectMapper.readTree(text);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * 处理邮箱参数替换
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
@@ -107,8 +122,9 @@ public class JsonLister {
         try {
             // 处理Query参数中的邮箱
             processQueryEmailReplacements(originalRequest, messageId, host);
-            // 处理JSON参数中的邮箱
-            if (originalRequest.contentType() == ContentType.JSON) {
+            // 处理JSON参数中的邮箱 - 修改：不依赖Content-Type，直接检查body是否为JSON
+            String bodyString = originalRequest.bodyToString();
+            if (isJsonFormat(bodyString)) {
                 processJsonEmailReplacements(originalRequest, messageId, host);
             }
         } catch (Exception e) {
@@ -217,8 +233,9 @@ public class JsonLister {
             // 处理Query参数中的ID
             processQueryIdReplacements(originalRequest, messageId, host);
 
-            // 处理JSON参数中的ID
-            if (originalRequest.contentType() == ContentType.JSON) {
+            // 处理JSON参数中的ID - 修改：不依赖Content-Type，直接检查body是否为JSON
+            String bodyString = originalRequest.bodyToString();
+            if (isJsonFormat(bodyString)) {
                 processJsonIdReplacements(originalRequest, messageId, host);
             }
         } catch (Exception e) {

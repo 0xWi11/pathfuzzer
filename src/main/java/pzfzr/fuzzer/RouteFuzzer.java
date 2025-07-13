@@ -18,7 +18,7 @@ import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
 public class RouteFuzzer {
-    private final AtomicInteger nextModifiedId = new AtomicInteger(1);
+    private final AtomicInteger nextModifiedId; // 使用外部传入的nextModifiedId
     private final MontoyaApi api;
     private final TableModel tableModel;
     private volatile boolean isShuttingDown = false;
@@ -84,7 +84,7 @@ public class RouteFuzzer {
     );
 
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
-                       RateLimiter rateLimiter) {
+                       RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
         this.api = api;
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
@@ -92,6 +92,7 @@ public class RouteFuzzer {
         this.rateLimiter = rateLimiter;
         this.cookieChanger = CookieChanger.getInstance();
         this.requestDeduplicator = RequestDeduplicator.getInstance(this.logging);
+        this.nextModifiedId = nextModifiedId; // 接收外部传入的nextModifiedId
     }
 
     /**
