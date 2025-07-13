@@ -631,7 +631,6 @@ public class JsonLister {
      * @param idFields 结果映射
      */
     private void findIdFieldsRecursive(JsonNode node, String currentPath, Map<String, JsonNode> idFields) {
-        logging.logToOutput("Searching for ID fields at path: '" + currentPath + "', node type: " + node.getNodeType());
 
         if (node.isObject()) {
             Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
@@ -641,55 +640,39 @@ public class JsonLister {
                 JsonNode fieldValue = field.getValue();
                 String fieldPath = currentPath.isEmpty() ? fieldName : currentPath + "." + fieldName;
 
-                logging.logToOutput("  Examining field: " + fieldName + " at path: " + fieldPath + ", value type: " + fieldValue.getNodeType() + ", value: " + fieldValue);
 
                 // 检查是否为ID参数
                 boolean isIdParam = isIdParameter(fieldName);
-                logging.logToOutput("    -> isIdParameter('" + fieldName + "'): " + isIdParam);
 
                 if (isIdParam) {
-                    logging.logToOutput("    -> Field '" + fieldName + "' is ID parameter");
 
                     boolean isValidId = false;
                     if (fieldValue.isInt()) {
-                        logging.logToOutput("    -> Value is integer (32-bit): " + fieldValue.asInt());
                         isValidId = true;
                     } else if (fieldValue.isLong()) {
-                        logging.logToOutput("    -> Value is long integer (64-bit): " + fieldValue.asLong());
                         isValidId = true;
                     } else if (fieldValue.isTextual() && isNumericId(fieldValue.asText())) {
-                        logging.logToOutput("    -> Value is numeric string: " + fieldValue.asText());
                         isValidId = true;
                     } else if (fieldValue.isArray() && containsNumericIds(fieldValue)) {
-                        logging.logToOutput("    -> Value is array with numeric IDs");
                         isValidId = true;
-                    } else {
-                        logging.logToOutput("    -> Value is not valid ID format: " + fieldValue + " (type: " + fieldValue.getNodeType() + ")");
                     }
 
                     if (isValidId) {
-                        logging.logToOutput("    -> Adding ID field: " + fieldPath);
                         idFields.put(fieldPath, fieldValue);
                     }
-                } else {
-                    logging.logToOutput("    -> Field '" + fieldName + "' is NOT an ID parameter");
                 }
 
                 // 不管是否是ID字段，都要继续递归处理嵌套结构
                 if (fieldValue.isArray()) {
-                    logging.logToOutput("    -> Processing array field: " + fieldPath);
                     // 检查数组第一个元素是否为对象，如果是，递归查找其中的ID字段
                     if (fieldValue.size() > 0) {
                         JsonNode firstElement = fieldValue.get(0);
-                        logging.logToOutput("    -> Array first element type: " + firstElement.getNodeType());
                         if (firstElement.isObject()) {
                             String arrayFirstPath = fieldPath + "[0]";
-                            logging.logToOutput("    -> Recursing into array element: " + arrayFirstPath);
                             findIdFieldsRecursive(firstElement, arrayFirstPath, idFields);
                         }
                     }
                 } else if (fieldValue.isObject()) {
-                    logging.logToOutput("    -> Recursing into object field: " + fieldPath);
                     findIdFieldsRecursive(fieldValue, fieldPath, idFields);
                 }
             }
@@ -915,16 +898,13 @@ public class JsonLister {
      * @param value 新值
      */
     private void setFieldValue(ObjectNode node, String path, JsonNode value) {
-        logging.logToOutput("Setting field value for path: " + path + " to value: " + value);
 
         String[] pathParts = path.split("\\.");
-        logging.logToOutput("Path parts: " + Arrays.toString(pathParts));
 
         JsonNode current = node;
 
         for (int i = 0; i < pathParts.length - 1; i++) {
             String part = pathParts[i];
-            logging.logToOutput("Processing path part " + i + ": " + part);
 
             // 检查是否包含数组索引
             if (part.contains("[") && part.contains("]")) {
@@ -932,37 +912,26 @@ public class JsonLister {
                 String indexStr = part.substring(part.indexOf("[") + 1, part.indexOf("]"));
                 int index = Integer.parseInt(indexStr);
 
-                logging.logToOutput("  Array access: field=" + fieldName + ", index=" + index);
 
                 current = current.get(fieldName);
                 if (current != null && current.isArray() && index < current.size()) {
                     current = current.get(index);
-                    logging.logToOutput("  Successfully accessed array element: " + current.getNodeType());
                 } else {
-                    logging.logToOutput("  Failed to access array element: current=" + current + ", isArray=" + (current != null && current.isArray()) + ", size=" + (current != null && current.isArray() ? current.size() : "N/A"));
                     return;
                 }
             } else {
-                logging.logToOutput("  Object field access: " + part);
                 current = current.get(part);
                 if (current == null) {
-                    logging.logToOutput("  Failed to access field: " + part);
                     return;
-                } else {
-                    logging.logToOutput("  Successfully accessed field: " + current.getNodeType());
                 }
             }
         }
 
         // 处理最后一个路径部分
         String lastPart = pathParts[pathParts.length - 1];
-        logging.logToOutput("Setting final field: " + lastPart + " on node type: " + current.getNodeType());
 
         if (current instanceof ObjectNode) {
             ((ObjectNode) current).set(lastPart, value);
-            logging.logToOutput("Successfully set field value");
-        } else {
-            logging.logToOutput("Cannot set field - current node is not ObjectNode: " + current.getClass());
         }
     }
 
