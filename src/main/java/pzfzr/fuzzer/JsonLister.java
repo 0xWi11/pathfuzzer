@@ -163,8 +163,8 @@ public class JsonLister {
                     HttpParameter newParam = HttpParameter.parameter(param.name(), ATTACKER_EMAIL, HttpParameterType.URL);
                     HttpRequest modifiedRequest = originalRequest.withAddedParameters(newParam);
 
-                    // 生成 expression
-                    String expression = param.name() + "=" + TARGET_EMAIL + "&" + param.name() + "=" + ATTACKER_EMAIL;
+                    // 生成 expression - 仅包含新增的污染参数
+                    String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
                     sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_QUERY", expression);
                 }
@@ -198,8 +198,8 @@ public class JsonLister {
                     HttpParameter newParam = HttpParameter.parameter(param.name(), ATTACKER_EMAIL, HttpParameterType.BODY);
                     HttpRequest modifiedRequest = originalRequest.withAddedParameters(newParam);
 
-                    // 生成 expression
-                    String expression = param.name() + "=" + TARGET_EMAIL + "&" + param.name() + "=" + ATTACKER_EMAIL;
+                    // 生成 expression - 仅包含新增的污染参数
+                    String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
                     sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_BODY", expression);
                 }
@@ -756,10 +756,10 @@ public class JsonLister {
             variants.add(new IdVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), false, false, null));
             variants.add(new IdVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), false, false, null));
 
-            // 参数污染变体 - 修复格式
-            variants.add(new IdVariant(originalIdStr, paramName + "=" + originalId + "&" + paramName + "=" + (originalId - 4), true, false, String.valueOf(originalId - 4)));
-            variants.add(new IdVariant(originalIdStr, paramName + "=" + originalId + "&" + paramName + "=" + (originalId - 10), true, false, String.valueOf(originalId - 10)));
-            variants.add(new IdVariant(originalIdStr, paramName + "=" + originalId + "&" + paramName + "=" + (originalId - 100), true, false, String.valueOf(originalId - 100)));
+            // 参数污染变体 - 修改为仅包含新增的污染参数
+            variants.add(new IdVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), true, false, String.valueOf(originalId - 4)));
+            variants.add(new IdVariant(originalIdStr, "&" + paramName + "=" + (originalId - 10), true, false, String.valueOf(originalId - 10)));
+            variants.add(new IdVariant(originalIdStr, "&" + paramName + "=" + (originalId - 100), true, false, String.valueOf(originalId - 100)));
 
             // 新增：数组格式变体 XXID=500 -> XXID=[500,496,490,400]
             String arrayFormat = "[" + originalId + "," + (originalId - 4) + "," + (originalId - 10) + "," + (originalId - 100) + "]";
