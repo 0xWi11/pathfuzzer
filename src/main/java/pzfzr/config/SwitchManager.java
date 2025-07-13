@@ -2,9 +2,9 @@ package pzfzr.config;
 
 public class SwitchManager {
     private boolean masterSwitch;
-    private boolean builtInSwitch;
-    private boolean collectedSwitch;
-    private boolean suspiciousSwitch;
+    private boolean jsonListerSwitch;
+    private boolean routefuzzerSwitch;
+    private boolean paramfuzzerSwitch;
     private boolean knownSwitch;  // 新增
 
 
@@ -14,9 +14,9 @@ public class SwitchManager {
     private SwitchManager() {
         // 默认值设置
         this.masterSwitch = true;
-        this.builtInSwitch = false;
-        this.collectedSwitch = false;
-        this.suspiciousSwitch = false;
+        this.jsonListerSwitch = false;
+        this.routefuzzerSwitch = false;
+        this.paramfuzzerSwitch = false;
         this.knownSwitch = false;  // 新增
 
     }
@@ -37,28 +37,28 @@ public class SwitchManager {
         this.masterSwitch = masterSwitch;
     }
 
-    public boolean isBuiltInSwitch() {
-        return builtInSwitch;
+    public boolean isJsonListerSwitch() {
+        return jsonListerSwitch;
     }
 
-    public void setBuiltInSwitch(boolean builtInSwitch) {
-        this.builtInSwitch = builtInSwitch;
+    public void setJsonListerSwitch(boolean jsonListerSwitch) {
+        this.jsonListerSwitch = jsonListerSwitch;
     }
 
-    public boolean isCollectedSwitch() {
-        return collectedSwitch;
+    public boolean isRoutefuzzerSwitch() {
+        return routefuzzerSwitch;
     }
 
-    public void setCollectedSwitch(boolean collectedSwitch) {
-        this.collectedSwitch = collectedSwitch;
+    public void setRoutefuzzerSwitch(boolean routefuzzerSwitch) {
+        this.routefuzzerSwitch = routefuzzerSwitch;
     }
 
-    public boolean isSuspiciousSwitch() {
-        return suspiciousSwitch;
+    public boolean isParamfuzzerSwitch() {
+        return paramfuzzerSwitch;
     }
 
-    public void setSuspiciousSwitch(boolean suspiciousSwitch) {
-        this.suspiciousSwitch = suspiciousSwitch;
+    public void setParamfuzzerSwitch(boolean paramfuzzerSwitch) {
+        this.paramfuzzerSwitch = paramfuzzerSwitch;
     }
     public boolean isKnownSwitch() {
         return knownSwitch;
@@ -71,9 +71,9 @@ public class SwitchManager {
     public SwitchState getCurrentState() {
         return new SwitchState(
                 masterSwitch,
-                builtInSwitch,
-                collectedSwitch,
-                suspiciousSwitch,
+                jsonListerSwitch,
+                routefuzzerSwitch,
+                paramfuzzerSwitch,
                 knownSwitch  // 新增
         );
     }

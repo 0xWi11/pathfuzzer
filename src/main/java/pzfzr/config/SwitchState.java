@@ -2,19 +2,19 @@ package pzfzr.config;
 
 public class SwitchState {
     private final boolean masterSwitch;
-    private final boolean builtInSwitch;
-    private final boolean collectedSwitch;
-    private final boolean suspiciousSwitch;
+    private final boolean jsonlisterSwitch;
+    private final boolean routefuzzerSwitch;
+    private final boolean paramfuzzerSwitch;
     private final boolean knownSwitch;  // 新增
 
 
-    public SwitchState(boolean masterSwitch, boolean builtInSwitch,
-                       boolean collectedSwitch, boolean suspiciousSwitch,
+    public SwitchState(boolean masterSwitch, boolean jsonlisterSwitch,
+                       boolean routefuzzerSwitch, boolean paramfuzzerSwitch,
                        boolean knownSwitch) {  // 新增参数
         this.masterSwitch = masterSwitch;
-        this.builtInSwitch = builtInSwitch;
-        this.collectedSwitch = collectedSwitch;
-        this.suspiciousSwitch = suspiciousSwitch;
+        this.jsonlisterSwitch = jsonlisterSwitch;
+        this.routefuzzerSwitch = routefuzzerSwitch;
+        this.paramfuzzerSwitch = paramfuzzerSwitch;
         this.knownSwitch = knownSwitch;  // 新增
     }
 
@@ -22,16 +22,16 @@ public class SwitchState {
         return masterSwitch;
     }
 
-    public boolean isBuiltInSwitch() {
-        return builtInSwitch;
+    public boolean isJsonlisterSwitch() {
+        return jsonlisterSwitch;
     }
 
-    public boolean isCollectedSwitch() {
-        return collectedSwitch;
+    public boolean isRoutefuzzerSwitch() {
+        return routefuzzerSwitch;
     }
 
-    public boolean isSuspiciousSwitch() {
-        return suspiciousSwitch;
+    public boolean isParamfuzzerSwitch() {
+        return paramfuzzerSwitch;
     }
     public boolean isKnownSwitch() {
         return knownSwitch;

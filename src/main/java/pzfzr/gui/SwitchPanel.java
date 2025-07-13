@@ -19,7 +19,7 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox builtInSwitch;
     private final JCheckBox collectedSwitch;
     private final JCheckBox suspiciousSwitch;
-    private final JCheckBox knownSwitch;
+//    private final JCheckBox knownSwitch;
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
@@ -57,28 +57,28 @@ public class SwitchPanel extends JPanel {
         switchesPanel.setLayout(new BoxLayout(switchesPanel, BoxLayout.Y_AXIS));
 
         // 创建开关
-        masterSwitch = createSwitch("Header替换总开关",
+        masterSwitch = createSwitch("请求总开关",
                 switchManager.isMasterSwitch(),
                 selected -> {
                     switchManager.setMasterSwitch(selected);
                     updateSwitchStates();
                 });
 
-        builtInSwitch = createSwitch("自带Header测试开关",
-                switchManager.isBuiltInSwitch(),
-                selected -> switchManager.setBuiltInSwitch(selected));
+        builtInSwitch = createSwitch("JsonLister 测试开关",
+                switchManager.isJsonListerSwitch(),
+                selected -> switchManager.setJsonListerSwitch(selected));
 
-        collectedSwitch = createSwitch("Collected List测试开关",
-                switchManager.isCollectedSwitch(),
-                selected -> switchManager.setCollectedSwitch(selected));
+        collectedSwitch = createSwitch("RouteFuzzer 测试开关",
+                switchManager.isRoutefuzzerSwitch(),
+                selected -> switchManager.setRoutefuzzerSwitch(selected));
 
-        suspiciousSwitch = createSwitch("Suspicious List测试开关",
-                switchManager.isSuspiciousSwitch(),
-                selected -> switchManager.setSuspiciousSwitch(selected));
+        suspiciousSwitch = createSwitch("ParamFuzzer 测试开关",
+                switchManager.isParamfuzzerSwitch(),
+                selected -> switchManager.setParamfuzzerSwitch(selected));
 
-        knownSwitch = createSwitch("Known List测试开关",
-                switchManager.isKnownSwitch(),
-                selected -> switchManager.setKnownSwitch(selected));
+//        knownSwitch = createSwitch("k 测试开关",
+//                switchManager.isKnownSwitch(),
+//                selected -> switchManager.setKnownSwitch(selected));
 
         // 创建清除哈希按钮
         clearHashesButton = new JButton("清除URL缓存");
@@ -201,7 +201,7 @@ public class SwitchPanel extends JPanel {
         // 添加三行到主面板
         globalRateLimitPanel.add(firstRowPanel);
         globalRateLimitPanel.add(secondRowPanel);
-        globalRateLimitPanel.add(thirdRowPanel);
+//        globalRateLimitPanel.add(thirdRowPanel);
         globalRateLimitPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // 创建设置URL速率限制的UI元素
@@ -309,8 +309,8 @@ public class SwitchPanel extends JPanel {
         switchesPanel.add(collectedSwitch);
         switchesPanel.add(Box.createVerticalStrut(5));
         switchesPanel.add(suspiciousSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(knownSwitch);
+//        switchesPanel.add(Box.createVerticalStrut(5));
+//        switchesPanel.add(knownSwitch);
         switchesPanel.add(Box.createVerticalStrut(10));
         switchesPanel.add(buttonsContainer); // 添加新的按钮布局容器
         switchesPanel.add(Box.createVerticalStrut(10));
@@ -336,7 +336,7 @@ public class SwitchPanel extends JPanel {
         builtInSwitch.setEnabled(masterState);
         collectedSwitch.setEnabled(masterState);
         suspiciousSwitch.setEnabled(masterState);
-        knownSwitch.setEnabled(masterState);
+//        knownSwitch.setEnabled(masterState);
     }
 
     // 修正计算请求数的方法

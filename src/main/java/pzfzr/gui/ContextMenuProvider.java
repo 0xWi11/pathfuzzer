@@ -77,12 +77,12 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             if (originalReqRes != null && originalReqRes.response() != null) {
                                 original.setOriginalResponse(originalReqRes.response());
                             }
-                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
-                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
+//                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
+//                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        SwitchState allEnabledState = new SwitchState(true,true, true, true, true);
+                        SwitchState allEnabledState = new SwitchState(true,true, true, true, false);
                         valueReplacer.unifiedTest(requestResponse.request(), allEnabledState, original.getMessageId());
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
@@ -112,8 +112,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             if (originalReqRes != null && originalReqRes.response() != null) {
                                 original.setOriginalResponse(originalReqRes.response());
                             }
-                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
-                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
+//                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
+//                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
@@ -148,8 +148,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             if (originalReqRes != null && originalReqRes.response() != null) {
                                 original.setOriginalResponse(originalReqRes.response());
                             }
-                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
-                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
+//                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
+//                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
@@ -165,7 +165,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             });
         });
 
-        JMenuItem suspiciousTest = new JMenuItem("Run Suspicious Test Only");
+        JMenuItem suspiciousTest = new JMenuItem("Run ParamFuzzer Test");
         suspiciousTest.addActionListener(e -> {
             executor.submit(() -> {
                 try {
@@ -184,12 +184,12 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             if (originalReqRes != null && originalReqRes.response() != null) {
                                 original.setOriginalResponse(originalReqRes.response());
                             }
-                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
-                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
+//                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
+//                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        valueReplacer.SuspiciousTest(requestResponse.request(),
+                        valueReplacer.ParamFuzzerTest(requestResponse.request(),
                                 original.getMessageId(),
                                 valueReplacer.extractHostFromRequest(requestResponse.request().url()));
                     } else {
@@ -203,38 +203,38 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
         JMenuItem knownTest = new JMenuItem("Run Known Test Only");
         knownTest.addActionListener(e -> {
-            executor.submit(() -> {
-                try {
-                    int messageId = messageIdGenerator.getAndIncrement();
-                    OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
-                                    requestResponse.request().method(),
-                                    requestResponse.request().url(),
-                                    messageId,
-                                    requestResponseSaver, api.logging())
-                            ,messageId);
-
-                    // 添加异常捕获
-                    if (original != null) {
-                        try {
-                            HttpRequestResponse originalReqRes = api.http().sendRequest(requestResponse.request());
-                            if (originalReqRes != null && originalReqRes.response() != null) {
-                                original.setOriginalResponse(originalReqRes.response());
-                            }
-                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
-                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
-                        } catch (Exception ex) {
-                            api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
-                        }
-                        valueReplacer.KnownTest(requestResponse.request(),
-                                original.getMessageId(),
-                                valueReplacer.extractHostFromRequest(requestResponse.request().url()));
-                    } else {
-                        api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
-                    }
-                } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running known test: " + ex.getMessage());
-                }
-            });
+//            executor.submit(() -> {
+//                try {
+//                    int messageId = messageIdGenerator.getAndIncrement();
+//                    OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
+//                                    requestResponse.request().method(),
+//                                    requestResponse.request().url(),
+//                                    messageId,
+//                                    requestResponseSaver, api.logging())
+//                            ,messageId);
+//
+//                    // 添加异常捕获
+//                    if (original != null) {
+//                        try {
+//                            HttpRequestResponse originalReqRes = api.http().sendRequest(requestResponse.request());
+//                            if (originalReqRes != null && originalReqRes.response() != null) {
+//                                original.setOriginalResponse(originalReqRes.response());
+//                            }
+//                            valueReplacer.collectRequestHeaders(requestResponse.request().headers());
+//                            valueReplacer.collectResponseHeaders(requestResponse.response().headers());
+//                        } catch (Exception ex) {
+//                            api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
+//                        }
+//                        valueReplacer.KnownTest(requestResponse.request(),
+//                                original.getMessageId(),
+//                                valueReplacer.extractHostFromRequest(requestResponse.request().url()));
+//                    } else {
+//                        api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
+//                    }
+//                } catch (Exception ex) {
+//                    api.logging().logToError("[ContextMenuProvider] Error running known test: " + ex.getMessage());
+//                }
+//            });
         });
 
         // 添加菜单项到子菜单
@@ -243,7 +243,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         headerIntruderMenu.add(protoTest);
         headerIntruderMenu.add(collectedTest);
         headerIntruderMenu.add(suspiciousTest);
-        headerIntruderMenu.add(knownTest);  // 添加 Known Test 菜单项
+//        headerIntruderMenu.add(knownTest);  // 添加 Known Test 菜单项
 
 
         // 添加子菜单到列表

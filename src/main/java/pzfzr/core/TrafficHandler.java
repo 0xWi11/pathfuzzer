@@ -99,7 +99,7 @@ public class TrafficHandler implements HttpHandler {
         if (!switchManager.isMasterSwitch()) {
             return RequestToBeSentAction.continueWith(requestToBeSent);
         }
-        valueReplacer.collectRequestHeaders(requestToBeSent.headers());
+//        valueReplacer.collectRequestHeaders(requestToBeSent.headers());
         // 检查主开关状态
         if (configManager.shouldFilter(requestToBeSent.withBody(""))) {
             return RequestToBeSentAction.continueWith(requestToBeSent);
@@ -143,7 +143,7 @@ public class TrafficHandler implements HttpHandler {
         if (!switchManager.isMasterSwitch()) {
             return ResponseReceivedAction.continueWith(responseReceived);
         }
-        valueReplacer.collectResponseHeaders(responseReceived.headers());
+//        valueReplacer.collectResponseHeaders(responseReceived.headers());
 
         if (configManager.shouldFilter(responseReceived.initiatingRequest())) {
             return ResponseReceivedAction.continueWith(responseReceived);

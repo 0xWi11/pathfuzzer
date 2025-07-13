@@ -23,11 +23,11 @@ public class SettingsPanel extends JPanel {
 
         // 创建底部面板
         listTabPane = new JTabbedPane();
-        listTabPane.addTab("Payload List", new ListPanel("Payload List", ConfigChangeType.PAYLOAD, true));
-        listTabPane.addTab("Collected List", new ListPanel("Collected List", ConfigChangeType.COLLECTED, true));
-        listTabPane.addTab("Suspicious List", new ListPanel("Suspicious List", ConfigChangeType.SUSPICIOUS, true));
-        listTabPane.addTab("Black List", new ListPanel("Black List", ConfigChangeType.BLACKLIST, true));
-        listTabPane.addTab("Remove List", new ListPanel("Remove List", ConfigChangeType.REMOVE, true));
+//        listTabPane.addTab("Payload List", new ListPanel("Payload List", ConfigChangeType.PAYLOAD, true));
+//        listTabPane.addTab("Collected List", new ListPanel("Collected List", ConfigChangeType.COLLECTED, true));
+//        listTabPane.addTab("Suspicious List", new ListPanel("Suspicious List", ConfigChangeType.SUSPICIOUS, true));
+//        listTabPane.addTab("Black List", new ListPanel("Black List", ConfigChangeType.BLACKLIST, true));
+//        listTabPane.addTab("Remove List", new ListPanel("Remove List", ConfigChangeType.REMOVE, true));
         listTabPane.addTab("Intercept Filter", new RequestFilterPanel(configManager));
 
         // 使用JSplitPane分割上下两个部分

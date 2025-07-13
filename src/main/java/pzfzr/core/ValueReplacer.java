@@ -97,17 +97,17 @@ public class ValueReplacer {
         return url;
     }
 
-    public void collectRequestHeaders(List<HttpHeader> headers) {
-        collectHeaders(headers, "request");
-    }
-
-    public void collectResponseHeaders(List<HttpHeader> headers) {
-        collectHeaders(headers, "response");
-    }
-
-    private void collectHeaders(List<HttpHeader> headers, String headerSource) {
-
-    }
+//    public void collectRequestHeaders(List<HttpHeader> headers) {
+//        collectHeaders(headers, "request");
+//    }
+//
+//    public void collectResponseHeaders(List<HttpHeader> headers) {
+//        collectHeaders(headers, "response");
+//    }
+//
+//    private void collectHeaders(List<HttpHeader> headers, String headerSource) {
+//
+//    }
 
     public void unifiedTest(HttpRequest originalRequest, SwitchState switchState, int messageId) {
         if (isShuttingDown) {
@@ -115,19 +115,19 @@ public class ValueReplacer {
         }
         String host = extractHostFromRequest(originalRequest.url());
         try {
-            if (switchState.isBuiltInSwitch()) {
+            if (switchState.isJsonlisterSwitch()) {
                 jsonLister.processRequest(originalRequest, messageId, host);
             }
 
-            if (switchState.isCollectedSwitch()) {
+            if (switchState.isRoutefuzzerSwitch()) {
                 routeFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            if (switchState.isSuspiciousSwitch()) {
+            if (switchState.isParamfuzzerSwitch()) {
                 paramFuzzer.processRequest(originalRequest, messageId, host);
             }
             if (switchState.isKnownSwitch()) {  // 新增
-                KnownTest(originalRequest, messageId, host);
+//                KnownTest(originalRequest, messageId, host);
             }
             host = null;
         } catch (Exception e) {
@@ -143,7 +143,7 @@ public class ValueReplacer {
         routeFuzzer.processRequestWithoutDeduplication(originalRequest, messageId, host);
     }
 
-    public void SuspiciousTest(HttpRequest originalRequest, int messageId, String host) {
+    public void ParamFuzzerTest(HttpRequest originalRequest, int messageId, String host) {
         paramFuzzer.processRequest(originalRequest, messageId, host);
     }
 
