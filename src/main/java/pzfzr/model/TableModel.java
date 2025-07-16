@@ -60,13 +60,13 @@ public class TableModel extends AbstractTableModel {
             return c;
         }
     }
-    // Create a custom renderer for the status code column
+    // 为状态码列创建自定义渲染器
     public static class StatusCodeCellRenderer extends DefaultTableCellRenderer {
-        // Map to store status codes and their corresponding colors
+        // 存储状态码及其对应颜色的映射表
         private static final Map<Integer, Color> STATUS_COLORS = new HashMap<>();
 
         static {
-            // Initialize the color map based on the provided status code definitions
+            // 根据提供的状态码定义初始化颜色映射表
             STATUS_COLORS.put(200, new Color(198, 255, 221)); // #C6FFDD 淡薄荷绿
             STATUS_COLORS.put(201, new Color(213, 251, 232)); // #D5FBE8 极浅薄荷
             STATUS_COLORS.put(204, new Color(230, 255, 238)); // #E6FFEE 近白薄荷
@@ -93,22 +93,22 @@ public class TableModel extends AbstractTableModel {
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-            // If the cell is selected, keep the selection color
+            // 如果单元格被选中，保持选中颜色
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
                 return c;
             }
 
-            // Otherwise, set background color based on status code
+            // 否则，根据状态码设置背景颜色
             try {
                 if (value != null && !value.toString().equals("Pending")) {
                     int statusCode = Integer.parseInt(value.toString());
 
-                    // Get color for the specific status code, or get color for status code family (e.g., 404 -> 400)
+                    // 获取特定状态码的颜色，或获取状态码家族的颜色（例如 404 -> 400）
                     Color color = STATUS_COLORS.get(statusCode);
                     if (color == null && statusCode > 0) {
-                        // Try to get the family color (first digit followed by two zeros)
+                        // 尝试获取家族颜色（第一位数字后跟两个零）
                         int statusFamily = (statusCode / 100) * 100;
                         color = STATUS_COLORS.get(statusFamily);
                     }
@@ -116,11 +116,11 @@ public class TableModel extends AbstractTableModel {
                     if (color != null) {
                         c.setBackground(color);
                     } else {
-                        // Default to unknown status color if no match
+                        // 如果没有匹配项，默认使用未知状态颜色
                         c.setBackground(STATUS_COLORS.get(0));
                     }
                 } else {
-                    // For "Pending" or null values
+                    // 对于"Pending"或null值
                     if (row % 2 == 0) {
                         c.setBackground(table.getBackground());
                     } else {
@@ -128,7 +128,7 @@ public class TableModel extends AbstractTableModel {
                     }
                 }
             } catch (NumberFormatException e) {
-                // For non-numeric values, use default row background
+                // 对于非数字值，使用默认行背景
                 if (row % 2 == 0) {
                     c.setBackground(table.getBackground());
                 } else {
@@ -139,12 +139,12 @@ public class TableModel extends AbstractTableModel {
             return c;
         }
     }
-    // Create a custom renderer for the response time column
+    // 为响应时间列创建自定义渲染器
     public static class TimeCellRenderer extends DefaultTableCellRenderer {
-        // Define colors for different time thresholds
-        private static final Color DEFAULT_COLOR = null; // Use default table color
-        private static final Color LIGHT_GRAY = new Color(230, 230, 230); // #E6E6E6 - Light gray for > 1000ms
-        private static final Color MEDIUM_GRAY = new Color(211, 211, 211); // #D3D3D3 - Medium gray for > 7000ms
+        // 为不同时间阈值定义颜色
+        private static final Color DEFAULT_COLOR = null; // 使用默认表格颜色
+        private static final Color LIGHT_GRAY = new Color(230, 230, 230); // #E6E6E6 - 超过1000ms的浅灰色
+        private static final Color MEDIUM_GRAY = new Color(211, 211, 211); // #D3D3D3 - 超过7000ms的中灰色
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
@@ -152,14 +152,14 @@ public class TableModel extends AbstractTableModel {
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-            // If the cell is selected, keep the selection color
+            // 如果单元格被选中，保持选中颜色
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
                 return c;
             }
 
-            // Set background color based on response time
+            // 根据响应时间设置背景颜色
             try {
                 if (value != null) {
                     int responseTime = Integer.parseInt(value.toString());
@@ -169,7 +169,7 @@ public class TableModel extends AbstractTableModel {
                     } else if (responseTime > 1000) {
                         c.setBackground(LIGHT_GRAY);
                     } else {
-                        // For response times < 1000, use default row background (alternating rows)
+                        // 对于响应时间 < 1000，使用默认行背景（交替行）
                         if (row % 2 == 0) {
                             c.setBackground(table.getBackground());
                         } else {
@@ -177,7 +177,7 @@ public class TableModel extends AbstractTableModel {
                         }
                     }
                 } else {
-                    // For null values, use default row background
+                    // 对于null值，使用默认行背景
                     if (row % 2 == 0) {
                         c.setBackground(table.getBackground());
                     } else {
@@ -185,7 +185,7 @@ public class TableModel extends AbstractTableModel {
                     }
                 }
             } catch (NumberFormatException e) {
-                // For non-numeric values, use default row background
+                // 对于非数字值，使用默认行背景
                 if (row % 2 == 0) {
                     c.setBackground(table.getBackground());
                 } else {
@@ -386,16 +386,16 @@ public class TableModel extends AbstractTableModel {
         }
         table.setRowSorter(sorter);
     }
-    // Update the setupTableRenderers method to include the new renderer
+    // 更新setupTableRenderers方法以包含新的渲染器
     public void setupTableRenderers(JTable table) {
         // 更新各列的索引（向后移动2位）
-        // Set the existing ReflectCellRenderer for the "Reflect" column (index 11, 原来是9)
+        // 为"Reflect"列（索引11，原来是9）设置现有的ReflectCellRenderer
         table.getColumnModel().getColumn(11).setCellRenderer(new ReflectCellRenderer());
 
-        // Set the StatusCodeCellRenderer for the "Modif. Status" column (index 8, 原来是6)
+        // 为"Modif. Status"列（索引8，原来是6）设置StatusCodeCellRenderer
         table.getColumnModel().getColumn(8).setCellRenderer(new StatusCodeCellRenderer());
 
-        // Set the new TimeCellRenderer for the "Modif. Time" column (index 10, 原来是8)
+        // 为"Modif. Time"列（索引10，原来是8）设置新的TimeCellRenderer
         table.getColumnModel().getColumn(10).setCellRenderer(new TimeCellRenderer());
     }
     public ModifiedRequestResponse getModifiedEntry(int row) {
