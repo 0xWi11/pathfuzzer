@@ -1,5 +1,4 @@
 package pzfzr.model;
-
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
 import java.io.Serializable;
@@ -11,20 +10,26 @@ public class ModifiedRequestResponse implements Serializable {
     private final int id;
     private final Integer originalMessageId;
     private final String testType;
-    private final String expression; // 新增字段：存储变体修改的参数表达式
+    private final String expression; // 存储变体修改的参数表达式
+    private final String payloadAlias; // 新增字段：payload别名
+    private final String testParameterName; // 新增字段：当前测试参数的名称
     private int StatusCode = -1;
     private int ModifiedBodyLength = -1;
     private long ResponseTime = -1;
     private String ReflectType = null;
     private final Logging logging;
 
-    // 修改构造函数，添加 expression 参数
+    // 修改构造函数，添加 payloadAlias 和 testParameterName 参数
     public ModifiedRequestResponse(int id, Integer originalMessageId,
-                                   String testType, String expression, RequestResponseSaver requestResponseSaver, Logging logging) {
+                                   String testType, String expression,
+                                   String payloadAlias, String testParameterName,
+                                   RequestResponseSaver requestResponseSaver, Logging logging) {
         this.id = id;
         this.originalMessageId = originalMessageId;
         this.testType = testType;
         this.expression = expression;
+        this.payloadAlias = payloadAlias;
+        this.testParameterName = testParameterName;
         this.requestResponseSaver = requestResponseSaver;
         this.logging = logging;
     }
@@ -79,13 +84,23 @@ public class ModifiedRequestResponse implements Serializable {
 
     public String getTestType() { return testType; }
 
-    // 新增方法：获取 expression
+    // 获取 expression
     public String getExpression() {
         return expression;
     }
 
-    // 新增方法：设置 ModifiedResponse 并异步计算元数据
-    public void setModifiedResponseAndCalculateMetadata(Short StatusCode ,int ModifiedBodyLength, String ReflectType, long responseTime) {
+    // 新增方法：获取 payloadAlias
+    public String getPayloadAlias() {
+        return payloadAlias;
+    }
+
+    // 新增方法：获取 testParameterName
+    public String getTestParameterName() {
+        return testParameterName;
+    }
+
+    // 设置 ModifiedResponse 并异步计算元数据
+    public void setModifiedResponseAndCalculateMetadata(Short StatusCode, int ModifiedBodyLength, String ReflectType, long responseTime) {
         this.StatusCode = StatusCode;//response.statusCode();
         this.ModifiedBodyLength = ModifiedBodyLength;
         this.ResponseTime = responseTime;
@@ -94,6 +109,5 @@ public class ModifiedRequestResponse implements Serializable {
 
     // 添加资源清理方法，关闭线程池
     public void cleanup() {
-
     }
 }

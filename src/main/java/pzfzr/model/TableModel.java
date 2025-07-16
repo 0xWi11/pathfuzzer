@@ -27,6 +27,8 @@ public class TableModel extends AbstractTableModel {
             "Method",
             "URL",
             "Test Type",
+            "Param",        // 新增: testParameterName
+            "Payload",      // 新增: payloadAlias
             "Orig. Len",
             "Modif. Len",
             "Modif. Status",
@@ -320,15 +322,23 @@ public class TableModel extends AbstractTableModel {
                 case 3:
                     return modifiedEntry.getTestType();
                 case 4:
+                    // 新增: 显示 testParameterName
+                    return modifiedEntry.getTestParameterName() != null ?
+                            modifiedEntry.getTestParameterName() : "";
+                case 5:
+                    // 新增: 显示 payloadAlias
+                    return modifiedEntry.getPayloadAlias() != null ?
+                            modifiedEntry.getPayloadAlias() : "";
+                case 6:
                     return originalEntry != null && originalEntry.getOriginalResponseLen() != -1 ?
                             originalEntry.getOriginalResponseLen() : "Pending";
-                case 5:
+                case 7:
                     return modifiedEntry.getModifiedBodyLength() != -1 ? //  直接获取缓存值
                             modifiedEntry.getModifiedBodyLength() : "Pending";
-                case 6:
+                case 8:
                     return modifiedEntry.getStatusCode() != -1 ? // 直接获取缓存值
                             modifiedEntry.getStatusCode() : "Pending";
-                case 7:
+                case 9:
                     // 计算长度差异 (UI 线程计算，简单操作)
                     if (originalEntry != null && originalEntry.getOriginalResponseLen() != -1 &&
                             modifiedEntry.getModifiedBodyLength() != -1) { // 直接获取缓存值
@@ -337,9 +347,9 @@ public class TableModel extends AbstractTableModel {
                         return Math.abs(modifyLen - origLen);
                     }
                     return "Pending";
-                case 8:
+                case 10:
                     return modifiedEntry.getResponseTime(); // 直接获取缓存值
-                case 9:
+                case 11:
                     return modifiedEntry.getReflectType(); // 直接获取缓存值
                 default:
                     return null;
@@ -352,14 +362,15 @@ public class TableModel extends AbstractTableModel {
     public void setupSorter(JTable table) {
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(this);
 
-        sorter.setComparator(9, (Comparator<Object>) (o1, o2) -> {
+        // 更新 Reflect 列的索引从 9 改为 11
+        sorter.setComparator(11, (Comparator<Object>) (o1, o2) -> {
             if (o1 == null && o2 == null) return 0;
             if (o1 == null) return -1;
             if (o2 == null) return 1;
             return o1.toString().compareTo(o2.toString());
         });
         for (int i = 0; i < getColumnCount(); i++) {
-            if (i != 9) {
+            if (i != 11) { // 更新索引从 9 改为 11
                 final int column = i;
                 sorter.setComparator(column, (Comparator<Object>) (o1, o2) -> {
                     if (o1 == null && o2 == null) return 0;
@@ -377,14 +388,15 @@ public class TableModel extends AbstractTableModel {
     }
     // Update the setupTableRenderers method to include the new renderer
     public void setupTableRenderers(JTable table) {
-        // Set the existing ReflectCellRenderer for the "Reflect" column (index 9)
-        table.getColumnModel().getColumn(9).setCellRenderer(new ReflectCellRenderer());
+        // 更新各列的索引（向后移动2位）
+        // Set the existing ReflectCellRenderer for the "Reflect" column (index 11, 原来是9)
+        table.getColumnModel().getColumn(11).setCellRenderer(new ReflectCellRenderer());
 
-        // Set the StatusCodeCellRenderer for the "Modif. Status" column (index 6)
-        table.getColumnModel().getColumn(6).setCellRenderer(new StatusCodeCellRenderer());
+        // Set the StatusCodeCellRenderer for the "Modif. Status" column (index 8, 原来是6)
+        table.getColumnModel().getColumn(8).setCellRenderer(new StatusCodeCellRenderer());
 
-        // Set the new TimeCellRenderer for the "Modif. Time" column (index 8)
-        table.getColumnModel().getColumn(8).setCellRenderer(new TimeCellRenderer());
+        // Set the new TimeCellRenderer for the "Modif. Time" column (index 10, 原来是8)
+        table.getColumnModel().getColumn(10).setCellRenderer(new TimeCellRenderer());
     }
     public ModifiedRequestResponse getModifiedEntry(int row) {
         if (row >= 0 && row < filteredEntries.size()) {

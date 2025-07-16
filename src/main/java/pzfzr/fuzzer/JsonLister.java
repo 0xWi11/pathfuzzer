@@ -166,7 +166,7 @@ public class JsonLister {
                     // 生成 expression - 仅包含新增的污染参数
                     String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
-                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_QUERY", expression);
+                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_QUERY", expression, "payload01", param.name());
                 }
             }
         } catch (Exception e) {
@@ -201,13 +201,14 @@ public class JsonLister {
                     // 生成 expression - 仅包含新增的污染参数
                     String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
-                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_BODY", expression);
+                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_BODY", expression, "payload02", param.name());
                 }
             }
         } catch (Exception e) {
             // 静默处理异常
         }
     }
+
     /**
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
@@ -248,10 +249,13 @@ public class JsonLister {
                 // 生成 expression
                 String expression = generateJsonExpression(fieldPath, originalValue, emailArray);
 
+                // 提取参数名称（JSON路径的最后一段）
+                String currentParamName = extractParamNameFromPath(fieldPath);
+
                 // 发送修改后的请求
                 String modifiedBody = objectMapper.writeValueAsString(newRoot);
                 HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_JSON", expression);
+                sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_JSON", expression, "payload03", currentParamName);
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -315,7 +319,8 @@ public class JsonLister {
                     // 生成各种ID替换变体
                     List<IdVariant> variants = generateIdVariants(originalIdStr, param.name());
 
-                    for (IdVariant variant : variants) {
+                    for (int i = 0; i < variants.size(); i++) {
+                        IdVariant variant = variants.get(i);
                         if (isShuttingDown) {
                             return;
                         }
@@ -332,7 +337,10 @@ public class JsonLister {
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
                         }
 
-                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_BODY", variant.getExpression());
+                        // 为ID body变体定义固定的payload别名
+                        String payloadAlias = getBodyIdPayloadAlias(i);
+
+                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_BODY", variant.getExpression(), payloadAlias, param.name());
                     }
                 }
             }
@@ -341,6 +349,7 @@ public class JsonLister {
             e.printStackTrace();
         }
     }
+
     /**
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
@@ -366,7 +375,8 @@ public class JsonLister {
                     // 生成各种ID替换变体
                     List<IdVariant> variants = generateIdVariants(originalIdStr, param.name());
 
-                    for (IdVariant variant : variants) {
+                    for (int i = 0; i < variants.size(); i++) {
+                        IdVariant variant = variants.get(i);
                         if (isShuttingDown) {
                             return;
                         }
@@ -387,7 +397,10 @@ public class JsonLister {
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
                         }
 
-                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY", variant.getExpression());
+                        // 为ID query变体定义固定的payload别名
+                        String payloadAlias = getQueryIdPayloadAlias(i);
+
+                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY", variant.getExpression(), payloadAlias, param.name());
                     }
                 }
             }
@@ -424,7 +437,8 @@ public class JsonLister {
                 JsonNode originalValue = entry.getValue();
 
                 List<JsonNode> variants = generateJsonIdVariants(originalValue);
-                for (JsonNode variant : variants) {
+                for (int i = 0; i < variants.size(); i++) {
+                    JsonNode variant = variants.get(i);
                     if (isShuttingDown) {
                         return;
                     }
@@ -435,15 +449,111 @@ public class JsonLister {
                     // 生成 expression
                     String expression = generateJsonExpression(fieldPath, originalValue, variant);
 
+                    // 提取参数名称（JSON路径的最后一段）
+                    String currentParamName = extractParamNameFromPath(fieldPath);
+
                     String modifiedBody = objectMapper.writeValueAsString(newRoot);
 
+                    // 为ID JSON变体定义固定的payload别名
+                    String payloadAlias = getJsonIdPayloadAlias(i);
+
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                    sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON", expression);
+                    sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON", expression, payloadAlias, currentParamName);
                 }
             }
         } catch (Exception e) {
             logging.logToOutput("Exception in processJsonIdReplacements: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * 提取参数名称（从路径中提取最后一段，去掉数组索引）
+     * @param fieldPath 字段路径
+     * @return 参数名称
+     */
+    private String extractParamNameFromPath(String fieldPath) {
+        // 取字段路径的最后一段
+        String[] pathParts = fieldPath.split("\\.");
+        String lastFieldName = pathParts[pathParts.length - 1];
+
+        // 处理数组索引的情况 (如 "field[0]")
+        if (lastFieldName.contains("[") && lastFieldName.contains("]")) {
+            lastFieldName = lastFieldName.substring(0, lastFieldName.indexOf("["));
+        }
+
+        return lastFieldName;
+    }
+
+    /**
+     * 获取Body ID变体的payload别名（固定定义，不使用循环）
+     * @param index 变体索引
+     * @return payload别名
+     */
+    private String getBodyIdPayloadAlias(int index) {
+        switch (index) {
+            case 0: return "payload04";
+            case 1: return "payload05";
+            case 2: return "payload06";
+            case 3: return "payload07";
+            case 4: return "payload08";
+            case 5: return "payload09";
+            case 6: return "payload10";
+            case 7: return "payload11";
+            case 8: return "payload12";
+            case 9: return "payload13";
+            case 10: return "payload14";
+            case 11: return "payload15";
+            case 12: return "payload16";
+            default: return "payload" + String.format("%02d", index + 4);
+        }
+    }
+
+    /**
+     * 获取Query ID变体的payload别名（固定定义，不使用循环）
+     * @param index 变体索引
+     * @return payload别名
+     */
+    private String getQueryIdPayloadAlias(int index) {
+        switch (index) {
+            case 0: return "payload17";
+            case 1: return "payload18";
+            case 2: return "payload19";
+            case 3: return "payload20";
+            case 4: return "payload21";
+            case 5: return "payload22";
+            case 6: return "payload23";
+            case 7: return "payload24";
+            case 8: return "payload25";
+            case 9: return "payload26";
+            case 10: return "payload27";
+            case 11: return "payload28";
+            case 12: return "payload29";
+            default: return "payload" + String.format("%02d", index + 17);
+        }
+    }
+
+    /**
+     * 获取JSON ID变体的payload别名（固定定义，不使用循环）
+     * @param index 变体索引
+     * @return payload别名
+     */
+    private String getJsonIdPayloadAlias(int index) {
+        switch (index) {
+            case 0: return "payload30";
+            case 1: return "payload31";
+            case 2: return "payload32";
+            case 3: return "payload33";
+            case 4: return "payload34";
+            case 5: return "payload35";
+            case 6: return "payload36";
+            case 7: return "payload37";
+            case 8: return "payload38";
+            case 9: return "payload39";
+            case 10: return "payload40";
+            case 11: return "payload41";
+            case 12: return "payload42";
+            default: return "payload" + String.format("%02d", index + 30);
         }
     }
 
@@ -515,8 +625,10 @@ public class JsonLister {
      * @param host 主机名
      * @param testType 测试类型
      * @param expression 变体修改的参数表达式
+     * @param payloadAlias payload别名
+     * @param currentParamName 当前测试参数名称
      */
-    private void sendModifiedRequest(HttpRequest modifiedRequest, int messageId, String host, String testType, String expression) {
+    private void sendModifiedRequest(HttpRequest modifiedRequest, int messageId, String host, String testType, String expression, String payloadAlias, String currentParamName) {
         if (isShuttingDown) {
             return;
         }
@@ -535,12 +647,14 @@ public class JsonLister {
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
             int tempID = nextModifiedId.getAndIncrement();
 
-            // 保存修改后的请求和响应，传递 expression 参数
+            // 保存修改后的请求和响应，传递新的参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
                     testType,
-                    expression, // 传递 expression 参数
+                    expression,
+                    payloadAlias,        // 新增：payload别名
+                    currentParamName,    // 新增：当前测试参数名称
                     requestResponseSaver,
                     logging
             );
