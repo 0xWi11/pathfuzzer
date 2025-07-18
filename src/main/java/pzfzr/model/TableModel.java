@@ -20,17 +20,18 @@ public class TableModel extends AbstractTableModel {
     private RequestResponseSaver requestResponseSaver; // 声明 RequestResponseSaver 成员变量
     private final Logging logging;
 
+    // 更新列名顺序：ID, method, url, test type, param, payload, modif status, len diff, orig len, modif len, modif time, reflect
     private static final String[] COLUMN_NAMES = {
             "ID",
             "Method",
             "URL",
             "Test Type",
-            "Param",        // 新增: testParameterName
-            "Payload",      // 新增: payloadAlias
-            "Orig. Len",
-            "Modif. Len",
-            "Modif. Status",
-            "Len Diff",
+            "Param",        // testParameterName
+            "Payload",      // payloadAlias
+            "Modif. Status", // 移动到第6位
+            "Len Diff",     // 移动到第7位
+            "Orig. Len",    // 移动到第8位
+            "Modif. Len",   // 移动到第9位
             "Modif. Time",
             "Reflect"
     };
@@ -311,44 +312,42 @@ public class TableModel extends AbstractTableModel {
 
         try {
             switch (column) {
-                case 0:
+                case 0: // ID
                     return modifiedEntry.getId();
-                case 1:
+                case 1: // Method
                     return originalEntry.getOriginalMethod() ;
-                case 2:
+                case 2: // URL
                     return originalEntry.getOriginalUrl() ;
-                case 3:
+                case 3: // Test Type
                     return modifiedEntry.getTestType();
-                case 4:
-                    // 新增: 显示 testParameterName
+                case 4: // Param
                     return modifiedEntry.getTestParameterName() != null ?
                             modifiedEntry.getTestParameterName() : "";
-                case 5:
-                    // 新增: 显示 payloadAlias
+                case 5: // Payload
                     return modifiedEntry.getPayloadAlias() != null ?
                             modifiedEntry.getPayloadAlias() : "";
-                case 6:
-                    return originalEntry != null && originalEntry.getOriginalResponseLen() != -1 ?
-                            originalEntry.getOriginalResponseLen() : "Pending";
-                case 7:
-                    return modifiedEntry.getModifiedBodyLength() != -1 ? //  直接获取缓存值
-                            modifiedEntry.getModifiedBodyLength() : "Pending";
-                case 8:
-                    return modifiedEntry.getStatusCode() != -1 ? // 直接获取缓存值
+                case 6: // Modif. Status (原来是case 8)
+                    return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
-                case 9:
+                case 7: // Len Diff (原来是case 9)
                     // 计算长度差异 (UI 线程计算，简单操作)
                     if (originalEntry != null && originalEntry.getOriginalResponseLen() != -1 &&
-                            modifiedEntry.getModifiedBodyLength() != -1) { // 直接获取缓存值
+                            modifiedEntry.getModifiedBodyLength() != -1) {
                         int origLen = originalEntry.getOriginalResponseLen();
-                        int modifyLen = modifiedEntry.getModifiedBodyLength(); // 直接获取缓存值
+                        int modifyLen = modifiedEntry.getModifiedBodyLength();
                         return Math.abs(modifyLen - origLen);
                     }
                     return "Pending";
-                case 10:
-                    return modifiedEntry.getResponseTime(); // 直接获取缓存值
-                case 11:
-                    return "";  //modifiedEntry.getReflectType(); // 直接获取缓存值
+                case 8: // Orig. Len (原来是case 6)
+                    return originalEntry != null && originalEntry.getOriginalResponseLen() != -1 ?
+                            originalEntry.getOriginalResponseLen() : "Pending";
+                case 9: // Modif. Len (原来是case 7)
+                    return modifiedEntry.getModifiedBodyLength() != -1 ?
+                            modifiedEntry.getModifiedBodyLength() : "Pending";
+                case 10: // Modif. Time
+                    return modifiedEntry.getResponseTime();
+                case 11: // Reflect
+                    return "";  //modifiedEntry.getReflectType();
                 default:
                     return null;
             }
@@ -360,7 +359,7 @@ public class TableModel extends AbstractTableModel {
     public void setupSorter(JTable table) {
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(this);
 
-        // 更新 Reflect 列的索引从 9 改为 11
+        // Reflect 列的索引仍然是 11
         sorter.setComparator(11, (Comparator<Object>) (o1, o2) -> {
             if (o1 == null && o2 == null) return 0;
             if (o1 == null) return -1;
@@ -369,7 +368,7 @@ public class TableModel extends AbstractTableModel {
         });
 
         for (int i = 0; i < getColumnCount(); i++) {
-            if (i != 11) { // 更新索引从 9 改为 11
+            if (i != 11) {
                 final int column = i;
                 sorter.setComparator(column, (Comparator<Object>) (o1, o2) -> {
                     if (o1 == null && o2 == null) return 0;
@@ -386,16 +385,15 @@ public class TableModel extends AbstractTableModel {
         table.setRowSorter(sorter);
     }
 
-    // 更新setupTableRenderers方法以包含新的渲染器
+    // 更新setupTableRenderers方法中的列索引
     public void setupTableRenderers(JTable table) {
-        // 更新各列的索引（向后移动2位）
-        // 为"Reflect"列（索引11，原来是9）设置现有的ReflectCellRenderer
+        // 为"Reflect"列（索引11）设置ReflectCellRenderer
         table.getColumnModel().getColumn(11).setCellRenderer(new ReflectCellRenderer());
 
-        // 为"Modif. Status"列（索引8，原来是6）设置StatusCodeCellRenderer
-        table.getColumnModel().getColumn(8).setCellRenderer(new StatusCodeCellRenderer());
+        // 为"Modif. Status"列（索引6，原来是8）设置StatusCodeCellRenderer
+        table.getColumnModel().getColumn(6).setCellRenderer(new StatusCodeCellRenderer());
 
-        // 为"Modif. Time"列（索引10，原来是8）设置新的TimeCellRenderer
+        // 为"Modif. Time"列（索引10）设置TimeCellRenderer
         table.getColumnModel().getColumn(10).setCellRenderer(new TimeCellRenderer());
     }
 
