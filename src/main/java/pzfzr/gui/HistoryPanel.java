@@ -30,15 +30,15 @@ public class HistoryPanel extends JPanel {
         setLayout(new BorderLayout());
         createTabbedPane();
     }
+
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
         // 为每个标签页创建独立的表格
         JTable allTable = createTable();
-        JTable protoTable = createTable();
-        JTable collectedTable = createTable();
-        JTable suspiciousTable = createTable();
-        JTable knownTable = createTable();  // 新增
+        JTable jsonTable = createTable();
+        JTable paramTable = createTable();
+        JTable routeTable = createTable();
 
         // 设置初始的当前表格
         currentTable = allTable;
@@ -46,10 +46,9 @@ public class HistoryPanel extends JPanel {
 
         // 添加标签页，每个标签页使用独立的滚动面板
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
-        tabbedPane.addTab("Proto Test", new JScrollPane(protoTable));
-        tabbedPane.addTab("Collected Test", new JScrollPane(collectedTable));
-        tabbedPane.addTab("Suspicious Test", new JScrollPane(suspiciousTable));
-        tabbedPane.addTab("Known Test", new JScrollPane(knownTable));  // 新增
+        tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
+        tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
+        tabbedPane.addTab("ROUTE", new JScrollPane(routeTable));
 
         // 添加标签切换监听器
         tabbedPane.addChangeListener(e -> {
@@ -63,22 +62,20 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("ALL");
                     break;
                 case 1:
-                    tableModel.setFilter("PROTO");
+                    tableModel.setFilter("JSON");
                     break;
                 case 2:
-                    tableModel.setFilter("COLLECTED");
+                    tableModel.setFilter("PARAM");
                     break;
                 case 3:
-                    tableModel.setFilter("SUSPICIOUS");
-                    break;
-                case 4:  // 新增
-                    tableModel.setFilter("KNOWN");
+                    tableModel.setFilter("ROUTE");
                     break;
             }
         });
 
         add(tabbedPane, BorderLayout.CENTER);
     }
+
     private JTable createTable() {
         JTable table = new JTable(tableModel) {
             @Override
@@ -179,7 +176,6 @@ public class HistoryPanel extends JPanel {
             table.getColumnModel().getColumn(10).setPreferredWidth(72);   // Modif Time
             table.getColumnModel().getColumn(11).setPreferredWidth(80);   // Reflect
         }
-
 
         return table;
     }

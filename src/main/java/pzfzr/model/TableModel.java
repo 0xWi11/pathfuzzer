@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-
 public class TableModel extends AbstractTableModel {
     private final List<ModifiedRequestResponse> modifiedEntries = new CopyOnWriteArrayList<>();
     private final List<ModifiedRequestResponse> filteredEntries = new CopyOnWriteArrayList<>();
@@ -20,7 +19,6 @@ public class TableModel extends AbstractTableModel {
     private String currentFilter = "ALL";
     private RequestResponseSaver requestResponseSaver; // 声明 RequestResponseSaver 成员变量
     private final Logging logging;
-
 
     private static final String[] COLUMN_NAMES = {
             "ID",
@@ -36,6 +34,7 @@ public class TableModel extends AbstractTableModel {
             "Modif. Time",
             "Reflect"
     };
+
     // 为Reflect字段创建自定义单元格渲染器
     public static class ReflectCellRenderer extends DefaultTableCellRenderer {
         @Override
@@ -60,6 +59,7 @@ public class TableModel extends AbstractTableModel {
             return c;
         }
     }
+
     // 为状态码列创建自定义渲染器
     public static class StatusCodeCellRenderer extends DefaultTableCellRenderer {
         // 存储状态码及其对应颜色的映射表
@@ -139,6 +139,7 @@ public class TableModel extends AbstractTableModel {
             return c;
         }
     }
+
     // 为响应时间列创建自定义渲染器
     public static class TimeCellRenderer extends DefaultTableCellRenderer {
         // 为不同时间阈值定义颜色
@@ -196,11 +197,13 @@ public class TableModel extends AbstractTableModel {
             return c;
         }
     }
+
     // 构造函数中接收 RequestResponseSaver 和 Logging
     public TableModel(RequestResponseSaver requestResponseSaver, Logging logging) {
         this.requestResponseSaver = requestResponseSaver; // 初始化 RequestResponseSaver
         this.logging = logging;
     }
+
     public void setRequestResponseSaver(RequestResponseSaver requestResponseSaver) {
         this.requestResponseSaver = requestResponseSaver;
     }
@@ -244,9 +247,7 @@ public class TableModel extends AbstractTableModel {
     }
 
     private void addModifiedEntryInternal(ModifiedRequestResponse modifiedEntry) {
-//        int insertIndex = modifiedEntries.size();
         modifiedEntries.add(modifiedEntry);
-//        logging.logToOutput("TableModel: Added ModifiedEntry with ID: " + modifiedEntry.getId() + ", Total entries: " + modifiedEntries.size()); // 添加日志
 
         if ("ALL".equals(currentFilter) ||
                 modifiedEntry.getTestType().equals(currentFilter)) {
@@ -271,17 +272,14 @@ public class TableModel extends AbstractTableModel {
 
     //  新增方法：根据 ID 查找 ModifiedRequestResponse
     public ModifiedRequestResponse getModifiedEntryById(int id) {
-//        logging.logToOutput("TableModel: Searching for ModifiedEntry with ID: " + id); // 添加查找日志
         for (ModifiedRequestResponse entry : modifiedEntries) {
             if (entry.getId() == id) {
-//                logging.logToOutput("TableModel: Found ModifiedEntry with ID: " + id); // 找到条目时添加日志
                 return entry;
             }
         }
         logging.logToError("[TableModel] ModifiedRequestResponse entry NOT FOUND for ID: " + id + ", Total entries: " + modifiedEntries.size()); // 未找到条目时添加错误日志
         return null;
     }
-
 
     @Override
     public int getRowCount() {
@@ -369,6 +367,7 @@ public class TableModel extends AbstractTableModel {
             if (o2 == null) return 1;
             return o1.toString().compareTo(o2.toString());
         });
+
         for (int i = 0; i < getColumnCount(); i++) {
             if (i != 11) { // 更新索引从 9 改为 11
                 final int column = i;
@@ -386,6 +385,7 @@ public class TableModel extends AbstractTableModel {
         }
         table.setRowSorter(sorter);
     }
+
     // 更新setupTableRenderers方法以包含新的渲染器
     public void setupTableRenderers(JTable table) {
         // 更新各列的索引（向后移动2位）
@@ -398,6 +398,7 @@ public class TableModel extends AbstractTableModel {
         // 为"Modif. Time"列（索引10，原来是8）设置新的TimeCellRenderer
         table.getColumnModel().getColumn(10).setCellRenderer(new TimeCellRenderer());
     }
+
     public ModifiedRequestResponse getModifiedEntry(int row) {
         if (row >= 0 && row < filteredEntries.size()) {
             return filteredEntries.get(row);
