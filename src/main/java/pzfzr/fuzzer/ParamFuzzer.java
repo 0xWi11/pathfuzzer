@@ -33,6 +33,9 @@ public class ParamFuzzer {
     private final Logging logging;
     private volatile boolean isShuttingDown = false;
 
+    // 可动态修改的参数数量限制
+    private volatile int maxParameterCount = 30;
+
     private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
     private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final int HASH_LENGTH = 5;
@@ -92,6 +95,20 @@ public class ParamFuzzer {
     }
 
     /**
+     * 设置最大参数数量限制
+     */
+    public void setMaxParameterCount(int maxParameterCount) {
+        this.maxParameterCount = maxParameterCount;
+    }
+
+    /**
+     * 获取当前的最大参数数量限制
+     */
+    public int getMaxParameterCount() {
+        return this.maxParameterCount;
+    }
+
+    /**
      * 主方法，供其他类调用
      */
     public void processRequest(HttpRequest originalRequest, int messageId, String host) {
@@ -100,6 +117,15 @@ public class ParamFuzzer {
         }
 
         try {
+            // 计算总参数数量
+            int totalParamCount = getTotalParameterCount(originalRequest);
+
+            // 如果参数数量超过限制，只发送一个原请求
+            if (totalParamCount > maxParameterCount) {
+                sendParameterTooManyRequest(originalRequest, messageId, host);
+                return;
+            }
+
             // 首先测试URL参数
             fuzzUrlParameters(originalRequest, messageId, host);
 
@@ -112,6 +138,92 @@ public class ParamFuzzer {
         } catch (Exception e) {
             // 按照ValueReplacer模式进行静默错误处理
         }
+    }
+
+    /**
+     * 计算请求中的总参数数量
+     */
+    private int getTotalParameterCount(HttpRequest request) {
+        int count = 0;
+
+        // URL参数
+        count += request.parameters(HttpParameterType.URL).size();
+
+        // POST body参数（仅当是表单数据时）
+        if (isFormDataRequest(request)) {
+            count += request.parameters(HttpParameterType.BODY).size();
+        }
+
+        // JSON参数
+        count += getJsonParameterCount(request);
+
+        return count;
+    }
+
+    /**
+     * 获取JSON参数数量
+     */
+    private int getJsonParameterCount(HttpRequest request) {
+        String bodyString = request.bodyToString();
+        if (bodyString == null || bodyString.trim().isEmpty()) {
+            return 0;
+        }
+
+        if (!isJsonFormat(bodyString)) {
+            return 0;
+        }
+
+        try {
+            JsonNode rootNode = objectMapper.readTree(bodyString);
+            List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
+            return jsonPaths.size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /**
+     * 发送参数数量过多的请求
+     */
+    private void sendParameterTooManyRequest(HttpRequest originalRequest, int messageId, String host) {
+        try {
+            rateLimiter.acquire(originalRequest.url() + originalRequest.method());
+
+            HttpRequestResponse response = api.http().sendRequest(originalRequest);
+            int tempID = nextModifiedId.getAndIncrement();
+
+            ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
+                    tempID,
+                    messageId,
+                    "PARAM_FUZZ",
+                    "", // expression置空
+                    "PARAMTOOMANY", // payloadAlias设置为PARAMTOOMANY
+                    "", // parameterName置空
+                    requestResponseSaver,
+                    logging
+            );
+
+            tableModel.addModifiedEntry(modifiedPair);
+            requestResponseSaver.saveModifiedRequest(originalRequest, tempID);
+            requestResponseSaver.handleDelayedModifiedResponse(response, tempID);
+
+        } catch (Exception e) {
+            // 静默错误处理
+        }
+    }
+
+    /**
+     * 检查是否为表单数据请求
+     */
+    private boolean isFormDataRequest(HttpRequest request) {
+        String contentType = request.headerValue("Content-Type");
+        if (contentType == null) {
+            return false;
+        }
+
+        String type = contentType.toLowerCase();
+        // 只测试URL编码的表单数据，不测试文件上传
+        return type.contains("application/x-www-form-urlencoded");
     }
 
     /**
@@ -158,6 +270,11 @@ public class ParamFuzzer {
      */
     private void fuzzPostBodyParameters(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) return;
+
+        // 只有当请求是表单数据时才进行测试
+        if (!isFormDataRequest(originalRequest)) {
+            return;
+        }
 
         List<ParsedHttpParameter> bodyParams = originalRequest.parameters(HttpParameterType.BODY);
 
@@ -445,7 +562,7 @@ public class ParamFuzzer {
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "PARAM_FUZZ",
+                    "PARAM",
                     expression,
                     payloadAlias,      // payload别名
                     parameterName,      // 当前测试参数的名称

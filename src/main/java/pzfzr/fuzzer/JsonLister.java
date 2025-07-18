@@ -166,7 +166,7 @@ public class JsonLister {
                     // 生成 expression - 仅包含新增的污染参数
                     String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
-                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_QUERY", expression, "payload01", param.name());
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "payload01", param.name());
                 }
             }
         } catch (Exception e) {
@@ -201,7 +201,7 @@ public class JsonLister {
                     // 生成 expression - 仅包含新增的污染参数
                     String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
-                    sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_BODY", expression, "payload02", param.name());
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "payload02", param.name());
                 }
             }
         } catch (Exception e) {
@@ -255,7 +255,7 @@ public class JsonLister {
                 // 发送修改后的请求
                 String modifiedBody = objectMapper.writeValueAsString(newRoot);
                 HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                sendModifiedRequest(modifiedRequest, messageId, host, "EMAIL_JSON", expression, "payload03", currentParamName);
+                sendModifiedRequest(modifiedRequest, messageId, host, expression, "payload03", currentParamName);
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -340,7 +340,7 @@ public class JsonLister {
                         // 为ID body变体定义固定的payload别名
                         String payloadAlias = getBodyIdPayloadAlias(i);
 
-                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_BODY", variant.getExpression(), payloadAlias, param.name());
+                        sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), payloadAlias, param.name());
                     }
                 }
             }
@@ -400,7 +400,7 @@ public class JsonLister {
                         // 为ID query变体定义固定的payload别名
                         String payloadAlias = getQueryIdPayloadAlias(i);
 
-                        sendModifiedRequest(modifiedRequest, messageId, host, "ID_QUERY", variant.getExpression(), payloadAlias, param.name());
+                        sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), payloadAlias, param.name());
                     }
                 }
             }
@@ -458,7 +458,7 @@ public class JsonLister {
                     String payloadAlias = getJsonIdPayloadAlias(i);
 
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                    sendModifiedRequest(modifiedRequest, messageId, host, "ID_JSON", expression, payloadAlias, currentParamName);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, payloadAlias, currentParamName);
                 }
             }
         } catch (Exception e) {
@@ -623,12 +623,11 @@ public class JsonLister {
      * @param modifiedRequest 修改后的请求
      * @param messageId 消息ID
      * @param host 主机名
-     * @param testType 测试类型
      * @param expression 变体修改的参数表达式
      * @param payloadAlias payload别名
      * @param currentParamName 当前测试参数名称
      */
-    private void sendModifiedRequest(HttpRequest modifiedRequest, int messageId, String host, String testType, String expression, String payloadAlias, String currentParamName) {
+    private void sendModifiedRequest(HttpRequest modifiedRequest, int messageId, String host, String expression, String payloadAlias, String currentParamName) {
         if (isShuttingDown) {
             return;
         }
@@ -651,7 +650,7 @@ public class JsonLister {
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    testType,
+                    "JSON",             // 固定设置为"json"
                     expression,
                     payloadAlias,        // 新增：payload别名
                     currentParamName,    // 新增：当前测试参数名称
