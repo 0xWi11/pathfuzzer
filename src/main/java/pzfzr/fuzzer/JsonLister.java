@@ -63,6 +63,50 @@ public class JsonLister {
     }
 
     /**
+     * Payload变体类 - 将payload值和别名绑定在一起
+     */
+    private static class PayloadVariant {
+        private final String value;
+        private final String expression;
+        private final String alias;
+        private final boolean isParameterPollution;
+        private final boolean isArrayFormat;
+        private final String secondValue;
+
+        public PayloadVariant(String value, String expression, String alias, boolean isParameterPollution, boolean isArrayFormat, String secondValue) {
+            this.value = value;
+            this.expression = expression;
+            this.alias = alias;
+            this.isParameterPollution = isParameterPollution;
+            this.isArrayFormat = isArrayFormat;
+            this.secondValue = secondValue;
+        }
+
+        public String getValue() { return value; }
+        public String getExpression() { return expression; }
+        public String getAlias() { return alias; }
+        public boolean isParameterPollution() { return isParameterPollution; }
+        public boolean isArrayFormat() { return isArrayFormat; }
+        public String getSecondValue() { return secondValue; }
+    }
+
+    /**
+     * JSON Payload变体类 - 用于JSON格式的payload
+     */
+    private static class JsonPayloadVariant {
+        private final JsonNode value;
+        private final String alias;
+
+        public JsonPayloadVariant(JsonNode value, String alias) {
+            this.value = value;
+            this.alias = alias;
+        }
+
+        public JsonNode getValue() { return value; }
+        public String getAlias() { return alias; }
+    }
+
+    /**
      * 主要处理方法，接收HttpRequest并进行参数替换
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
@@ -166,7 +210,7 @@ public class JsonLister {
                     // 生成 expression - 仅包含新增的污染参数
                     String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
-                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "payload01", param.name());
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "&email", param.name());
                 }
             }
         } catch (Exception e) {
@@ -201,7 +245,7 @@ public class JsonLister {
                     // 生成 expression - 仅包含新增的污染参数
                     String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
 
-                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "payload02", param.name());
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "&email", param.name());
                 }
             }
         } catch (Exception e) {
@@ -244,7 +288,7 @@ public class JsonLister {
                 // 替换字段值
                 setFieldValue(newRoot, fieldPath, emailArray);
 
-                JsonNode originalValue = entry.getValue(); // 添加这一行来获取原始值
+                JsonNode originalValue = entry.getValue();
 
                 // 生成 expression
                 String expression = generateJsonExpression(fieldPath, originalValue, emailArray);
@@ -255,7 +299,7 @@ public class JsonLister {
                 // 发送修改后的请求
                 String modifiedBody = objectMapper.writeValueAsString(newRoot);
                 HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                sendModifiedRequest(modifiedRequest, messageId, host, expression, "payload03", currentParamName);
+                sendModifiedRequest(modifiedRequest, messageId, host, expression, "[2emails]", currentParamName);
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -316,11 +360,10 @@ public class JsonLister {
                     // 直接使用字符串值，支持长整数
                     String originalIdStr = param.value();
 
-                    // 生成各种ID替换变体
-                    List<IdVariant> variants = generateIdVariants(originalIdStr, param.name());
+                    // 生成各种ID替换变体 - 现在返回PayloadVariant列表
+                    List<PayloadVariant> variants = generateBodyIdPayloadVariants(originalIdStr, param.name());
 
-                    for (int i = 0; i < variants.size(); i++) {
-                        IdVariant variant = variants.get(i);
+                    for (PayloadVariant variant : variants) {
                         if (isShuttingDown) {
                             return;
                         }
@@ -337,10 +380,7 @@ public class JsonLister {
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
                         }
 
-                        // 为ID body变体定义固定的payload别名
-                        String payloadAlias = getBodyIdPayloadAlias(i);
-
-                        sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), payloadAlias, param.name());
+                        sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), variant.getAlias(), param.name());
                     }
                 }
             }
@@ -372,11 +412,10 @@ public class JsonLister {
                     // 直接使用字符串值，支持长整数
                     String originalIdStr = param.value();
 
-                    // 生成各种ID替换变体
-                    List<IdVariant> variants = generateIdVariants(originalIdStr, param.name());
+                    // 生成各种ID替换变体 - 现在返回PayloadVariant列表
+                    List<PayloadVariant> variants = generateQueryIdPayloadVariants(originalIdStr, param.name());
 
-                    for (int i = 0; i < variants.size(); i++) {
-                        IdVariant variant = variants.get(i);
+                    for (PayloadVariant variant : variants) {
                         if (isShuttingDown) {
                             return;
                         }
@@ -397,10 +436,7 @@ public class JsonLister {
                             modifiedRequest = originalRequest.withUpdatedParameters(newParam);
                         }
 
-                        // 为ID query变体定义固定的payload别名
-                        String payloadAlias = getQueryIdPayloadAlias(i);
-
-                        sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), payloadAlias, param.name());
+                        sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), variant.getAlias(), param.name());
                     }
                 }
             }
@@ -436,35 +472,247 @@ public class JsonLister {
                 String fieldPath = entry.getKey();
                 JsonNode originalValue = entry.getValue();
 
-                List<JsonNode> variants = generateJsonIdVariants(originalValue);
-                for (int i = 0; i < variants.size(); i++) {
-                    JsonNode variant = variants.get(i);
+                List<JsonPayloadVariant> variants = generateJsonIdPayloadVariants(originalValue);
+                for (JsonPayloadVariant variant : variants) {
                     if (isShuttingDown) {
                         return;
                     }
 
                     ObjectNode newRoot = rootNode.deepCopy();
-                    setFieldValue(newRoot, fieldPath, variant);
+                    setFieldValue(newRoot, fieldPath, variant.getValue());
 
                     // 生成 expression
-                    String expression = generateJsonExpression(fieldPath, originalValue, variant);
+                    String expression = generateJsonExpression(fieldPath, originalValue, variant.getValue());
 
                     // 提取参数名称（JSON路径的最后一段）
                     String currentParamName = extractParamNameFromPath(fieldPath);
 
                     String modifiedBody = objectMapper.writeValueAsString(newRoot);
 
-                    // 为ID JSON变体定义固定的payload别名
-                    String payloadAlias = getJsonIdPayloadAlias(i);
-
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                    sendModifiedRequest(modifiedRequest, messageId, host, expression, payloadAlias, currentParamName);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, variant.getAlias(), currentParamName);
                 }
             }
         } catch (Exception e) {
             logging.logToOutput("Exception in processJsonIdReplacements: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 生成Body ID的PayloadVariant列表 - 将payload和别名绑定
+     * @param originalIdStr 原始ID字符串
+     * @param paramName 参数名称
+     * @return PayloadVariant列表
+     */
+    private List<PayloadVariant> generateBodyIdPayloadVariants(String originalIdStr, String paramName) {
+        List<PayloadVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(originalIdStr);
+
+            // 基本变体 - 直接将payload值和别名绑定
+            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
+            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
+
+            // 整型的递减变体
+            variants.add(new PayloadVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), "-4", false, false, null));
+            variants.add(new PayloadVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), "-10", false, false, null));
+            variants.add(new PayloadVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), "-100", false, false, null));
+
+            // 参数污染变体 - 修改为仅包含新增的污染参数
+            variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
+            variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 10), "pollute-10", true, false, String.valueOf(originalId - 10)));
+            variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 100), "pollute-100", true, false, String.valueOf(originalId - 100)));
+
+            // 新增：数组格式变体 XXID=500 -> XXID=[500,496,490,400]
+            String arrayFormat = "[" + originalId + "," + (originalId - 4) + "," + (originalId - 10) + "," + (originalId - 100) + "]";
+            variants.add(new PayloadVariant(arrayFormat, paramName + "=" + arrayFormat, "to[-4-10-100]", false, true, null));
+
+            // 路径遍历变体
+            variants.add(new PayloadVariant(originalId + "/../" + (originalId - 4), paramName + "=" + originalId + "/../" + (originalId - 4), "/../-4", false, false, null));
+            variants.add(new PayloadVariant(originalId + "/../" + (originalId - 10), paramName + "=" + originalId + "/../" + (originalId - 10), "/../-10", false, false, null));
+            variants.add(new PayloadVariant(originalId + "/../" + (originalId - 100), paramName + "=" + originalId + "/../" + (originalId - 100), "/../-100", false, false, null));
+        } catch (NumberFormatException e) {
+            // 如果不是数字，只添加基本变体
+            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
+            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成Query ID的PayloadVariant列表 - 将payload和别名绑定
+     * @param originalIdStr 原始ID字符串
+     * @param paramName 参数名称
+     * @return PayloadVariant列表
+     */
+    private List<PayloadVariant> generateQueryIdPayloadVariants(String originalIdStr, String paramName) {
+        List<PayloadVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(originalIdStr);
+
+            // 基本变体 - 直接将payload值和别名绑定
+            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
+            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
+
+            // 整型的递减变体
+            variants.add(new PayloadVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), "-4", false, false, null));
+            variants.add(new PayloadVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), "-10", false, false, null));
+            variants.add(new PayloadVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), "100", false, false, null));
+
+            // 参数污染变体 - 修改为仅包含新增的污染参数
+            variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
+            variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 10), "pollute-10", true, false, String.valueOf(originalId - 10)));
+            variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 100), "pollute-100", true, false, String.valueOf(originalId - 100)));
+
+            // 新增：数组格式变体 XXID=500 -> XXID=[500,496,490,400]
+            String arrayFormat = "[" + originalId + "," + (originalId - 4) + "," + (originalId - 10) + "," + (originalId - 100) + "]";
+            variants.add(new PayloadVariant(arrayFormat, paramName + "=" + arrayFormat, "to[-4-10-100]", false, true, null));
+
+            // 路径遍历变体
+            variants.add(new PayloadVariant(originalId + "/../" + (originalId - 4), paramName + "=" + originalId + "/../" + (originalId - 4), "/../-4", false, false, null));
+            variants.add(new PayloadVariant(originalId + "/../" + (originalId - 10), paramName + "=" + originalId + "/../" + (originalId - 10), "/../-10", false, false, null));
+            variants.add(new PayloadVariant(originalId + "/../" + (originalId - 100), paramName + "=" + originalId + "/../" + (originalId - 100), "/../-100", false, false, null));
+        } catch (NumberFormatException e) {
+            // 如果不是数字，只添加基本变体
+            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
+            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成JSON ID的JsonPayloadVariant列表 - 将payload和别名绑定
+     * @param originalValue 原始值
+     * @return JsonPayloadVariant列表
+     */
+    private List<JsonPayloadVariant> generateJsonIdPayloadVariants(JsonNode originalValue) {
+        List<JsonPayloadVariant> variants = new ArrayList<>();
+
+        if (originalValue.isInt()) {
+            // 处理32位整数
+            int id = originalValue.asInt();
+
+            // 空数组和null
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+            // 整型的递减变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 4), "-4"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 10), "-10"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 100), "-100"));
+            // 数组变体 [原值,递减4,递减10,递减100]
+            ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
+            arrayVariant1.add(id);
+            arrayVariant1.add(id - 4);
+            arrayVariant1.add(id - 10);
+            arrayVariant1.add(id - 100);
+            variants.add(new JsonPayloadVariant(arrayVariant1, "to[-4-10-100]"));
+
+            // 路径遍历变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)), "/../-4"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)), "/../-10"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)), "/../-100"));
+
+        } else if (originalValue.isLong()) {
+            // 处理64位长整数
+            long id = originalValue.asLong();
+
+            // 空数组和null
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+            // 长整型的递减变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 4), "-4"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 10), "-10"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 100), "-100"));
+            // 数组变体
+            ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
+            arrayVariant2.add(id);
+            arrayVariant2.add(id - 4);
+            arrayVariant2.add(id - 10);
+            arrayVariant2.add(id - 100);
+            variants.add(new JsonPayloadVariant(arrayVariant2, "to[-4-10-100]"));
+
+            // 路径遍历变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)), "/../-4"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)), "/../-10"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)), "/../-100"));
+
+        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
+            String idStr = originalValue.asText();
+            try {
+                long id = Long.parseLong(idStr);
+
+                // 空数组和null
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+                // 字符串型但是数值递减的变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 4)), "\"-4\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)), "\"-10\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)), "\"-100\""));
+                // 字符串数组变体
+                ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
+                arrayVariant3.add(idStr);
+                arrayVariant3.add(String.valueOf(id - 4));
+                arrayVariant3.add(String.valueOf(id - 10));
+                arrayVariant3.add(String.valueOf(id - 100));
+                variants.add(new JsonPayloadVariant(arrayVariant3, "to[\"-4\"\"-10\"\"-100\"]"));
+
+                // 路径遍历变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 4)), "\"/../-4\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 10)), "\"/../-10\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 100)), "\"/../-100\""));
+            } catch (NumberFormatException e) {
+                // 如果解析失败，只添加基本变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+            }
+
+        } else if (originalValue.isArray()) {
+            // 数组情况
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+
+            // 提取第一个ID值来生成变体
+            JsonNode firstItem = originalValue.get(0);
+            if (firstItem != null) {
+                if (firstItem.isInt()) {
+                    int id = firstItem.asInt();
+                    ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
+                    arrayVariant.add(id);
+                    arrayVariant.add(id - 4);
+                    arrayVariant.add(id - 10);
+                    arrayVariant.add(id - 100);
+                    variants.add(new JsonPayloadVariant(arrayVariant, "to[-4-10-100]"));
+                } else if (firstItem.isLong()) {
+                    long id = firstItem.asLong();
+                    ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
+                    arrayVariant.add(id);
+                    arrayVariant.add(id - 4);
+                    arrayVariant.add(id - 10);
+                    arrayVariant.add(id - 100);
+                    variants.add(new JsonPayloadVariant(arrayVariant, "to[-4-10-100]"));
+                } else if (firstItem.isTextual() && isNumericId(firstItem.asText())) {
+                    String idStr = firstItem.asText();
+                    try {
+                        long id = Long.parseLong(idStr);
+                        ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
+                        arrayVariant.add(idStr);
+                        arrayVariant.add(String.valueOf(id - 4));
+                        arrayVariant.add(String.valueOf(id - 10));
+                        arrayVariant.add(String.valueOf(id - 100));
+                        variants.add(new JsonPayloadVariant(arrayVariant, "to[\"-4\"\"-10\"\"-100\"]"));
+                    } catch (NumberFormatException e) {
+                        // 如果解析失败，跳过数组变体生成
+                    }
+                }
+            }
+        }
+
+        return variants;
     }
 
     /**
@@ -483,103 +731,6 @@ public class JsonLister {
         }
 
         return lastFieldName;
-    }
-
-    /**
-     * 获取Body ID变体的payload别名（固定定义，不使用循环）
-     * @param index 变体索引
-     * @return payload别名
-     */
-    private String getBodyIdPayloadAlias(int index) {
-        switch (index) {
-            case 0: return "payload04";
-            case 1: return "payload05";
-            case 2: return "payload06";
-            case 3: return "payload07";
-            case 4: return "payload08";
-            case 5: return "payload09";
-            case 6: return "payload10";
-            case 7: return "payload11";
-            case 8: return "payload12";
-            case 9: return "payload13";
-            case 10: return "payload14";
-            case 11: return "payload15";
-            case 12: return "payload16";
-            default: return "payload" + String.format("%02d", index + 4);
-        }
-    }
-
-    /**
-     * 获取Query ID变体的payload别名（固定定义，不使用循环）
-     * @param index 变体索引
-     * @return payload别名
-     */
-    private String getQueryIdPayloadAlias(int index) {
-        switch (index) {
-            case 0: return "payload17";
-            case 1: return "payload18";
-            case 2: return "payload19";
-            case 3: return "payload20";
-            case 4: return "payload21";
-            case 5: return "payload22";
-            case 6: return "payload23";
-            case 7: return "payload24";
-            case 8: return "payload25";
-            case 9: return "payload26";
-            case 10: return "payload27";
-            case 11: return "payload28";
-            case 12: return "payload29";
-            default: return "payload" + String.format("%02d", index + 17);
-        }
-    }
-
-    /**
-     * 获取JSON ID变体的payload别名（固定定义，不使用循环）
-     * @param index 变体索引
-     * @return payload别名
-     */
-    private String getJsonIdPayloadAlias(int index) {
-        switch (index) {
-            case 0: return "payload30";
-            case 1: return "payload31";
-            case 2: return "payload32";
-            case 3: return "payload33";
-            case 4: return "payload34";
-            case 5: return "payload35";
-            case 6: return "payload36";
-            case 7: return "payload37";
-            case 8: return "payload38";
-            case 9: return "payload39";
-            case 10: return "payload40";
-            case 11: return "payload41";
-            case 12: return "payload42";
-            default: return "payload" + String.format("%02d", index + 30);
-        }
-    }
-
-    /**
-     * ID变体内部类
-     */
-    private static class IdVariant {
-        private final String value;
-        private final String expression;
-        private final boolean isParameterPollution;
-        private final boolean isArrayFormat;
-        private final String secondValue;
-
-        public IdVariant(String value, String expression, boolean isParameterPollution, boolean isArrayFormat, String secondValue) {
-            this.value = value;
-            this.expression = expression;
-            this.isParameterPollution = isParameterPollution;
-            this.isArrayFormat = isArrayFormat;
-            this.secondValue = secondValue;
-        }
-
-        public String getValue() { return value; }
-        public String getExpression() { return expression; }
-        public boolean isParameterPollution() { return isParameterPollution; }
-        public boolean isArrayFormat() { return isArrayFormat; }
-        public String getSecondValue() { return secondValue; }
     }
 
     /**
@@ -829,179 +980,6 @@ public class JsonLister {
             }
         }
         return false;
-    }
-
-    /**
-     * 生成ID变体 - 修复版本，支持长整数和新的数组格式
-     * @param originalIdStr 原始ID字符串
-     * @param paramName 参数名称
-     * @return ID变体列表
-     */
-    private List<IdVariant> generateIdVariants(String originalIdStr, String paramName) {
-        List<IdVariant> variants = new ArrayList<>();
-
-        try {
-            long originalId = Long.parseLong(originalIdStr);
-
-            // 基本变体
-            variants.add(new IdVariant("[]", paramName + "=[]", false, true, null));
-            variants.add(new IdVariant("null", paramName + "=null", false, false, null));
-
-            // 整型的递减变体
-            variants.add(new IdVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), false, false, null));
-            variants.add(new IdVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), false, false, null));
-            variants.add(new IdVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), false, false, null));
-
-            // 参数污染变体 - 修改为仅包含新增的污染参数
-            variants.add(new IdVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), true, false, String.valueOf(originalId - 4)));
-            variants.add(new IdVariant(originalIdStr, "&" + paramName + "=" + (originalId - 10), true, false, String.valueOf(originalId - 10)));
-            variants.add(new IdVariant(originalIdStr, "&" + paramName + "=" + (originalId - 100), true, false, String.valueOf(originalId - 100)));
-
-            // 新增：数组格式变体 XXID=500 -> XXID=[500,496,490,400]
-            String arrayFormat = "[" + originalId + "," + (originalId - 4) + "," + (originalId - 10) + "," + (originalId - 100) + "]";
-            variants.add(new IdVariant(arrayFormat, paramName + "=" + arrayFormat, false, true, null));
-
-            // 路径遍历变体
-            variants.add(new IdVariant(originalId + "/../" + (originalId - 4), paramName + "=" + originalId + "/../" + (originalId - 4), false, false, null));
-            variants.add(new IdVariant(originalId + "/../" + (originalId - 10), paramName + "=" + originalId + "/../" + (originalId - 10), false, false, null));
-            variants.add(new IdVariant(originalId + "/../" + (originalId - 100), paramName + "=" + originalId + "/../" + (originalId - 100), false, false, null));
-        } catch (NumberFormatException e) {
-            // 如果不是数字，只添加基本变体
-            variants.add(new IdVariant("[]", paramName + "=[]", false, true, null));
-            variants.add(new IdVariant("null", paramName + "=null", false, false, null));
-        }
-
-        return variants;
-    }
-
-    /**
-     * 生成JSON ID变体 - 修复版本，支持长整数和新的数组格式
-     * @param originalValue 原始值
-     * @return JSON变体列表
-     */
-    private List<JsonNode> generateJsonIdVariants(JsonNode originalValue) {
-        List<JsonNode> variants = new ArrayList<>();
-
-        if (originalValue.isInt()) {
-            // 处理32位整数
-            int id = originalValue.asInt();
-
-            // 空数组和null
-            variants.add(JsonNodeFactory.instance.arrayNode());
-            variants.add(JsonNodeFactory.instance.nullNode());
-            // 整型的递减变体
-            variants.add(JsonNodeFactory.instance.numberNode(id - 4));
-            variants.add(JsonNodeFactory.instance.numberNode(id - 10));
-            variants.add(JsonNodeFactory.instance.numberNode(id - 100));
-            // 数组变体 [原值,递减4,递减10,递减100]
-            ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant1.add(id);
-            arrayVariant1.add(id - 4);
-            arrayVariant1.add(id - 10);
-            arrayVariant1.add(id - 100);
-            variants.add(arrayVariant1);
-
-            // 路径遍历变体
-            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)));
-            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)));
-            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)));
-
-        } else if (originalValue.isLong()) {
-            // 处理64位长整数
-            long id = originalValue.asLong();
-
-            // 空数组和null
-            variants.add(JsonNodeFactory.instance.arrayNode());
-            variants.add(JsonNodeFactory.instance.nullNode());
-            // 长整型的递减变体
-            variants.add(JsonNodeFactory.instance.numberNode(id - 4));
-            variants.add(JsonNodeFactory.instance.numberNode(id - 10));
-            variants.add(JsonNodeFactory.instance.numberNode(id - 100));
-            // 数组变体
-            ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
-            arrayVariant2.add(id);
-            arrayVariant2.add(id - 4);
-            arrayVariant2.add(id - 10);
-            arrayVariant2.add(id - 100);
-            variants.add(arrayVariant2);
-
-            // 路径遍历变体
-            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 4)));
-            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)));
-            variants.add(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)));
-
-        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
-            String idStr = originalValue.asText();
-            try {
-                long id = Long.parseLong(idStr);
-
-                // 空数组和null
-                variants.add(JsonNodeFactory.instance.arrayNode());
-                variants.add(JsonNodeFactory.instance.nullNode());
-                // 字符串型但是数值递减的变体
-                variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 4)));
-                variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)));
-                variants.add(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)));
-                // 字符串数组变体
-                ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
-                arrayVariant3.add(idStr);
-                arrayVariant3.add(String.valueOf(id - 4));
-                arrayVariant3.add(String.valueOf(id - 10));
-                arrayVariant3.add(String.valueOf(id - 100));
-                variants.add(arrayVariant3);
-
-                // 路径遍历变体
-                variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 4)));
-                variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 10)));
-                variants.add(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 100)));
-            } catch (NumberFormatException e) {
-                // 如果解析失败，只添加基本变体
-                variants.add(JsonNodeFactory.instance.arrayNode());
-                variants.add(JsonNodeFactory.instance.nullNode());
-            }
-
-        } else if (originalValue.isArray()) {
-            // 数组情况
-            variants.add(JsonNodeFactory.instance.arrayNode());
-            variants.add(JsonNodeFactory.instance.nullNode());
-
-            // 提取第一个ID值来生成变体
-            JsonNode firstItem = originalValue.get(0);
-            if (firstItem != null) {
-                if (firstItem.isInt()) {
-                    int id = firstItem.asInt();
-                    ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
-                    arrayVariant.add(id);
-                    arrayVariant.add(id - 4);
-                    arrayVariant.add(id - 10);
-                    arrayVariant.add(id - 100);
-                    variants.add(arrayVariant);
-                } else if (firstItem.isLong()) {
-                    long id = firstItem.asLong();
-                    ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
-                    arrayVariant.add(id);
-                    arrayVariant.add(id - 4);
-                    arrayVariant.add(id - 10);
-                    arrayVariant.add(id - 100);
-                    variants.add(arrayVariant);
-                } else if (firstItem.isTextual() && isNumericId(firstItem.asText())) {
-                    String idStr = firstItem.asText();
-                    try {
-                        long id = Long.parseLong(idStr);
-                        ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
-                        arrayVariant.add(idStr);
-                        arrayVariant.add(String.valueOf(id - 4));
-                        arrayVariant.add(String.valueOf(id - 10));
-                        arrayVariant.add(String.valueOf(id - 100));
-                        variants.add(arrayVariant);
-                    } catch (NumberFormatException e) {
-                        // 如果解析失败，跳过数组变体生成
-                    }
-                }
-            }
-        }
-
-        return variants;
     }
 
     /**

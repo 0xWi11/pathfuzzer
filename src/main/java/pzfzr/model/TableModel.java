@@ -348,7 +348,7 @@ public class TableModel extends AbstractTableModel {
                 case 10:
                     return modifiedEntry.getResponseTime(); // 直接获取缓存值
                 case 11:
-                    return modifiedEntry.getReflectType(); // 直接获取缓存值
+                    return "";  //modifiedEntry.getReflectType(); // 直接获取缓存值
                 default:
                     return null;
             }
