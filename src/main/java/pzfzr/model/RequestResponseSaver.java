@@ -277,12 +277,11 @@ public class RequestResponseSaver {
         }
     }
     private String detectReflectType(HttpResponse response) {
-        return "";
-//        if (response == null) {
-//            return "";
-//        }
-//        List<String> detectedTypes = new ArrayList<>(); // 使用 List 存储检测到的漏洞类型
-//        try {
+        if (response == null) {
+            return "";
+        }
+        List<String> detectedTypes = new ArrayList<>(); // 使用 List 存储检测到的漏洞类型
+        try {
 //            if (response.contains("chaxx123'\">", false)) {
 //                detectedTypes.add("RXSS");
 //            }
@@ -293,30 +292,30 @@ public class RequestResponseSaver {
 //                    response.contains("Unclosed quotation mark", false)) {
 //                detectedTypes.add("SQLI");
 //            }
-//            if (response.contains("/bin/sh", false)) {
-//                detectedTypes.add("LFI");
-//            }
+            if (response.contains("/bin/sh", false)) {
+                detectedTypes.add("LFI");
+            }
 //            if (response.contains("SHELL=/", false) || response.contains("PWD=/", false) || response.contains("HOME=/", false) ) {
 //                detectedTypes.add("CMDI");
 //            }
-//            // 检测CRLF漏洞
-//            for (HttpHeader header : response.headers()) {
-//                if (header.name().toLowerCase().contains("c9w") || header.name().toLowerCase().contains("v5m")) {
-//                    detectedTypes.add("CRLF");
-//                    break; // 找到 CRLF 相关的 header 后，可以跳出循环，提高效率
-//                }
-//            }
-//
-//            // 将检测到的漏洞类型列表转换为逗号分隔的字符串
-//            if (!detectedTypes.isEmpty()) {
-//                return String.join(",", detectedTypes);
-//            } else {
-//                return "";
-//            }
-//
-//        } catch (Exception e) {
-//            return "";
-//        }
+            // 检测CRLF漏洞
+            for (HttpHeader header : response.headers()) {
+                if (header.name().toLowerCase().contains("c9w") || header.name().toLowerCase().contains("v5m")) {
+                    detectedTypes.add("CRLF");
+                    break; // 找到 CRLF 相关的 header 后，可以跳出循环，提高效率
+                }
+            }
+
+            // 将检测到的漏洞类型列表转换为逗号分隔的字符串
+            if (!detectedTypes.isEmpty()) {
+                return String.join(",", detectedTypes);
+            } else {
+                return "";
+            }
+
+        } catch (Exception e) {
+            return "";
+        }
     }
     /**
      * Returns the current daily storage directory path
