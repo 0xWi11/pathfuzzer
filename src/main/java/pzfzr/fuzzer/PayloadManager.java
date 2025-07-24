@@ -1,4 +1,3 @@
-// PayloadManager.java - Manager class for payload enable/disable state
 package pzfzr.fuzzer;
 
 import java.util.*;

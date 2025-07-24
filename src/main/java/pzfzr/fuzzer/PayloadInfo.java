@@ -1,4 +1,3 @@
-// PayloadInfo.java - Enhanced version with enable/disable support
 package pzfzr.fuzzer;
 
 /**

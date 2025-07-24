@@ -285,7 +285,7 @@ public class RequestResponseSaver {
 //            if (response.contains("chaxx123'\">", false)) {
 //                detectedTypes.add("RXSS");
 //            }
-//            if (response.contains("chaxx123", false)) {
+//            if (response.contains("chaxx", false)) {
 //                detectedTypes.add("STRR");
 //            }
 //            if (response.contains("You have an error in your SQL", false) ||

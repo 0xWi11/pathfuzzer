@@ -347,7 +347,7 @@ public class TableModel extends AbstractTableModel {
                 case 10: // Modif. Time
                     return modifiedEntry.getResponseTime();
                 case 11: // Reflect
-                    return "";  //modifiedEntry.getReflectType();
+                    return modifiedEntry.getReflectType();
                 default:
                     return null;
             }

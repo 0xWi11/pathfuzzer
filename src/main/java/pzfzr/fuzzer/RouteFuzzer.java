@@ -1,4 +1,3 @@
-// Updated RouteFuzzer.java - Modified to use PayloadManager
 package pzfzr.fuzzer;
 
 import java.util.*;
@@ -296,17 +295,24 @@ public class RouteFuzzer {
     private void sendTestRequest(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
                                  String payloadAlias, String currentTestParam) {
         try {
+            // 构建完整的路径，包含原始查询参数（特殊payload除外）
+            String fullModifiedPath = buildFullPath(originalRequest, modifiedPath, payloadAlias);
+
             // 创建修改后的请求
-            HttpRequest modifiedRequest = originalRequest.withPath(modifiedPath);
+            HttpRequest modifiedRequest = originalRequest.withPath(fullModifiedPath);
+
             // 获取并添加认证相关的header
             List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
             if (authHeaders != null && !authHeaders.isEmpty()) {
                 modifiedRequest = modifiedRequest.withUpdatedHeaders(authHeaders);
             }
-            rateLimiter.acquire(modifiedRequest.url() + modifiedRequest.method());
+
+            rateLimiter.acquire(originalRequest.url() + modifiedRequest.method());
+
             // 发送修改后的请求
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
             int tempID = nextModifiedId.getAndIncrement();
+
             // 保存修改后的请求和响应，传入新的参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
@@ -318,15 +324,60 @@ public class RouteFuzzer {
                     requestResponseSaver,
                     logging
             );
+
             tableModel.addModifiedEntry(modifiedPair);
             requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
             requestResponseSaver.handleDelayedModifiedResponse(modifiedResponse, tempID);
+
             // 清理引用
             modifiedRequest = null;
             modifiedResponse = null;
         } catch (Exception e) {
             // 错误处理
         }
+    }
+
+    /**
+     * 构建包含原始查询参数的完整路径
+     * @param originalRequest 原始请求
+     * @param modifiedPath 修改后的路径部分
+     * @param payloadAlias payload的别名，用于判断是否为特殊payload
+     * @return 包含查询参数的完整路径
+     */
+    private String buildFullPath(HttpRequest originalRequest, String modifiedPath, String payloadAlias) {
+        try {
+            // 检查是否为不应该添加查询参数的特殊payload
+            if (shouldSkipQueryParameters(payloadAlias)) {
+                return modifiedPath;
+            }
+
+            // 获取原始请求的查询参数
+            String originalQuery = originalRequest.query();
+
+            // 如果有查询参数，则添加到修改后的路径中
+            if (originalQuery != null && !originalQuery.isEmpty()) {
+                return modifiedPath + "?" + originalQuery;
+            } else {
+                return modifiedPath;
+            }
+        } catch (Exception e) {
+            // 如果获取查询参数出现异常，返回不带查询参数的路径
+            logging.logToError("Error building full path with query parameters: " + e.getMessage());
+            return modifiedPath;
+        }
+    }
+
+    /**
+     * 判断是否应该跳过添加查询参数
+     * @param payloadAlias payload的别名
+     * @return true表示跳过查询参数，false表示正常添加查询参数
+     */
+    private boolean shouldSkipQueryParameters(String payloadAlias) {
+        // 这四个CRLF相关的payload不应该添加查询参数
+        return "ng crlf".equals(payloadAlias) ||
+                "ng crlf2".equals(payloadAlias) ||
+                "ng crlf3".equals(payloadAlias) ||
+                "{path}CRLF".equals(payloadAlias);
     }
 
     public void setShuttingDown(boolean shuttingDown) {

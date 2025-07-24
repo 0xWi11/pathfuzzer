@@ -1,4 +1,3 @@
-// PayloadManagerPanel.java - 管理载荷的UI面板
 package pzfzr.gui;
 
 import pzfzr.fuzzer.PayloadInfo;
