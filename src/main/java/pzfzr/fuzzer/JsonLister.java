@@ -23,6 +23,7 @@ import pzfzr.model.TableModel;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * JsonLister类用于对HTTP请求中的参数进行替换和污染测试
@@ -42,17 +43,22 @@ public class JsonLister {
     private final AtomicInteger nextModifiedId;
     private volatile boolean isShuttingDown = false;
 
-    // 常量定义
-    private static final String TARGET_EMAIL = "victim@gmail.com";
-    private static final String ATTACKER_EMAIL = "attacker@gmail.com";
-    private static final Pattern EMAIL_REGEX = Pattern.compile("victim@gmail\\.com");
+    // Hash 生成相关常量
+    private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
+    private static final int HASH_LENGTH = 5;
+    private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
+
+    // 邮箱匹配正则表达式 - 修改为匹配新的邮箱格式
+    private static final Pattern EMAIL_REGEX = Pattern.compile(
+            "(zycc[+-][a-zA-Z0-9]+@intigriti\\.me|zcyy[+-][a-zA-Z0-9]+@(bugcrowdninja|wearehackerone)\\.com)"
+    );
     private static final Pattern ID_REGEX = Pattern.compile("(\"[^\"]*ids?\":|[?&][^=&]*ids?=)", Pattern.CASE_INSENSITIVE);
 
     public JsonLister(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                       RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
         this.api = api;
         this.objectMapper = new ObjectMapper();
-        this.emailPattern = Pattern.compile("victim@gmail\\.com");
+        this.emailPattern = EMAIL_REGEX;
         this.idPattern = Pattern.compile("(\"[^\"]*ids?\":|[?&][^=&]*ids?=)", Pattern.CASE_INSENSITIVE);
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
@@ -60,6 +66,53 @@ public class JsonLister {
         this.rateLimiter = rateLimiter;
         this.cookieChanger = CookieChanger.getInstance();
         this.nextModifiedId = nextModifiedId;
+    }
+
+    /**
+     * 生成随机hash值
+     * @return 5位随机hash字符串
+     */
+    private String generateHash() {
+        char[] hash = new char[HASH_LENGTH];
+        for (int i = 0; i < HASH_LENGTH; i++) {
+            hash[i] = HASH_CHARS.charAt(RANDOM.get().nextInt(HASH_CHARS.length()));
+        }
+        return new String(hash);
+    }
+
+    /**
+     * 根据目标邮箱生成攻击者邮箱
+     * @param targetEmail 目标邮箱
+     * @return 攻击者邮箱
+     */
+    private String generateAttackerEmail(String targetEmail) {
+        String hash = generateHash();
+
+        if (targetEmail.startsWith("zycc+") && targetEmail.endsWith("@intigriti.me")) {
+            return "zycc+veryuser" + hash + "@intigriti.me";
+        } else if (targetEmail.startsWith("zycc-") && targetEmail.endsWith("@intigriti.me")) {
+            return "zycc-veryuser" + hash + "@intigriti.me";
+        } else if (targetEmail.startsWith("zcyy+") && targetEmail.endsWith("@bugcrowdninja.com")) {
+            return "zcyy+veryuser" + hash + "@bugcrowdninja.com";
+        } else if (targetEmail.startsWith("zcyy-") && targetEmail.endsWith("@bugcrowdninja.com")) {
+            return "zcyy-veryuser" + hash + "@bugcrowdninja.com";
+        } else if (targetEmail.startsWith("zcyy+") && targetEmail.endsWith("@wearehackerone.com")) {
+            return "zcyy+veryuser" + hash + "@wearehackerone.com";
+        } else if (targetEmail.startsWith("zcyy-") && targetEmail.endsWith("@wearehackerone.com")) {
+            return "zcyy-veryuser" + hash + "@wearehackerone.com";
+        }
+
+        // 默认返回原邮箱（不应该发生）
+        return targetEmail;
+    }
+
+    /**
+     * 检查邮箱是否匹配目标模式
+     * @param email 邮箱地址
+     * @return 是否匹配
+     */
+    private boolean isTargetEmail(String email) {
+        return EMAIL_REGEX.matcher(email).matches();
     }
 
     /**
@@ -202,13 +255,16 @@ public class JsonLister {
                     return;
                 }
 
-                if (TARGET_EMAIL.equals(param.value())) {
-                    // 创建污染参数: email=victim@gmail.com&email=attacker@gmail.com
-                    HttpParameter newParam = HttpParameter.parameter(param.name(), ATTACKER_EMAIL, HttpParameterType.URL);
+                if (isTargetEmail(param.value())) {
+                    String targetEmail = param.value();
+                    String attackerEmail = generateAttackerEmail(targetEmail);
+
+                    // 创建污染参数: email=target@email.com&email=attacker@email.com
+                    HttpParameter newParam = HttpParameter.parameter(param.name(), attackerEmail, HttpParameterType.URL);
                     HttpRequest modifiedRequest = originalRequest.withAddedParameters(newParam);
 
                     // 生成 expression - 仅包含新增的污染参数
-                    String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
+                    String expression = "&" + param.name() + "=" + attackerEmail;
 
                     sendModifiedRequest(modifiedRequest, messageId, host, expression, "&email", param.name());
                 }
@@ -237,13 +293,16 @@ public class JsonLister {
                     return;
                 }
 
-                if (TARGET_EMAIL.equals(param.value())) {
-                    // 创建污染参数: email=victim@gmail.com&email=attacker@gmail.com
-                    HttpParameter newParam = HttpParameter.parameter(param.name(), ATTACKER_EMAIL, HttpParameterType.BODY);
+                if (isTargetEmail(param.value())) {
+                    String targetEmail = param.value();
+                    String attackerEmail = generateAttackerEmail(targetEmail);
+
+                    // 创建污染参数: email=target@email.com&email=attacker@email.com
+                    HttpParameter newParam = HttpParameter.parameter(param.name(), attackerEmail, HttpParameterType.BODY);
                     HttpRequest modifiedRequest = originalRequest.withAddedParameters(newParam);
 
                     // 生成 expression - 仅包含新增的污染参数
-                    String expression = "&" + param.name() + "=" + ATTACKER_EMAIL;
+                    String expression = "&" + param.name() + "=" + attackerEmail;
 
                     sendModifiedRequest(modifiedRequest, messageId, host, expression, "&email", param.name());
                 }
@@ -276,30 +335,47 @@ public class JsonLister {
                 }
 
                 String fieldPath = entry.getKey();
-
-                // 创建新的JSON with email array
-                ObjectNode newRoot = rootNode.deepCopy();
-
-                // 创建邮箱数组
-                ArrayNode emailArray = JsonNodeFactory.instance.arrayNode();
-                emailArray.add(TARGET_EMAIL);
-                emailArray.add(ATTACKER_EMAIL);
-
-                // 替换字段值
-                setFieldValue(newRoot, fieldPath, emailArray);
-
                 JsonNode originalValue = entry.getValue();
 
-                // 生成 expression
-                String expression = generateJsonExpression(fieldPath, originalValue, emailArray);
+                // 获取原始邮箱值
+                String targetEmail = null;
+                if (originalValue.isTextual()) {
+                    targetEmail = originalValue.asText();
+                } else if (originalValue.isArray() && originalValue.size() > 0) {
+                    // 如果是数组，获取第一个匹配的邮箱
+                    for (JsonNode item : originalValue) {
+                        if (item.isTextual() && isTargetEmail(item.asText())) {
+                            targetEmail = item.asText();
+                            break;
+                        }
+                    }
+                }
 
-                // 提取参数名称（JSON路径的最后一段）
-                String currentParamName = extractParamNameFromPath(fieldPath);
+                if (targetEmail != null && isTargetEmail(targetEmail)) {
+                    String attackerEmail = generateAttackerEmail(targetEmail);
 
-                // 发送修改后的请求
-                String modifiedBody = objectMapper.writeValueAsString(newRoot);
-                HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                sendModifiedRequest(modifiedRequest, messageId, host, expression, "[2emails]", currentParamName);
+                    // 创建新的JSON with email array
+                    ObjectNode newRoot = rootNode.deepCopy();
+
+                    // 创建邮箱数组
+                    ArrayNode emailArray = JsonNodeFactory.instance.arrayNode();
+                    emailArray.add(targetEmail);
+                    emailArray.add(attackerEmail);
+
+                    // 替换字段值
+                    setFieldValue(newRoot, fieldPath, emailArray);
+
+                    // 生成 expression
+                    String expression = generateJsonExpression(fieldPath, originalValue, emailArray);
+
+                    // 提取参数名称（JSON路径的最后一段）
+                    String currentParamName = extractParamNameFromPath(fieldPath);
+
+                    // 发送修改后的请求
+                    String modifiedBody = objectMapper.writeValueAsString(newRoot);
+                    HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "[2emails]", currentParamName);
+                }
             }
         } catch (Exception e) {
             // 静默处理异常
@@ -848,12 +924,12 @@ public class JsonLister {
                 JsonNode fieldValue = field.getValue();
                 String fieldPath = currentPath.isEmpty() ? fieldName : currentPath + "." + fieldName;
 
-                if (fieldValue.isTextual() && TARGET_EMAIL.equals(fieldValue.asText())) {
+                if (fieldValue.isTextual() && isTargetEmail(fieldValue.asText())) {
                     emailFields.put(fieldPath, fieldValue);
                 } else if (fieldValue.isArray()) {
                     // 检查数组是否直接包含目标email
                     for (JsonNode arrayItem : fieldValue) {
-                        if (arrayItem.isTextual() && TARGET_EMAIL.equals(arrayItem.asText())) {
+                        if (arrayItem.isTextual() && isTargetEmail(arrayItem.asText())) {
                             emailFields.put(fieldPath, fieldValue);
                             break;
                         }
