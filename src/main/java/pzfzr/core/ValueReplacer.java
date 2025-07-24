@@ -66,6 +66,14 @@ public class ValueReplacer {
     }
 
     /**
+     * 获取ParamFuzzer实例，供UI组件使用
+     * @return ParamFuzzer实例
+     */
+    public ParamFuzzer getParamFuzzer() {
+        return this.paramFuzzer;
+    }
+
+    /**
      * 从请求URL中提取主机部分
      * @param url HTTP请求
      * @return 主机名

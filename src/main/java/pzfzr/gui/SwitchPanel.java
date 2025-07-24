@@ -4,6 +4,7 @@ import pzfzr.config.SwitchManager;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
+import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.model.CSVExporter;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -19,7 +20,7 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox builtInSwitch;
     private final JCheckBox collectedSwitch;
     private final JCheckBox suspiciousSwitch;
-//    private final JCheckBox knownSwitch;
+    //    private final JCheckBox knownSwitch;
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
@@ -28,25 +29,29 @@ public class SwitchPanel extends JPanel {
     private final CSVExporter csvExporter;
     private final RequestResponseSaver requestResponseSaver;
     private final RateLimiter rateLimiter; // 添加 RateLimiter 引用
+    private final ParamFuzzer paramFuzzer; // 新增：ParamFuzzer 引用
     private final JTextField newCapacityTextField;
     private final JTextField newRefillRateTextField;
     private final JTextField newUrlRateLimitTextField; // 新增URL限流输入框
     private final JTextField newUrlExpireTimeTextField; // 新增URL过期时间输入框
     private final JTextField newRefillIntervalTextField; // 新增令牌添加间隔输入框
     private final JTextField maxHeadersPerBatchTextField; // 新增maxHeadersPerBatch输入框
+    private final JTextField maxParameterCountTextField; // 新增：最大参数数量输入框
     private final JButton setRateLimitButton;
     private final JButton clearTasksButton;
     private final TrafficHandler trafficHandler;
     private final JLabel requestsPerHourLabel; // 新增每小时请求数提示标签
     private final JButton cancelActiveTasksButton;
 
-    public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter, TrafficHandler trafficHandler) {
+    public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
+                       RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer) { // 修改：添加ParamFuzzer参数
         this.switchManager = SwitchManager.getInstance();
         this.logging = logging;
         this.requestResponseSaver = requestResponseSaver;
         this.csvExporter = new CSVExporter(logging, tableModel, requestResponseSaver);
         this.rateLimiter = rateLimiter;
         this.trafficHandler = trafficHandler; // Store the reference
+        this.paramFuzzer = paramFuzzer; // 新增：存储ParamFuzzer引用
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
@@ -221,6 +226,18 @@ public class SwitchPanel extends JPanel {
         urlRateLimitPanel.add(newUrlExpireTimeTextField);
         urlRateLimitPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        // 新增：创建最大参数数量设置的UI元素
+        JPanel maxParameterPanel = new JPanel();
+        maxParameterPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+        maxParameterPanel.setBorder(BorderFactory.createTitledBorder("参数数量限制"));
+
+        JLabel maxParameterLabel = new JLabel("最大参数数量:");
+        maxParameterCountTextField = new JTextField(String.valueOf(paramFuzzer.getMaxParameterCount()), 5);
+
+        maxParameterPanel.add(maxParameterLabel);
+        maxParameterPanel.add(maxParameterCountTextField);
+        maxParameterPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         // 创建设置按钮面板
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         setRateLimitButton = new JButton("应用速率限制设置");
@@ -232,12 +249,17 @@ public class SwitchPanel extends JPanel {
                 long newUrlExpireTime = Long.parseLong(newUrlExpireTimeTextField.getText()) * 1000; // 转换为毫秒
                 long newRefillInterval = Long.parseLong(newRefillIntervalTextField.getText());
                 int newMaxHeadersPerBatch = Integer.parseInt(maxHeadersPerBatchTextField.getText());
+                int newMaxParameterCount = Integer.parseInt(maxParameterCountTextField.getText()); // 新增：获取最大参数数量
 
                 if (newCapacity > 0 && newRefillRate >= 0 && newUrlRateLimit >= 0 &&
-                        newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0) {
+                        newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0 &&
+                        newMaxParameterCount > 0) { // 新增：验证最大参数数量
                     // 使用完整的参数列表调用更新方法
                     rateLimiter.updateConfiguration(newCapacity, newRefillRate, newUrlRateLimit,
                             newUrlExpireTime, newRefillInterval, newMaxHeadersPerBatch);
+
+                    // 新增：设置ParamFuzzer的最大参数数量
+                    paramFuzzer.setMaxParameterCount(newMaxParameterCount);
 
                     // 更新每小时请求数显示 - 使用更新后的值计算
                     double updatedRequestsPerSecond = calculateRequestsPerSecond(newRefillRate, newRefillInterval);
@@ -246,14 +268,14 @@ public class SwitchPanel extends JPanel {
 
                     JOptionPane.showMessageDialog(
                             this,
-                            "速率限制已更新",
+                            "速率限制和参数数量限制已更新", // 修改：更新提示信息
                             "成功",
                             JOptionPane.INFORMATION_MESSAGE
                     );
                 } else {
                     JOptionPane.showMessageDialog(
                             this,
-                            "容量、令牌添加间隔和每批次最大Header数必须大于0，其他参数不能为负数",
+                            "容量、令牌添加间隔、每批次最大Header数和最大参数数量必须大于0，其他参数不能为负数", // 修改：更新错误信息
                             "错误",
                             JOptionPane.ERROR_MESSAGE
                     );
@@ -276,6 +298,7 @@ public class SwitchPanel extends JPanel {
         rateLimitingContainer.setLayout(new BoxLayout(rateLimitingContainer, BoxLayout.Y_AXIS));
         rateLimitingContainer.add(globalRateLimitPanel);
         rateLimitingContainer.add(urlRateLimitPanel);
+        rateLimitingContainer.add(maxParameterPanel); // 新增：添加最大参数数量面板，放在URL速率限制下方
         rateLimitingContainer.add(buttonPanel);
         rateLimitingContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
 

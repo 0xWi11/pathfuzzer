@@ -6,6 +6,8 @@ import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
+import pzfzr.fuzzer.ParamFuzzer;
+
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,7 +17,7 @@ public class ControlPanel extends JPanel {
     private final SettingsPanel settingsPanel;
     private final CookieChangerPanel cookieChangerPanel;  // 新增 CookieChangerPanel 引用
 
-    public ControlPanel(MontoyaApi api, ConfigManager configManager, TableModel tableModel, RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter, TrafficHandler trafficHandler) {
+    public ControlPanel(MontoyaApi api, ConfigManager configManager, TableModel tableModel, RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer) {
         setLayout(new BorderLayout());
 
         // 创建标签页面板
@@ -25,7 +27,7 @@ public class ControlPanel extends JPanel {
         requestResponseViewer = new RequestResponseViewer(api);
 
         // 初始化设置面板 - 传入必要组件和 RateLimiter 实例
-        settingsPanel = new SettingsPanel(configManager, api.logging(), tableModel, requestResponseSaver, rateLimiter, trafficHandler);
+        settingsPanel = new SettingsPanel(configManager, api.logging(), tableModel, requestResponseSaver, rateLimiter, trafficHandler, paramFuzzer);
 
         // 初始化 Cookie 修改器面板 - 新增
         cookieChangerPanel = new CookieChangerPanel(api);

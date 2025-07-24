@@ -7,6 +7,8 @@ import pzfzr.core.TrafficHandler;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 import burp.api.montoya.logging.Logging;
+import pzfzr.fuzzer.ParamFuzzer;
+
 
 import javax.swing.*;
 import java.awt.*;
@@ -16,11 +18,11 @@ public class SettingsPanel extends JPanel {
     private final JTabbedPane listTabPane;
     private final PayloadManagerPanel payloadManagerPanel; // Add PayloadManagerPanel
 
-    public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter, TrafficHandler trafficHandler) {
+    public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer) {
         setLayout(new BorderLayout());
 
         // 创建开关面板 - 传入logging实例和其他必要组件和 RateLimiter 实例
-        switchPanel = new SwitchPanel(logging, tableModel, requestResponseSaver, rateLimiter, trafficHandler);
+        switchPanel = new SwitchPanel(logging, tableModel, requestResponseSaver, rateLimiter, trafficHandler, paramFuzzer);
 
         // 创建底部面板
         listTabPane = new JTabbedPane();
