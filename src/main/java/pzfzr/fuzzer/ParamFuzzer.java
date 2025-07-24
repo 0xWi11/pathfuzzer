@@ -31,6 +31,7 @@ public class ParamFuzzer {
     private final RateLimiter rateLimiter;
     private final Logging logging;
     private volatile boolean isShuttingDown = false;
+    private final PayloadManager payloadManager; // Add PayloadManager
 
     // 可动态修改的参数数量限制
     private volatile int maxParameterCount = 30;
@@ -45,6 +46,7 @@ public class ParamFuzzer {
         this.rateLimiter = rateLimiter;
         this.logging = api.logging();
         this.nextModifiedId = nextModifiedId;
+        this.payloadManager = PayloadManager.getInstance(); // Initialize PayloadManager
     }
 
     /**
@@ -193,7 +195,8 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
-            for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.PARAM_PAYLOAD_INFOS) {
+            // 使用PayloadManager获取启用的param payloads
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
 
                 // 根据需求#6，URL参数跳过random_8000
@@ -237,7 +240,8 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
-            for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.PARAM_PAYLOAD_INFOS) {
+            // 使用PayloadManager获取启用的param payloads
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
 
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
@@ -280,7 +284,8 @@ public class ParamFuzzer {
             for (JsonPath jsonPath : jsonPaths) {
                 if (isShuttingDown) return;
 
-                for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.PARAM_PAYLOAD_INFOS) {
+                // 使用PayloadManager获取启用的param payloads
+                for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                     if (isShuttingDown) return;
 
                     // 从JsonNode获取实际文本值

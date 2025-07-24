@@ -4,11 +4,13 @@ import java.util.*;
 /**
  * 统一的Payload常量类
  * 用于ParamFuzzer和RouteFuzzer共享payload定义
+ * 注意：这个类保持向后兼容性，但新的功能应该使用PayloadManager
  */
 public class PayloadConstants {
 
     /**
      * PayloadInfo类用于将payload和其别名绑定在一起
+     * 注意：为了向后兼容性保留，新代码应该使用 pzfzr.fuzzer.PayloadInfo
      */
     public static class PayloadInfo {
         public final String payload;
@@ -27,6 +29,7 @@ public class PayloadConstants {
 
     /**
      * 参数模糊测试专用的payload列表
+     * 注意：这些是默认值，实际使用时应该通过PayloadManager获取启用的payloads
      */
     public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
@@ -58,6 +61,7 @@ public class PayloadConstants {
 
     /**
      * 路由模糊测试专用的payload列表
+     * 注意：这些是默认值，实际使用时应该通过PayloadManager获取启用的payloads
      */
     public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
@@ -175,6 +179,4 @@ public class PayloadConstants {
             return processed;
         }
     }
-
-
 }

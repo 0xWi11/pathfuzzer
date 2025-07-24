@@ -1,3 +1,4 @@
+// Updated RouteFuzzer.java - Modified to use PayloadManager
 package pzfzr.fuzzer;
 
 import java.util.*;
@@ -17,7 +18,7 @@ import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
 public class RouteFuzzer {
-    private final AtomicInteger nextModifiedId; // 使用外部传入的nextModifiedId
+    private final AtomicInteger nextModifiedId;
     private final MontoyaApi api;
     private final TableModel tableModel;
     private volatile boolean isShuttingDown = false;
@@ -26,6 +27,7 @@ public class RouteFuzzer {
     private final RateLimiter rateLimiter;
     private final CookieChanger cookieChanger;
     private final RequestDeduplicator requestDeduplicator;
+    private final PayloadManager payloadManager; // Add PayloadManager
 
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
@@ -36,7 +38,8 @@ public class RouteFuzzer {
         this.rateLimiter = rateLimiter;
         this.cookieChanger = CookieChanger.getInstance();
         this.requestDeduplicator = RequestDeduplicator.getInstance(this.logging);
-        this.nextModifiedId = nextModifiedId; // 接收外部传入的nextModifiedId
+        this.nextModifiedId = nextModifiedId;
+        this.payloadManager = PayloadManager.getInstance(); // Initialize PayloadManager
     }
 
     /**
@@ -134,8 +137,8 @@ public class RouteFuzzer {
             if (isShuttingDown) {
                 return;
             }
-            // 对当前段测试每个payload - 使用统一的PayloadConstants.ROUTE_PAYLOAD_INFOS
-            for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
+            // 对当前段测试每个启用的payload - 使用PayloadManager获取启用的payloads
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledRoutePayloads()) {
                 if (isShuttingDown) {
                     return;
                 }
@@ -166,8 +169,8 @@ public class RouteFuzzer {
             if (isShuttingDown) {
                 return;
             }
-            // 使用统一的PayloadConstants.ROUTE_PAYLOAD_INFOS
-            for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
+            // 使用PayloadManager获取启用的payloads
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledRoutePayloads()) {
                 if (isShuttingDown) {
                     return;
                 }

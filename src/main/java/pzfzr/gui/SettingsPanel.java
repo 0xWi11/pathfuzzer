@@ -14,6 +14,7 @@ import java.awt.*;
 public class SettingsPanel extends JPanel {
     private final SwitchPanel switchPanel;
     private final JTabbedPane listTabPane;
+    private final PayloadManagerPanel payloadManagerPanel; // Add PayloadManagerPanel
 
     public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter, TrafficHandler trafficHandler) {
         setLayout(new BorderLayout());
@@ -23,11 +24,12 @@ public class SettingsPanel extends JPanel {
 
         // 创建底部面板
         listTabPane = new JTabbedPane();
-//        listTabPane.addTab("Payload List", new ListPanel("Payload List", ConfigChangeType.PAYLOAD, true));
-//        listTabPane.addTab("Collected List", new ListPanel("Collected List", ConfigChangeType.COLLECTED, true));
-//        listTabPane.addTab("Suspicious List", new ListPanel("Suspicious List", ConfigChangeType.SUSPICIOUS, true));
-//        listTabPane.addTab("Black List", new ListPanel("Black List", ConfigChangeType.BLACKLIST, true));
-//        listTabPane.addTab("Remove List", new ListPanel("Remove List", ConfigChangeType.REMOVE, true));
+
+        // Initialize PayloadManagerPanel
+        payloadManagerPanel = new PayloadManagerPanel();
+
+        // Add the new Payload Manager tab
+        listTabPane.addTab("Payload Manager", payloadManagerPanel);
         listTabPane.addTab("Intercept Filter", new RequestFilterPanel(configManager));
 
         // 使用JSplitPane分割上下两个部分
@@ -37,5 +39,10 @@ public class SettingsPanel extends JPanel {
         splitPane.setResizeWeight(0.3); // 设置分割比例
 
         add(splitPane, BorderLayout.CENTER);
+    }
+
+    // Getter method to access PayloadManagerPanel if needed
+    public PayloadManagerPanel getPayloadManagerPanel() {
+        return payloadManagerPanel;
     }
 }
