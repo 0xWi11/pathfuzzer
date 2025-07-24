@@ -468,7 +468,7 @@ public class ParamFuzzer {
     private void sendTestRequest(HttpRequest modifiedRequest, int messageId, String host,
                                  String expression, String testType, String payloadAlias, String parameterName) {
         try {
-            rateLimiter.acquire(modifiedRequest.url() + modifiedRequest.method());
+            rateLimiter.acquire(modifiedRequest.url().split("\\?")[0] + modifiedRequest.method());
 
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
             int tempID = nextModifiedId.getAndIncrement();
