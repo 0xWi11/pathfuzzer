@@ -374,7 +374,7 @@ public class JsonLister {
                     // 发送修改后的请求
                     String modifiedBody = objectMapper.writeValueAsString(newRoot);
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
-                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "[2emails]", currentParamName);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "2emails", currentParamName);
                 }
             }
         } catch (Exception e) {
