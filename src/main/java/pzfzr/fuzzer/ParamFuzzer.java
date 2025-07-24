@@ -6,7 +6,6 @@ import java.util.regex.Pattern;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import static pzfzr.fuzzer.PayloadConstants.FIXED_8K_STRING;
 
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
@@ -36,53 +35,7 @@ public class ParamFuzzer {
     // 可动态修改的参数数量限制
     private volatile int maxParameterCount = 30;
 
-    private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
-    private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
-    private static final int HASH_LENGTH = 5;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    /**
-     * PayloadInfo类用于将payload和其别名绑定在一起
-     */
-    private static class PayloadInfo {
-        final String payload;
-        final String alias;
-
-        PayloadInfo(String payload, String alias) {
-            this.payload = payload;
-            this.alias = alias;
-        }
-    }
-
-    // Payload列表及其对应别名 - 直接定义，不使用循环
-    private static final List<PayloadInfo> PAYLOAD_INFOS = Arrays.asList(
-            new PayloadInfo("chaxx123", "chaxx"),
-            new PayloadInfo("file:///etc/shells", "file protocol"),
-            new PayloadInfo("{param}&chaxx=xx", "{param}&norandom=xx"),
-            new PayloadInfo("{param}%26chaxx=chax", "{param}%26x=x"),
-            new PayloadInfo("{random_8000}", "{random_8000}"),
-            new PayloadInfo("{param}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%206", "{param}CRLF"),
-            new PayloadInfo("{param}/../../../../../../../", "{param}/../X7"),
-            new PayloadInfo("{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f", "{param}%2f..X7"),
-            new PayloadInfo("{param}\\", "{param}\\"),
-            new PayloadInfo("{param}\\..\\..\\", "{param}\\..\\..\\"),
-            new PayloadInfo("{param}%5c..%5c..%5c", "{param}%5c..X2"),
-            new PayloadInfo("{param_double_url_encoded}", "{double_url}"),
-            new PayloadInfo("{param}?", "{param}?"),
-            new PayloadInfo("{param}%3f", "{param}%3f"),
-            new PayloadInfo("{param}#", "{param}#"),
-            new PayloadInfo("{param}%23", "{param}%23"),
-            new PayloadInfo("{param_url_encoded}", "{url}"),
-            new PayloadInfo("/{param}", "/{param}"),
-            new PayloadInfo("%2f{param}", "%2f{param}"),
-            new PayloadInfo("./{param}", "./{param}"),
-            new PayloadInfo("%2e%2f{param}", "%2e%2f{param}"),
-            new PayloadInfo("{param}/../{param}", "{param}/../{param}"),
-            new PayloadInfo("{param}%2f..%2f{param}", "{par}%2f..%2f{param}"),
-            new PayloadInfo("{param}/", "{param}/"),
-            new PayloadInfo("{param}%2f", "{param}%2f")
-    );
 
     public ParamFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
@@ -240,7 +193,7 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
-            for (PayloadInfo payloadInfo : PAYLOAD_INFOS) {
+            for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.PARAM_PAYLOAD_INFOS) {
                 if (isShuttingDown) return;
 
                 // 根据需求#6，URL参数跳过random_8000
@@ -284,7 +237,7 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
-            for (PayloadInfo payloadInfo : PAYLOAD_INFOS) {
+            for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.PARAM_PAYLOAD_INFOS) {
                 if (isShuttingDown) return;
 
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
@@ -327,7 +280,7 @@ public class ParamFuzzer {
             for (JsonPath jsonPath : jsonPaths) {
                 if (isShuttingDown) return;
 
-                for (PayloadInfo payloadInfo : PAYLOAD_INFOS) {
+                for (PayloadConstants.PayloadInfo payloadInfo : PayloadConstants.PARAM_PAYLOAD_INFOS) {
                     if (isShuttingDown) return;
 
                     // 从JsonNode获取实际文本值
@@ -501,50 +454,11 @@ public class ParamFuzzer {
     }
 
     /**
-     * 使用参数替换处理payload
+     * 使用统一的PayloadConstants处理payload
      */
     private String processPayload(String payload, String paramValue) {
-        String processed = payload;
-
-        // 处理 8000 字符随机字符串
-        if ("{random_8000}".equals(payload)) {
-            return FIXED_8K_STRING;
-        }
-        // Handle special URL encoding cases
-        if ("{param_url_encoded}".equals(payload)) {
-            // 对参数进行单次URL编码（完全编码）
-            processed = urlEncodeFullly(paramValue);
-        } else if ("{param_double_url_encoded}".equals(payload)) {
-            // 对参数进行双重URL编码（完全编码）
-            String singleEncoded = urlEncodeFullly(paramValue);
-            processed = urlEncodeFullly(singleEncoded);
-        } else {
-            // 将{param}替换为实际参数值
-            processed = processed.replace("{param}", paramValue);
-        }
-
-        // 处理{fuzz}替换
-        if (processed.contains("{fuzz}")) {
-            char[] hash = new char[HASH_LENGTH];
-            for (int i = 0; i < HASH_LENGTH; i++) {
-                hash[i] = HASH_CHARS.charAt(RANDOM.get().nextInt(HASH_CHARS.length()));
-            }
-            processed = processed.replace("{fuzz}", new String(hash));
-        }
-
-        return processed;
-    }
-
-    /**
-     * 完全URL编码字符串（编码所有字符）
-     */
-    private String urlEncodeFullly(String input) {
-        StringBuilder result = new StringBuilder();
-        byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
-        for (byte b : bytes) {
-            result.append(String.format("%%%02x", b & 0xFF));
-        }
-        return result.toString();
+        // 使用统一的PayloadConstants.PayloadProcessor进行通用处理
+        return PayloadConstants.PayloadProcessor.processCommonReplacements(payload, paramValue);
     }
 
     /**
