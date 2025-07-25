@@ -33,6 +33,7 @@ public class PayloadConstants {
      */
     public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
+//            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
             new PayloadInfo("file:///etc/shells", "file protocol"),
             new PayloadInfo("{param}&chaxx=xx", "{param}&norandom=xx"),
             new PayloadInfo("{param}%26chaxx=chax", "{param}%26x=x"),
@@ -65,6 +66,7 @@ public class PayloadConstants {
      */
     public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
+//            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
             new PayloadInfo("{param}&chaxx=cha", "{param}&chaxx=cha"),
             new PayloadInfo("{param}%26chaxx=cha", "{param}%26chaxx=cha"),
             new PayloadInfo("{path}@{fuzz}.tejq8.zcyy.fun", "{path}@host"),

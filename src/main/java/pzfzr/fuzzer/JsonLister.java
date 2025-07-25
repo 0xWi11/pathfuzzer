@@ -867,7 +867,7 @@ public class JsonLister {
             }
 
             // 应用速率限制
-            rateLimiter.acquire(modifiedRequest.url() + modifiedRequest.method());
+            rateLimiter.acquire(modifiedRequest.url().split("\\?")[0] + modifiedRequest.method());
 
             // 发送修改后的请求
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
