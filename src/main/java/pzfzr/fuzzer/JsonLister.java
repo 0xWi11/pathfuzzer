@@ -587,10 +587,6 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(originalIdStr);
 
-            // 基本变体 - 直接将payload值和别名绑定
-            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
-            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
-
             // 整型的递减变体
             variants.add(new PayloadVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), "-4", false, false, null));
             variants.add(new PayloadVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), "-10", false, false, null));
@@ -609,6 +605,10 @@ public class JsonLister {
             variants.add(new PayloadVariant(originalId + "/../" + (originalId - 4), paramName + "=" + originalId + "/../" + (originalId - 4), "/../-4", false, false, null));
             variants.add(new PayloadVariant(originalId + "/../" + (originalId - 10), paramName + "=" + originalId + "/../" + (originalId - 10), "/../-10", false, false, null));
             variants.add(new PayloadVariant(originalId + "/../" + (originalId - 100), paramName + "=" + originalId + "/../" + (originalId - 100), "/../-100", false, false, null));
+
+            // 基本变体 - 移到最后（倒数第二和倒数第一）
+            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
+            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
         } catch (NumberFormatException e) {
             // 如果不是数字，只添加基本变体
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
@@ -630,14 +630,10 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(originalIdStr);
 
-            // 基本变体 - 直接将payload值和别名绑定
-            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
-            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
-
             // 整型的递减变体
             variants.add(new PayloadVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), "-4", false, false, null));
             variants.add(new PayloadVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), "-10", false, false, null));
-            variants.add(new PayloadVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), "100", false, false, null));
+            variants.add(new PayloadVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), "-100", false, false, null));
 
             // 参数污染变体 - 修改为仅包含新增的污染参数
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
@@ -652,6 +648,10 @@ public class JsonLister {
             variants.add(new PayloadVariant(originalId + "/../" + (originalId - 4), paramName + "=" + originalId + "/../" + (originalId - 4), "/../-4", false, false, null));
             variants.add(new PayloadVariant(originalId + "/../" + (originalId - 10), paramName + "=" + originalId + "/../" + (originalId - 10), "/../-10", false, false, null));
             variants.add(new PayloadVariant(originalId + "/../" + (originalId - 100), paramName + "=" + originalId + "/../" + (originalId - 100), "/../-100", false, false, null));
+
+            // 基本变体 - 移到最后（倒数第二和倒数第一）
+            variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
+            variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
         } catch (NumberFormatException e) {
             // 如果不是数字，只添加基本变体
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
@@ -673,13 +673,11 @@ public class JsonLister {
             // 处理32位整数
             int id = originalValue.asInt();
 
-            // 空数组和null
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
             // 整型的递减变体
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 4), "-4"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 10), "-10"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 100), "-100"));
+
             // 数组变体 [原值,递减4,递减10,递减100]
             ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
             arrayVariant1.add(id);
@@ -693,17 +691,19 @@ public class JsonLister {
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)), "/../-10"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)), "/../-100"));
 
+            // 空数组和null - 移到最后
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+
         } else if (originalValue.isLong()) {
             // 处理64位长整数
             long id = originalValue.asLong();
 
-            // 空数组和null
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
             // 长整型的递减变体
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 4), "-4"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 10), "-10"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 100), "-100"));
+
             // 数组变体
             ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
             arrayVariant2.add(id);
@@ -717,18 +717,20 @@ public class JsonLister {
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 10)), "/../-10"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "/../" + (id - 100)), "/../-100"));
 
+            // 空数组和null - 移到最后
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+
         } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
             String idStr = originalValue.asText();
             try {
                 long id = Long.parseLong(idStr);
 
-                // 空数组和null
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
                 // 字符串型但是数值递减的变体
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 4)), "\"-4\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)), "\"-10\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)), "\"-100\""));
+
                 // 字符串数组变体
                 ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
                 arrayVariant3.add(idStr);
@@ -741,6 +743,10 @@ public class JsonLister {
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 4)), "\"/../-4\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 10)), "\"/../-10\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + (id - 100)), "\"/../-100\""));
+
+                // 空数组和null - 移到最后
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
             } catch (NumberFormatException e) {
                 // 如果解析失败，只添加基本变体
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
@@ -749,9 +755,6 @@ public class JsonLister {
 
         } else if (originalValue.isArray()) {
             // 数组情况
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
-
             // 提取第一个ID值来生成变体
             JsonNode firstItem = originalValue.get(0);
             if (firstItem != null) {
@@ -786,6 +789,10 @@ public class JsonLister {
                     }
                 }
             }
+
+            // 数组情况下的空数组和null - 移到最后
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
         }
 
         return variants;
