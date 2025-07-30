@@ -47,7 +47,7 @@ public class RequestDeduplicator {
             return true; // 跳过，请求在30分钟内已测试过
         } else {
             // 添加新的哈希值，并设置过期时间为30分钟后
-            requestHashes.put(requestHash, Instant.now().plusSeconds(30 * 60).toEpochMilli());
+            requestHashes.put(requestHash, Instant.now().plusSeconds(600 * 60).toEpochMilli());
             return false; // 不跳过，允许本次请求
         }
     }
