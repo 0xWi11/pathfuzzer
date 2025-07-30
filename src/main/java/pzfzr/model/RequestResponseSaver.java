@@ -175,7 +175,7 @@ public class RequestResponseSaver {
             if (response != null) {
                 try {
                     saveModifiedResponseInternal(response, id, httpRequestResponse.timingData().get().timeBetweenRequestSentAndStartOfResponse().toMillis());
-//                    logging.logToOutput("RequestResponseSaver: Attempting to get ModifiedEntry by ID: " + id + " from TableModel"); // 添加日志，记录尝试获取的 ID
+//                logging.logToOutput("RequestResponseSaver: Attempting to get ModifiedEntry by ID: " + id + " from TableModel"); // 添加日志，记录尝试获取的 ID
                     ModifiedRequestResponse modifiedEntry = null;
                     for (int i = 0; i < 4 && (modifiedEntry = tableModel.getModifiedEntryById(id)) == null; i++) {
                         try {
@@ -187,8 +187,12 @@ public class RequestResponseSaver {
                     }
                     if (modifiedEntry == null)
                         throw new RuntimeException("[RequestResponseSaver] ModifiedRequestResponse entry not found in TableModel for ID: " + id);
+
+                    // 修改这里：使用新的长度计算方法
+                    int modifiedResponseLength = calculateResponseLengthWithoutSetCookieValues(response);
+
                     modifiedEntry.setModifiedResponseAndCalculateMetadata(
-                            response.statusCode(), response.body().length(), detectReflectType(response),
+                            response.statusCode(), modifiedResponseLength, detectReflectType(response),
                             httpRequestResponse.timingData().get().timeBetweenRequestSentAndStartOfResponse().toMillis()
                     );
                     httpRequestResponse = null;
@@ -216,6 +220,33 @@ public class RequestResponseSaver {
         if (!pendingResponseIds.isEmpty()) {
             schedulePollingTask();
         }
+    }
+
+    /**
+     * 计算响应长度，包括header，但排除Set-Cookie header的值部分
+     * @param response HTTP响应
+     * @return 计算后的长度
+     */
+    private int calculateResponseLengthWithoutSetCookieValues(HttpResponse response) {
+        if (response == null) {
+            return -1;
+        }
+
+        // 获取完整响应的原始字节数组
+        byte[] fullResponse = response.toByteArray().getBytes();
+        int totalLength = fullResponse.length;
+
+        // 计算需要减去的Set-Cookie值的总长度
+        int setCookieValuesLength = 0;
+
+        for (HttpHeader header : response.headers()) {
+            if ("Set-Cookie".equalsIgnoreCase(header.name())) {
+                // 只计算值的长度，不包括header名称和冒号空格
+                setCookieValuesLength += header.value().length();
+            }
+        }
+
+        return totalLength - setCookieValuesLength;
     }
 
     // 内部方法：保存修改后的响应（被轮询和直接调用）
