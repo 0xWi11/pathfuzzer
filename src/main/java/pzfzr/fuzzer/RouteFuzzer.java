@@ -221,6 +221,11 @@ public class RouteFuzzer {
             modifiedPayload = modifiedPayload.replace("{fuzz}", PayloadConstants.PayloadProcessor.generateRandomHash());
         }
 
+        // 处理特殊情况 {path_del} - 删除当前路径段
+        if (modifiedPayload.equals("{path_del}")) {
+            return handlePathDelPayload(modifiedSegments, targetIndex, addTrailingSlash);
+        }
+
         // 处理特殊情况 {path1}{path2}
         if (modifiedPayload.contains("{path1}{path2}")) {
             return handlePath1Path2Payload(modifiedSegments, targetIndex, addTrailingSlash);
@@ -244,6 +249,31 @@ public class RouteFuzzer {
         }
 
         // 构建最终路径
+        return buildPath(modifiedSegments, addTrailingSlash);
+    }
+
+    /**
+     * 处理 {path_del} 特殊情况 - 删除当前路径段
+     */
+    private String handlePathDelPayload(List<String> pathSegments, int targetIndex, boolean addTrailingSlash) {
+        List<String> modifiedSegments = new ArrayList<>(pathSegments);
+
+        // 如果只有一个路径段，删除后会变成根路径 "/"
+        if (modifiedSegments.size() == 1) {
+            // 根据需求，可能需要返回 "/" 或者 null（跳过测试）
+            // 这里返回根路径 "/"
+            return addTrailingSlash ? "/" : "/";
+        }
+
+        // 删除目标索引处的路径段
+        if (targetIndex >= 0 && targetIndex < modifiedSegments.size()) {
+            modifiedSegments.remove(targetIndex);
+        } else {
+            // 索引无效，返回null跳过这个测试
+            return null;
+        }
+
+        // 构建删除路径段后的路径
         return buildPath(modifiedSegments, addTrailingSlash);
     }
 

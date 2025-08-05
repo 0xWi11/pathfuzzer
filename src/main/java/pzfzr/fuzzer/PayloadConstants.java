@@ -58,7 +58,7 @@ public class PayloadConstants {
             new PayloadInfo("{param_double_url_encoded}", "{double_url_encoded}"),
             new PayloadInfo("{param}&chaxx=xx", "{param}&norandom=xx"),
             new PayloadInfo("{param_url_encoded}", "{url_encoded}")
-            );
+    );
 
     /**
      * 路由模糊测试专用的payload列表
@@ -85,6 +85,7 @@ public class PayloadConstants {
             new PayloadInfo("{path}\\..\\..\\", "{path}\\..\\..\\"),
             new PayloadInfo("{path}%5c..%5c..%5c", "{path}%5c..X2"),
             new PayloadInfo("{path}/..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}/..%2fX6"),
+            new PayloadInfo("{path_del}", "{path_del}"), // 新增：删除当前路径段的payload
             new PayloadInfo("{path}/..%2f", "{path}/..%2f"),
             new PayloadInfo("{path}/..%5c..%5c..%5c..%5c..%5c..%5c..", "{path}/..%5cX6"),
             new PayloadInfo("{path}/..%5c", "{path}/..%5c"),
