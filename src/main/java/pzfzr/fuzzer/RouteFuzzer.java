@@ -28,6 +28,19 @@ public class RouteFuzzer {
     private final RequestDeduplicator requestDeduplicator;
     private final PayloadManager payloadManager; // Add PayloadManager
 
+    // 定义ROUTE1类型的payload alias数组（{path}CRLF之前的所有payload）
+    private static final Set<String> ROUTE1_ALIASES = new HashSet<>(Arrays.asList(
+            "chaxx",
+            "{param}&chaxx=cha",
+            "{param}%26chaxx=cha",
+            "{path}@host",
+            "{path1}{path2}",
+            "{path}..",
+            "ng crlf",
+            "ng crlf2",
+            "ng crlf3"
+    ));
+
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
         this.api = api;
@@ -320,6 +333,20 @@ public class RouteFuzzer {
     }
 
     /**
+     * 根据payload alias判断TestType
+     * @param payloadAlias payload的别名
+     * @return 对应的testType
+     */
+    private String determineTestType(String payloadAlias) {
+        // 如果alias在ROUTE1_ALIASES集合中，返回ROUTE1，否则返回ROUTE2
+        if (ROUTE1_ALIASES.contains(payloadAlias)) {
+            return "ROUTE1";
+        } else {
+            return "ROUTE2";
+        }
+    }
+
+    /**
      * 发送测试请求
      */
     private void sendTestRequest(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
@@ -343,11 +370,14 @@ public class RouteFuzzer {
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
             int tempID = nextModifiedId.getAndIncrement();
 
+            // 根据payloadAlias判断testType
+            String testType = determineTestType(payloadAlias);
+
             // 保存修改后的请求和响应，传入新的参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "ROUTE",
+                    testType,           // 使用动态判断的testType
                     "",
                     payloadAlias,       // payload别名
                     currentTestParam,    // 当前测试参数的名称（被替换的path片段）

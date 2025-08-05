@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * PayloadManager manages the enable/disable state of payloads for both ParamFuzzer and RouteFuzzer
+ * PayloadManager 管理 ParamFuzzer 和 RouteFuzzer 的载荷启用/禁用状态
  */
 public class PayloadManager {
     private static PayloadManager instance;
@@ -27,18 +27,18 @@ public class PayloadManager {
     }
 
     private void initializePayloads() {
-        // Initialize param payloads from PayloadConstants
+        // 从 PayloadConstants 初始化参数载荷
         for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.PARAM_PAYLOAD_INFOS) {
             paramPayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
         }
 
-        // Initialize route payloads from PayloadConstants
+        // 从 PayloadConstants 初始化路由载荷
         for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
             routePayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
         }
     }
 
-    // Param payload methods
+    // 参数载荷相关方法
     public List<PayloadInfo> getParamPayloads() {
         return new ArrayList<>(paramPayloads);
     }
@@ -61,7 +61,7 @@ public class PayloadManager {
         notifyListeners(PayloadType.PARAM);
     }
 
-    // Route payload methods
+    // 路由载荷相关方法
     public List<PayloadInfo> getRoutePayloads() {
         return new ArrayList<>(routePayloads);
     }
@@ -84,7 +84,7 @@ public class PayloadManager {
         notifyListeners(PayloadType.ROUTE);
     }
 
-    // Listener management
+    // 监听器管理
     public void addListener(PayloadChangeListener listener) {
         listeners.add(listener);
     }
@@ -99,7 +99,7 @@ public class PayloadManager {
         }
     }
 
-    // Enums and interfaces
+    // 枚举和接口
     public enum PayloadType {
         PARAM, ROUTE
     }

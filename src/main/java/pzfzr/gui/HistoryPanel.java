@@ -34,11 +34,12 @@ public class HistoryPanel extends JPanel {
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
-        // 为每个标签页创建独立的表格
+        // 为每个标签页创建独立的表格 - 现在有5个标签页
         JTable allTable = createTable();
         JTable jsonTable = createTable();
         JTable paramTable = createTable();
-        JTable routeTable = createTable();
+        JTable route1Table = createTable();  // 新增ROUTE1表格
+        JTable route2Table = createTable();  // 新增ROUTE2表格
 
         // 设置初始的当前表格
         currentTable = allTable;
@@ -48,9 +49,10 @@ public class HistoryPanel extends JPanel {
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
         tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
-        tabbedPane.addTab("ROUTE", new JScrollPane(routeTable));
+        tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));  // 新增ROUTE1标签页
+        tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));  // 新增ROUTE2标签页
 
-        // 添加标签切换监听器
+        // 添加标签切换监听器 - 更新为5个标签页
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = tabbedPane.getSelectedIndex();
             // 更新当前表格
@@ -68,7 +70,10 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("PARAM");
                     break;
                 case 3:
-                    tableModel.setFilter("ROUTE");
+                    tableModel.setFilter("ROUTE1");  // 新增ROUTE1过滤器
+                    break;
+                case 4:
+                    tableModel.setFilter("ROUTE2");  // 新增ROUTE2过滤器
                     break;
             }
         });

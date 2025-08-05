@@ -1,7 +1,7 @@
 package pzfzr.fuzzer;
 
 /**
- * Enhanced PayloadInfo class that supports enable/disable functionality
+ * 增强版 PayloadInfo 类，支持启用/禁用功能
  */
 public class PayloadInfo {
     public final String payload;
@@ -11,7 +11,7 @@ public class PayloadInfo {
     public PayloadInfo(String payload, String alias) {
         this.payload = payload;
         this.alias = alias;
-        this.enabled = true; // Default to enabled
+        this.enabled = true; // 默认为启用状态
     }
 
     public PayloadInfo(String payload, String alias, boolean enabled) {

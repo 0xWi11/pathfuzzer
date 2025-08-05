@@ -23,7 +23,7 @@ public class RequestResponseViewer extends JSplitPane {
     private final JButton previousButton;
     private final JButton nextButton;
     private HistoryPanel historyPanel;
-    // Add weak references to current data
+    // 添加对当前数据的弱引用
     private WeakReference<OriginalRequestResponse> currentOriginal;
     private WeakReference<ModifiedRequestResponse> currentModified;
 
@@ -178,15 +178,15 @@ public class RequestResponseViewer extends JSplitPane {
     }
 
     public void updateViewers(OriginalRequestResponse original, ModifiedRequestResponse modified) {
-        // Clear previous data first
+        // 首先清除之前的数据
         clearViewers();
 
         if (original != null && modified != null) {
-            // Store weak references
+            // 存储弱引用
             currentOriginal = new WeakReference<>(original);
             currentModified = new WeakReference<>(modified);
 
-            // Update viewers with new data
+            // 使用新数据更新查看器
             SwingUtilities.invokeLater(() -> {
                 try {
                     originalRequestViewer.setRequest(original.getOriginalRequest());
@@ -195,7 +195,7 @@ public class RequestResponseViewer extends JSplitPane {
                     requestViewer.setSearchExpression(modified.getExpression());
                     responseViewer.setResponse(modified.getModifiedResponse());
                 } catch (Exception e) {
-                    // Handle potential exceptions during viewer updates
+                    // 处理查看器更新期间的潜在异常
                     e.printStackTrace();
                 }
             });
@@ -212,13 +212,13 @@ public class RequestResponseViewer extends JSplitPane {
     private void clearViewers() {
         SwingUtilities.invokeLater(() -> {
             try {
-                // Clear all viewers
+                // 清除所有查看器
                 originalRequestViewer.setRequest(null);
                 originalResponseViewer.setResponse(null);
                 requestViewer.setRequest(null);
                 responseViewer.setResponse(null);
 
-                // Clear references
+                // 清除引用
                 if (currentOriginal != null) {
                     currentOriginal.clear();
                 }
@@ -230,10 +230,10 @@ public class RequestResponseViewer extends JSplitPane {
             }
         });
     }
-    // Add cleanup method
+    // 添加清理方法
     public void cleanup() {
         clearViewers();
-        // Remove listeners
+        // 移除监听器
         previousButton.removeActionListener(l -> {});
         nextButton.removeActionListener(l -> {});
         historyPanel = null;

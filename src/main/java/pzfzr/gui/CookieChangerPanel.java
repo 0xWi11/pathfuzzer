@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Panel for managing header entries in the CookieChanger
+ * 用于管理 CookieChanger 中请求头条目的面板
  */
 public class CookieChangerPanel extends JPanel {
 
@@ -29,36 +29,36 @@ public class CookieChangerPanel extends JPanel {
         this.logging = api.logging();
         this.cookieChanger = CookieChanger.getInstance();
 
-        // Use BorderLayout for the main panel
+        // 为主面板使用 BorderLayout 布局
         setLayout(new BorderLayout());
 
-        // Create a panel to hold the existing table and buttons
+        // 创建一个面板来容纳现有的表格和按钮
         JPanel topPanel = new JPanel(new BorderLayout());
 
-        // Create the table model and table
+        // 创建表格模型和表格
         tableModel = new HeaderTableModel();
         headerTable = new JTable(tableModel);
 
-        // Set up table appearance
+        // 设置表格外观
         headerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         headerTable.setAutoCreateRowSorter(true);
 
-        // Center align text in cells
+        // 单元格文本居中对齐
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         for (int i = 0; i < headerTable.getColumnCount(); i++) {
             headerTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
 
-        // Set column widths
-        headerTable.getColumnModel().getColumn(0).setPreferredWidth(200); // Host
-        headerTable.getColumnModel().getColumn(1).setPreferredWidth(150); // Header Name
-        headerTable.getColumnModel().getColumn(2).setPreferredWidth(250); // Header Value
+        // 设置列宽
+        headerTable.getColumnModel().getColumn(0).setPreferredWidth(200); // 主机
+        headerTable.getColumnModel().getColumn(1).setPreferredWidth(150); // 请求头名称
+        headerTable.getColumnModel().getColumn(2).setPreferredWidth(250); // 请求头值
 
-        // Create scroll pane for the table
+        // 为表格创建滚动面板
         JScrollPane scrollPane = new JScrollPane(headerTable);
 
-        // Create button panel
+        // 创建按钮面板
         JPanel buttonPanel = new JPanel();
 
         JButton addButton = new JButton("Add");
@@ -67,43 +67,43 @@ public class CookieChangerPanel extends JPanel {
         JButton clearAllButton = new JButton("Clear All");
         JButton refreshButton = new JButton("Refresh");
 
-        // Add action listeners to buttons
+        // 为按钮添加动作监听器
         addButton.addActionListener(this::addHeaderEntry);
         editButton.addActionListener(this::editHeaderEntry);
         deleteButton.addActionListener(this::deleteHeaderEntry);
         clearAllButton.addActionListener(this::clearAllEntries);
         refreshButton.addActionListener(e -> refreshTable());
 
-        // Add buttons to panel
+        // 将按钮添加到面板
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
         buttonPanel.add(clearAllButton);
         buttonPanel.add(refreshButton);
 
-        // Add the scroll pane (table) and button panel to the top panel
+        // 将滚动面板（表格）和按钮面板添加到顶部面板
         topPanel.add(scrollPane, BorderLayout.CENTER);
         topPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Add the top panel to the NORTH of the main panel
+        // 将顶部面板添加到主面板的北部
         add(topPanel, BorderLayout.NORTH);
 
-        // The rest of the panel (BorderLayout.CENTER) will be empty space
-        // Add future components here using BorderLayout.CENTER or another panel in BorderLayout.CENTER
+        // 面板的其余部分（BorderLayout.CENTER）将是空白区域
+        // 在此处使用 BorderLayout.CENTER 或另一个面板添加未来组件
 
-        // Initial table refresh
+        // 初始表格刷新
         refreshTable();
     }
 
     /**
-     * Refresh the table with the latest data from CookieChanger
+     * 使用 CookieChanger 的最新数据刷新表格
      */
     public void refreshTable() {
         tableModel.refreshData();
     }
 
     /**
-     * Add a new header entry
+     * 添加新的请求头条目
      */
     private void addHeaderEntry(ActionEvent e) {
         HeaderEntryDialog dialog = new HeaderEntryDialog(SwingUtilities.getWindowAncestor(this), "Add Header Entry");
@@ -118,7 +118,7 @@ public class CookieChangerPanel extends JPanel {
     }
 
     /**
-     * Edit an existing header entry
+     * 编辑现有的请求头条目
      */
     private void editHeaderEntry(ActionEvent e) {
         int selectedRow = headerTable.getSelectedRow();
@@ -127,7 +127,7 @@ public class CookieChangerPanel extends JPanel {
             return;
         }
 
-        // Convert view index to model index in case the table is sorted
+        // 将视图索引转换为模型索引，以防表格被排序
         int modelRow = headerTable.convertRowIndexToModel(selectedRow);
         HeaderEntry oldEntry = tableModel.getEntryAt(modelRow);
 
@@ -143,7 +143,7 @@ public class CookieChangerPanel extends JPanel {
     }
 
     /**
-     * Delete a header entry
+     * 删除请求头条目
      */
     private void deleteHeaderEntry(ActionEvent e) {
         int selectedRow = headerTable.getSelectedRow();
@@ -152,7 +152,7 @@ public class CookieChangerPanel extends JPanel {
             return;
         }
 
-        // Convert view index to model index in case the table is sorted
+        // 将视图索引转换为模型索引，以防表格被排序
         int modelRow = headerTable.convertRowIndexToModel(selectedRow);
         HeaderEntry entry = tableModel.getEntryAt(modelRow);
 
@@ -172,7 +172,7 @@ public class CookieChangerPanel extends JPanel {
     }
 
     /**
-     * Clear all header entries
+     * 清除所有请求头条目
      */
     private void clearAllEntries(ActionEvent e) {
         int result = JOptionPane.showConfirmDialog(
@@ -191,7 +191,7 @@ public class CookieChangerPanel extends JPanel {
     }
 
     /**
-     * Table model for the header entries
+     * 请求头条目的表格模型
      */
     private class HeaderTableModel extends AbstractTableModel {
         private final String[] COLUMN_NAMES = {"Host", "Header Name", "Header Value"};
@@ -239,7 +239,7 @@ public class CookieChangerPanel extends JPanel {
     }
 
     /**
-     * Dialog for adding or editing header entries
+     * 用于添加或编辑请求头条目的对话框
      */
     private static class HeaderEntryDialog extends JDialog {
         private final JTextField hostField;
@@ -273,7 +273,7 @@ public class CookieChangerPanel extends JPanel {
             constraints.fill = GridBagConstraints.HORIZONTAL;
             constraints.insets = new Insets(5, 5, 5, 5);
 
-            // Host field
+            // 主机字段
             constraints.gridx = 0;
             constraints.gridy = 0;
             panel.add(new JLabel("Host:"), constraints);
@@ -282,7 +282,7 @@ public class CookieChangerPanel extends JPanel {
             constraints.weightx = 1.0;
             panel.add(hostField, constraints);
 
-            // Header name field
+            // 请求头名称字段
             constraints.gridx = 0;
             constraints.gridy = 1;
             constraints.weightx = 0.0;
@@ -292,7 +292,7 @@ public class CookieChangerPanel extends JPanel {
             constraints.weightx = 1.0;
             panel.add(headerNameField, constraints);
 
-            // Header value field
+            // 请求头值字段
             constraints.gridx = 0;
             constraints.gridy = 2;
             constraints.weightx = 0.0;
@@ -302,7 +302,7 @@ public class CookieChangerPanel extends JPanel {
             constraints.weightx = 1.0;
             panel.add(headerValueField, constraints);
 
-            // Buttons
+            // 按钮
             JButton okButton = new JButton("OK");
             JButton cancelButton = new JButton("Cancel");
 
