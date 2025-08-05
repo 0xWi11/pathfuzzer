@@ -30,7 +30,7 @@ public class RouteFuzzer {
 
     // 定义ROUTE1类型的payload alias数组（{path}CRLF之前的所有payload）
     private static final Set<String> ROUTE1_ALIASES = new HashSet<>(Arrays.asList(
-            "chaxx",
+//            "chaxx",
             "{param}&chaxx=cha",
             "{param}%26chaxx=cha",
             "{path}@host",
@@ -38,7 +38,14 @@ public class RouteFuzzer {
             "{path}..",
             "ng crlf",
             "ng crlf2",
-            "ng crlf3"
+            "ng crlf3",
+            "{path}CRLF"
+    ));
+
+    // 新增：定义ROUTE12类型的payload alias数组
+    private static final Set<String> ROUTE12_ALIASES = new HashSet<>(Arrays.asList(
+            "chaxx",          // 对应 new PayloadInfo("chaxx123", "chaxx")
+            "{path}/chaxx"    // 对应 new PayloadInfo("{path}/chaxx", "{path}/chaxx")
     ));
 
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
@@ -338,8 +345,12 @@ public class RouteFuzzer {
      * @return 对应的testType
      */
     private String determineTestType(String payloadAlias) {
+        // 首先检查是否为ROUTE12类型
+        if (ROUTE12_ALIASES.contains(payloadAlias)) {
+            return "ROUTE12";
+        }
         // 如果alias在ROUTE1_ALIASES集合中，返回ROUTE1，否则返回ROUTE2
-        if (ROUTE1_ALIASES.contains(payloadAlias)) {
+        else if (ROUTE1_ALIASES.contains(payloadAlias)) {
             return "ROUTE1";
         } else {
             return "ROUTE2";

@@ -220,13 +220,32 @@ public class TableModel extends AbstractTableModel {
         this.associatedTable = table;
     }
 
+    /**
+     * 更新过滤后的条目列表
+     * 修改此方法以支持ROUTE12类型在ROUTE1和ROUTE2标签页中都显示
+     */
     private void updateFilteredEntries() {
         filteredEntries.clear();
         if ("ALL".equals(currentFilter)) {
             filteredEntries.addAll(modifiedEntries);
         } else {
             for (ModifiedRequestResponse entry : modifiedEntries) {
-                if (entry.getTestType().equals(currentFilter)) {
+                String entryTestType = entry.getTestType();
+
+                // 检查条目是否应该在当前过滤器下显示
+                boolean shouldInclude = false;
+
+                if (entryTestType.equals(currentFilter)) {
+                    // 直接匹配当前过滤器
+                    shouldInclude = true;
+                } else if ("ROUTE12".equals(entryTestType)) {
+                    // ROUTE12类型的条目在ROUTE1和ROUTE2标签页中都显示
+                    if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
+                        shouldInclude = true;
+                    }
+                }
+
+                if (shouldInclude) {
                     filteredEntries.add(entry);
                 }
             }
@@ -239,6 +258,10 @@ public class TableModel extends AbstractTableModel {
         return entry;
     }
 
+    /**
+     * 添加修改后的条目
+     * 修改此方法以支持ROUTE12类型在ROUTE1和ROUTE2标签页中都显示
+     */
     public synchronized void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
         if (SwingUtilities.isEventDispatchThread()) {
             addModifiedEntryInternal(modifiedEntry);
@@ -250,8 +273,22 @@ public class TableModel extends AbstractTableModel {
     private void addModifiedEntryInternal(ModifiedRequestResponse modifiedEntry) {
         modifiedEntries.add(modifiedEntry);
 
-        if ("ALL".equals(currentFilter) ||
-                modifiedEntry.getTestType().equals(currentFilter)) {
+        String entryTestType = modifiedEntry.getTestType();
+        boolean shouldAdd = false;
+
+        // 检查是否应该在当前过滤器下添加条目
+        if ("ALL".equals(currentFilter)) {
+            shouldAdd = true;
+        } else if (entryTestType.equals(currentFilter)) {
+            shouldAdd = true;
+        } else if ("ROUTE12".equals(entryTestType)) {
+            // ROUTE12类型的条目在ROUTE1和ROUTE2标签页中都显示
+            if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
+                shouldAdd = true;
+            }
+        }
+
+        if (shouldAdd) {
             filteredEntries.add(modifiedEntry);
             final int filteredIndex = filteredEntries.size() - 1;
             fireTableRowsInserted(filteredIndex, filteredIndex);

