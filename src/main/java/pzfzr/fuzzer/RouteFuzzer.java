@@ -347,7 +347,7 @@ public class RouteFuzzer {
     private String determineTestType(String payloadAlias) {
         // 首先检查是否为ROUTE12类型
         if (ROUTE12_ALIASES.contains(payloadAlias)) {
-            return "ROUTE12";
+            return "ROUTE3";
         }
         // 如果alias在ROUTE1_ALIASES集合中，返回ROUTE1，否则返回ROUTE2
         else if (ROUTE1_ALIASES.contains(payloadAlias)) {

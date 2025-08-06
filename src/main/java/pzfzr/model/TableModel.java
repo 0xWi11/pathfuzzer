@@ -238,7 +238,7 @@ public class TableModel extends AbstractTableModel {
                 if (entryTestType.equals(currentFilter)) {
                     // 直接匹配当前过滤器
                     shouldInclude = true;
-                } else if ("ROUTE12".equals(entryTestType)) {
+                } else if ("ROUTE3".equals(entryTestType)) {
                     // ROUTE12类型的条目在ROUTE1和ROUTE2标签页中都显示
                     if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
                         shouldInclude = true;
@@ -281,7 +281,7 @@ public class TableModel extends AbstractTableModel {
             shouldAdd = true;
         } else if (entryTestType.equals(currentFilter)) {
             shouldAdd = true;
-        } else if ("ROUTE12".equals(entryTestType)) {
+        } else if ("ROUTE3".equals(entryTestType)) {
             // ROUTE12类型的条目在ROUTE1和ROUTE2标签页中都显示
             if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
                 shouldAdd = true;
