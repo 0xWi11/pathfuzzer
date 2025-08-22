@@ -199,8 +199,8 @@ public class ParamFuzzer {
             for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
 
-                // 根据需求#6，URL参数跳过random_8000
-                if ("{random_8000}".equals(payloadInfo.payload)) {
+                // URL参数跳过random_8000，参数污染，和URL编码
+                if ("{random_8000}".equals(payloadInfo.alias)||"{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)) {
                     continue;
                 }
 
@@ -244,6 +244,10 @@ public class ParamFuzzer {
             for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
 
+                // PostBody参数跳过参数污染和URL编码
+                if ("{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)) {
+                    continue;
+                }
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
                 String expression = paramName + "=" + processedPayload;
 
