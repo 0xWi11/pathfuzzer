@@ -65,9 +65,7 @@ public class TableModel extends AbstractTableModel {
     public static class StatusCodeCellRenderer extends DefaultTableCellRenderer {
         // 存储状态码及其对应颜色的映射表
         private static final Map<Integer, Color> STATUS_COLORS = new HashMap<>();
-
         static {
-            // 根据提供的状态码定义初始化颜色映射表
             STATUS_COLORS.put(200, new Color(198, 255, 221)); // #C6FFDD 淡薄荷绿
             STATUS_COLORS.put(201, new Color(213, 251, 232)); // #D5FBE8 极浅薄荷
             STATUS_COLORS.put(204, new Color(230, 255, 238)); // #E6FFEE 近白薄荷
@@ -76,11 +74,16 @@ public class TableModel extends AbstractTableModel {
             STATUS_COLORS.put(304, new Color(240, 248, 225)); // #F0F8E1 极浅黄绿
             STATUS_COLORS.put(307, new Color(255, 240, 213)); // #FFF0D5 极浅杏黄
             STATUS_COLORS.put(308, new Color(245, 222, 179)); // #F5DEB3 小麦色
-            STATUS_COLORS.put(400, new Color(255, 204, 204)); // #FFCCCC 浅粉红
+            STATUS_COLORS.put(400, new Color(255, 139, 139)); // #FF8B8B 适中红，比403/404更重
             STATUS_COLORS.put(401, new Color(255, 179, 186)); // #FFB3BA 淡草莓色
-            STATUS_COLORS.put(403, new Color(255, 153, 153)); // #FF9999 淡珊瑚红
+            STATUS_COLORS.put(403, new Color(255, 182, 167)); // #FFB6A7 偏橙红，淡化但和404区分
+            STATUS_COLORS.put(404, new Color(255, 200, 209)); // #FFC8D1 偏粉红，亮度+25%，更柔和
+            STATUS_COLORS.put(405, new Color(255, 204, 204)); // #FFCCCC 浅红粉，柔和，和404/406保持差异
             STATUS_COLORS.put(406, new Color(255, 179, 167)); // #FFB3A7 妃色/浅红
+            STATUS_COLORS.put(409, new Color(255, 182, 193)); // #FFB6C1 浅粉红（比 404 稍淡）
+            STATUS_COLORS.put(410, new Color(255, 160, 122)); // #FFA07A 浅鲑鱼色
             STATUS_COLORS.put(422, new Color(255, 188, 217)); // #FFBCD9 淡紫红
+            STATUS_COLORS.put(440, new Color(255, 218, 185)); // #FFDAB9 桃色（和 403/404 有区分）
             STATUS_COLORS.put(500, new Color(216, 191, 216)); // #D8BFD8 蓟色(淡紫)
             STATUS_COLORS.put(502, new Color(204, 187, 216)); // #CCBBD8 淡薰衣草
             STATUS_COLORS.put(504, new Color(187, 191, 216)); // #BBBFD8 淡紫蓝
@@ -93,19 +96,16 @@ public class TableModel extends AbstractTableModel {
                                                        boolean isSelected, boolean hasFocus,
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-
             // 如果单元格被选中，保持选中颜色
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
                 return c;
             }
-
             // 否则，根据状态码设置背景颜色
             try {
                 if (value != null && !value.toString().equals("Pending")) {
                     int statusCode = Integer.parseInt(value.toString());
-
                     // 获取特定状态码的颜色，或获取状态码家族的颜色（例如 404 -> 400）
                     Color color = STATUS_COLORS.get(statusCode);
                     if (color == null && statusCode > 0) {
@@ -113,7 +113,6 @@ public class TableModel extends AbstractTableModel {
                         int statusFamily = (statusCode / 100) * 100;
                         color = STATUS_COLORS.get(statusFamily);
                     }
-
                     if (color != null) {
                         c.setBackground(color);
                     } else {
@@ -136,7 +135,6 @@ public class TableModel extends AbstractTableModel {
                     c.setBackground(new Color(251, 251, 251));
                 }
             }
-
             return c;
         }
     }
