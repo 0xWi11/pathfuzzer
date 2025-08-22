@@ -150,7 +150,7 @@ public class ParamFuzzer {
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "PARAM_FUZZ",
+                    "PARAM",
                     "", // expression置空
                     "PARAMTOOMANY", // payloadAlias设置为PARAMTOOMANY
                     "", // parameterName置空
