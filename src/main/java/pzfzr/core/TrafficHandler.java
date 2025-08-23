@@ -145,7 +145,7 @@ public class TrafficHandler implements HttpHandler {
         }
 //        valueReplacer.collectResponseHeaders(responseReceived.headers());
 
-        if (configManager.shouldFilter(responseReceived.initiatingRequest())) {
+        if (configManager.shouldFilter(responseReceived.initiatingRequest().withBody(""))) {
             return ResponseReceivedAction.continueWith(responseReceived);
         }
         if (responseReceived.toolSource().isFromTool(ToolType.PROXY)) {
