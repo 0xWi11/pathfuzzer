@@ -20,7 +20,7 @@ public class TableModel extends AbstractTableModel {
     private RequestResponseSaver requestResponseSaver; // 声明 RequestResponseSaver 成员变量
     private final Logging logging;
 
-    // 更新列名顺序：ID, method, url, test type, param, payload, modif status, len diff, orig len, modif len, modif time, reflect
+    // 更新列名顺序：ID, Method, URL, Test type, Param, Payload, modif status, modif len(withoutheader), modif len+(withheader), lendiff(withoutheader), origin len(withoutheader), Modif. Time, Reflect
     private static final String[] COLUMN_NAMES = {
             "ID",
             "Method",
@@ -28,10 +28,11 @@ public class TableModel extends AbstractTableModel {
             "Test Type",
             "Param",        // testParameterName
             "Payload",      // payloadAlias
-            "Modif. Status", // 移动到第6位
-            "Len Diff",     // 移动到第7位
-            "Orig. Len",    // 移动到第8位
-            "Modif. Len",   // 移动到第9位
+            "Modif. Status",
+            "Modif. len",
+            "Modif. len+",
+            "Len Diff",
+            "Orig. Len",
             "Modif. Time",
             "Reflect"
     };
@@ -350,10 +351,10 @@ public class TableModel extends AbstractTableModel {
                 case 0: // ID
                     return modifiedEntry.getId();
                 case 1: // Method
-                    return originalEntry.getOriginalMethod() ;
+                    return originalEntry != null ? originalEntry.getOriginalMethod() : "";
                 case 2: // URL
-                    return originalEntry.getOriginalUrl() ;
-                case 3: // Test Type
+                    return originalEntry != null ? originalEntry.getOriginalUrl() : "";
+                case 3: // Test type
                     return modifiedEntry.getTestType();
                 case 4: // Param
                     return modifiedEntry.getTestParameterName() != null ?
@@ -364,7 +365,13 @@ public class TableModel extends AbstractTableModel {
                 case 6: // Modif. Status
                     return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
-                case 7: // Len Diff WithoutHeader
+                case 7: // modif len(withoutheader)
+                    return modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1 ?
+                            modifiedEntry.getModifiedBodyLengthWithoutHeader() : "Pending";
+                case 8: // modif len+(withheader)
+                    return modifiedEntry.getModifiedBodyLength() != -1 ?
+                            modifiedEntry.getModifiedBodyLength() : "Pending";
+                case 9: // lendiff(withoutheader)
                     // 计算长度差异 (UI 线程计算，简单操作)
                     if (originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 &&
                             modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1) {
@@ -373,15 +380,12 @@ public class TableModel extends AbstractTableModel {
                         return Math.abs(modifyLen - origLen);
                     }
                     return "Pending";
-                case 8: // Orig. Len
+                case 10: // origin len(withoutheader)
                     return originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 ?
                             originalEntry.getOriginalResponseLenWithoutHeader() : "Pending";
-                case 9: // Modif. Len
-                    return modifiedEntry.getModifiedBodyLength() != -1 ?
-                            modifiedEntry.getModifiedBodyLength() : "Pending";
-                case 10: // Modif. Time
+                case 11: // Modif. Time
                     return modifiedEntry.getResponseTime();
-                case 11: // Reflect
+                case 12: // Reflect
                     return modifiedEntry.getReflectType();
                 default:
                     return null;
@@ -394,8 +398,8 @@ public class TableModel extends AbstractTableModel {
     public void setupSorter(JTable table) {
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(this);
 
-        // Reflect 列的索引仍然是 11
-        sorter.setComparator(11, (Comparator<Object>) (o1, o2) -> {
+        // Reflect 列的索引现在是 12
+        sorter.setComparator(12, (Comparator<Object>) (o1, o2) -> {
             if (o1 == null && o2 == null) return 0;
             if (o1 == null) return -1;
             if (o2 == null) return 1;
@@ -403,7 +407,7 @@ public class TableModel extends AbstractTableModel {
         });
 
         for (int i = 0; i < getColumnCount(); i++) {
-            if (i != 11) {
+            if (i != 12) {
                 final int column = i;
                 sorter.setComparator(column, (Comparator<Object>) (o1, o2) -> {
                     if (o1 == null && o2 == null) return 0;
@@ -422,14 +426,14 @@ public class TableModel extends AbstractTableModel {
 
     // 更新setupTableRenderers方法中的列索引
     public void setupTableRenderers(JTable table) {
-        // 为"Reflect"列（索引11）设置ReflectCellRenderer
-        table.getColumnModel().getColumn(11).setCellRenderer(new ReflectCellRenderer());
+        // 为"Reflect"列（索引12）设置ReflectCellRenderer
+        table.getColumnModel().getColumn(12).setCellRenderer(new ReflectCellRenderer());
 
-        // 为"Modif. Status"列（索引6，原来是8）设置StatusCodeCellRenderer
+        // 为"modif status"列（索引6）设置StatusCodeCellRenderer
         table.getColumnModel().getColumn(6).setCellRenderer(new StatusCodeCellRenderer());
 
-        // 为"Modif. Time"列（索引10）设置TimeCellRenderer
-        table.getColumnModel().getColumn(10).setCellRenderer(new TimeCellRenderer());
+        // 为"Modif. Time"列（索引11）设置TimeCellRenderer
+        table.getColumnModel().getColumn(11).setCellRenderer(new TimeCellRenderer());
     }
 
     public ModifiedRequestResponse getModifiedEntry(int row) {
