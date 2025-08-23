@@ -12,12 +12,14 @@ import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.params.HttpParameter;
 import burp.api.montoya.http.message.params.HttpParameterType;
 import burp.api.montoya.http.message.params.ParsedHttpParameter;
+import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 import pzfzr.core.RateLimiter;
+import pzfzr.core.CookieChanger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,6 +32,7 @@ public class ParamFuzzer {
     private final RequestResponseSaver requestResponseSaver;
     private final RateLimiter rateLimiter;
     private final Logging logging;
+    private final CookieChanger cookieChanger;
     private volatile boolean isShuttingDown = false;
     private final PayloadManager payloadManager; // Add PayloadManager
 
@@ -46,6 +49,7 @@ public class ParamFuzzer {
         this.rateLimiter = rateLimiter;
         this.logging = api.logging();
         this.nextModifiedId = nextModifiedId;
+        this.cookieChanger = CookieChanger.getInstance();
         this.payloadManager = PayloadManager.getInstance(); // Initialize PayloadManager
     }
 
@@ -142,6 +146,12 @@ public class ParamFuzzer {
      */
     private void sendParameterTooManyRequest(HttpRequest originalRequest, int messageId, String host) {
         try {
+            // 获取并添加认证相关的header
+            List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
+            if (authHeaders != null && !authHeaders.isEmpty()) {
+                originalRequest = originalRequest.withUpdatedHeaders(authHeaders);
+            }
+
             rateLimiter.acquire(originalRequest.url() + originalRequest.method());
 
             HttpRequestResponse response = api.http().sendRequest(originalRequest);
@@ -477,6 +487,12 @@ public class ParamFuzzer {
     private void sendTestRequest(HttpRequest modifiedRequest, int messageId, String host,
                                  String expression, String testType, String payloadAlias, String parameterName) {
         try {
+            // 获取并添加认证相关的header
+            List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
+            if (authHeaders != null && !authHeaders.isEmpty()) {
+                modifiedRequest = modifiedRequest.withUpdatedHeaders(authHeaders);
+            }
+
             rateLimiter.acquire(modifiedRequest.url().split("\\?")[0] + modifiedRequest.method());
 
             HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);

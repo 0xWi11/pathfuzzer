@@ -9,31 +9,31 @@ import java.util.stream.Collectors;
 import burp.api.montoya.http.message.HttpHeader;
 
 /**
- * A singleton class that stores and manages headers for different hosts.
- * Used to replace authentication-related headers in requests.
+ * 一个单例类，用于存储和管理不同主机的请求头。
+ * 用于替换请求中与认证相关的请求头。
  */
 public class CookieChanger {
 
-    // Singleton instance
+    // 单例实例
     private static volatile CookieChanger instance;
 
-    // Data structure to store host -> header mappings
-    // Map<host, List<HeaderEntry>> - Note: Key is now the stored pattern, not necessarily the request host
+    // 用于存储主机 -> 请求头映射关系的数据结构
+    // Map<host, List<HeaderEntry>> - 注意：键现在是存储的模式，不一定是请求主机
     private final Map<String, List<HeaderEntry>> hostHeadersMap;
 
     /**
-     * Private constructor to enforce singleton pattern
+     * 私有构造函数，强制使用单例模式
      */
     private CookieChanger() {
-        // Using a LinkedHashMap might be slightly better to preserve insertion order for display,
-        // but HashMap is sufficient for lookup logic here.
+        // 使用 LinkedHashMap 可能稍微好一些，可以保持插入顺序以便显示，
+        // 但 HashMap 在这里对于查找逻辑已经足够了。
         hostHeadersMap = new HashMap<>();
     }
 
     /**
-     * Get the singleton instance of CookieChanger
+     * 获取 CookieChanger 的单例实例
      *
-     * @return The singleton instance
+     * @return 单例实例
      */
     public static CookieChanger getInstance() {
         if (instance == null) {
@@ -47,9 +47,9 @@ public class CookieChanger {
     }
 
     /**
-     * Store a list of header entries
+     * 存储请求头条目列表
      *
-     * @param entries List of header entries containing host pattern, header name, and header value
+     * @param entries 包含主机模式、请求头名称和请求头值的请求头条目列表
      */
     public void storeHeaderEntries(List<HeaderEntry> entries) {
         if (entries == null || entries.isEmpty()) {
@@ -60,44 +60,44 @@ public class CookieChanger {
             for (HeaderEntry entry : entries) {
                 String hostPattern = entry.getHost();
 
-                // Create list if it doesn't exist for this host pattern
+                // 如果此主机模式不存在，则创建列表
                 if (!hostHeadersMap.containsKey(hostPattern)) {
                     hostHeadersMap.put(hostPattern, new ArrayList<>());
                 }
 
-                // Add the entry to the host pattern's list
-                // Note: This allows multiple entries for the same host pattern, which is fine.
-                // If you wanted to prevent duplicates of host/headerName, you'd need more logic here.
+                // 将条目添加到主机模式的列表中
+                // 注意：这允许同一主机模式有多个条目，这是可以的。
+                // 如果你想要防止主机/请求头名称的重复，这里需要更多的逻辑。
                 hostHeadersMap.get(hostPattern).add(entry);
             }
         }
     }
 
     /**
-     * Store a single header entry
+     * 存储单个请求头条目
      *
-     * @param entry The header entry to store
+     * @param entry 要存储的请求头条目
      */
     public void storeHeaderEntry(HeaderEntry entry) {
         if (entry == null) {
             return;
         }
 
-        // Although storeHeaderEntries can handle a list, for a single entry
-        // it's more direct to add it here if we want to potentially check for duplicates
-        // based on host pattern + header name before adding.
-        // For now, let's keep it simple and just call the list version.
+        // 虽然 storeHeaderEntries 可以处理列表，但对于单个条目
+        // 如果我们想要在添加之前根据主机模式 + 请求头名称检查重复，
+        // 这里直接添加会更直接。
+        // 现在，让我们保持简单，只调用列表版本。
         List<HeaderEntry> entries = new ArrayList<>();
         entries.add(entry);
         storeHeaderEntries(entries);
     }
 
     /**
-     * Get HttpHeader objects that match the requested host.
-     * Handles exact match and wildcard *.domain patterns.
+     * 获取与请求的主机匹配的 HttpHeader 对象。
+     * 处理精确匹配和通配符 *.domain 模式。
      *
-     * @param requestHost The host from the incoming HTTP request
-     * @return List of HttpHeader objects that match, or null if no headers match the host or if no rules are stored
+     * @param requestHost 来自传入 HTTP 请求的主机
+     * @return 匹配的 HttpHeader 对象列表，如果没有请求头匹配主机或没有存储规则则返回 null
      */
     public List<HttpHeader> getHttpHeadersForHost(String requestHost) {
         if (requestHost == null || requestHost.trim().isEmpty()) {
@@ -112,37 +112,37 @@ public class CookieChanger {
 
             List<HeaderEntry> matchingEntries = new ArrayList<>();
 
-            // Iterate through all stored header entry lists
-            // Note: We are iterating over the VALUES() because the KEYS are the patterns
-            // and we need to check each pattern against the requestHost.
+            // 遍历所有存储的请求头条目列表
+            // 注意：我们遍历 VALUES() 因为 KEYS 是模式
+            // 我们需要检查每个模式与 requestHost 的匹配。
             for (List<HeaderEntry> entriesForPattern : hostHeadersMap.values()) {
-                // Add a null check for the list itself, although theoretically it shouldn't be null
-                // if the key exists, it's good defensive programming.
+                // 为列表本身添加 null 检查，虽然理论上如果键存在它不应该为 null，
+                // 但这是良好的防御性编程。
                 if (entriesForPattern == null) {
-                    continue; // Skip if the list is unexpectedly null
+                    continue; // 如果列表意外为 null 则跳过
                 }
 
-                // Iterate through each individual entry within the list
+                // 遍历列表中的每个单独条目
                 for (HeaderEntry entry : entriesForPattern) {
                     String storedHostPattern = entry.getHost();
 
-                    // --- Matching Logic ---
+                    // --- 匹配逻辑 ---
                     boolean isMatch = false;
-                    // Ensure stored pattern is not null or empty before attempting match
+                    // 确保存储的模式在尝试匹配前不为 null 或空
                     if (storedHostPattern != null && !storedHostPattern.trim().isEmpty()) {
                         if (storedHostPattern.startsWith("*.")) {
-                            // Wildcard pattern matching: *.domain
-                            String domainPart = storedHostPattern.substring(2); // Get the "domain" part after "*."
-                            // Ensure the domain part is not empty after substring
+                            // 通配符模式匹配：*.domain
+                            String domainPart = storedHostPattern.substring(2); // 获取 "*." 后的 "domain" 部分
+                            // 确保子字符串后域部分不为空
                             if (!domainPart.isEmpty()) {
-                                // Check if the request host ends with ".domain" AND is longer than ".domain"
-                                // The length check prevents "*.example.com" from matching "example.com"
+                                // 检查请求主机是否以 ".domain" 结尾并且长度大于 ".domain"
+                                // 长度检查防止 "*.example.com" 匹配 "example.com"
                                 if (requestHost.endsWith("." + domainPart) && requestHost.length() > (domainPart.length() + 1)) {
                                     isMatch = true;
                                 }
                             }
                         } else {
-                            // Exact string matching
+                            // 精确字符串匹配
                             if (requestHost.equals(storedHostPattern)) {
                                 isMatch = true;
                             }
@@ -156,10 +156,10 @@ public class CookieChanger {
             }
 
             if (matchingEntries.isEmpty()) {
-                return null; // Return null if no headers matched any rule
+                return null; // 如果没有请求头匹配任何规则则返回 null
             }
 
-            // Convert matched HeaderEntry objects to HttpHeader objects
+            // 将匹配的 HeaderEntry 对象转换为 HttpHeader 对象
             return matchingEntries.stream()
                     .map(entry -> HttpHeader.httpHeader(entry.getHeaderName(), entry.getHeaderValue()))
                     .collect(Collectors.toList());
@@ -167,15 +167,15 @@ public class CookieChanger {
     }
 
     /**
-     * Get all header entries for all hosts
+     * 获取所有主机的所有请求头条目
      *
-     * @return List of all header entries
+     * @return 所有请求头条目的列表
      */
     public List<HeaderEntry> getAllHeaderEntries() {
         synchronized (hostHeadersMap) {
             List<HeaderEntry> allEntries = new ArrayList<>();
 
-            // Iterate through the values (the lists of entries) in the map
+            // 遍历映射中的值（条目列表）
             for (List<HeaderEntry> entries : hostHeadersMap.values()) {
                 allEntries.addAll(entries);
             }
@@ -185,11 +185,11 @@ public class CookieChanger {
     }
 
     /**
-     * Update an existing header entry
+     * 更新现有的请求头条目
      *
-     * @param oldEntry The entry to be updated (identified by its original host pattern, header name, and value)
-     * @param newEntry The new entry values (may include a new host pattern)
-     * @return true if the entry was updated, false otherwise
+     * @param oldEntry 要更新的条目（通过其原始主机模式、请求头名称和值识别）
+     * @param newEntry 新的条目值（可能包含新的主机模式）
+     * @return 如果条目已更新返回 true，否则返回 false
      */
     public boolean updateHeaderEntry(HeaderEntry oldEntry, HeaderEntry newEntry) {
         if (oldEntry == null || newEntry == null) {
@@ -200,17 +200,17 @@ public class CookieChanger {
             String oldHostPattern = oldEntry.getHost();
             String newHostPattern = newEntry.getHost();
 
-            // Check if the old host pattern exists in the map
+            // 检查旧主机模式是否存在于映射中
             if (!hostHeadersMap.containsKey(oldHostPattern)) {
                 return false;
             }
 
             List<HeaderEntry> entriesList = hostHeadersMap.get(oldHostPattern);
 
-            // Find the exact oldEntry in the list
+            // 在列表中找到确切的 oldEntry
             int index = -1;
             for(int i=0; i < entriesList.size(); i++){
-                if(entriesList.get(i).equals(oldEntry)){ // Use the overridden equals method
+                if(entriesList.get(i).equals(oldEntry)){ // 使用重写的 equals 方法
                     index = i;
                     break;
                 }
@@ -218,28 +218,28 @@ public class CookieChanger {
 
 
             if (index == -1) {
-                // Old entry not found in the list for its stated host pattern
+                // 在其声明的主机模式列表中未找到旧条目
                 return false;
             }
 
-            // If the host pattern has changed
+            // 如果主机模式已更改
             if (!oldHostPattern.equals(newHostPattern)) {
-                // Remove from the old host pattern list
+                // 从旧主机模式列表中移除
                 entriesList.remove(index);
 
-                // Add to the new host pattern list
+                // 添加到新主机模式列表
                 if (!hostHeadersMap.containsKey(newHostPattern)) {
                     hostHeadersMap.put(newHostPattern, new ArrayList<>());
                 }
                 hostHeadersMap.get(newHostPattern).add(newEntry);
 
-                // Clean up the old list key if it becomes empty
+                // 如果旧列表变空，清理旧列表键
                 if (entriesList.isEmpty()) {
                     hostHeadersMap.remove(oldHostPattern);
                 }
 
             } else {
-                // Same host pattern, just update the entry in place
+                // 相同主机模式，只需就地更新条目
                 entriesList.set(index, newEntry);
             }
 
@@ -249,10 +249,10 @@ public class CookieChanger {
 
 
     /**
-     * Delete a specific header entry
+     * 删除特定的请求头条目
      *
-     * @param entryToDelete The entry to be deleted (identified by its host pattern, header name, and value)
-     * @return true if the entry was deleted, false otherwise
+     * @param entryToDelete 要删除的条目（通过其主机模式、请求头名称和值识别）
+     * @return 如果条目已删除返回 true，否则返回 false
      */
     public boolean deleteHeaderEntry(HeaderEntry entryToDelete) {
         if (entryToDelete == null) {
@@ -268,10 +268,10 @@ public class CookieChanger {
 
             List<HeaderEntry> entriesList = hostHeadersMap.get(hostPattern);
 
-            // Find and remove the exact entry from the list
-            boolean removed = entriesList.remove(entryToDelete); // Uses the overridden equals method
+            // 从列表中查找并移除确切的条目
+            boolean removed = entriesList.remove(entryToDelete); // 使用重写的 equals 方法
 
-            // If the list for this host pattern is now empty, remove the host pattern key
+            // 如果此主机模式的列表现在为空，移除主机模式键
             if (entriesList.isEmpty()) {
                 hostHeadersMap.remove(hostPattern);
             }
@@ -282,7 +282,7 @@ public class CookieChanger {
 
 
     /**
-     * Clear all stored header entries
+     * 清除所有存储的请求头条目
      */
     public void clearAll() {
         synchronized (hostHeadersMap) {
@@ -291,9 +291,9 @@ public class CookieChanger {
     }
 
     /**
-     * Clear header entries for a specific host pattern
+     * 清除特定主机模式的请求头条目
      *
-     * @param hostPattern The host pattern to clear entries for
+     * @param hostPattern 要清除条目的主机模式
      */
     public void clearHost(String hostPattern) {
         synchronized (hostHeadersMap) {
@@ -302,10 +302,10 @@ public class CookieChanger {
     }
 
     /**
-     * Inner class to represent a header entry with host pattern, header name, and header value
+     * 内部类，表示包含主机模式、请求头名称和请求头值的请求头条目
      */
     public static class HeaderEntry {
-        // Renamed from 'host' to 'hostPattern' for clarity in the CookieChanger class
+        // 从 'host' 重命名为 'hostPattern'，以便在 CookieChanger 类中更清晰
         private final String hostPattern;
         private final String headerName;
         private final String headerValue;
@@ -316,7 +316,7 @@ public class CookieChanger {
             this.headerValue = headerValue;
         }
 
-        // Getter remains getHost() for compatibility with TableModel and Dialog
+        // Getter 保持 getHost() 以便与 TableModel 和 Dialog 兼容
         public String getHost() {
             return hostPattern;
         }
@@ -336,7 +336,7 @@ public class CookieChanger {
 
             HeaderEntry that = (HeaderEntry) obj;
 
-            // Equality is based on all three fields
+            // 相等性基于所有三个字段
             if (!hostPattern.equals(that.hostPattern)) return false;
             if (!headerName.equals(that.headerName)) return false;
             return headerValue.equals(that.headerValue);
