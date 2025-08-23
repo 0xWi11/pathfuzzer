@@ -12,7 +12,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.KeyEvent;
-import java.awt.geom.RoundRectangle2D;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +33,12 @@ public class RequestResponseViewer extends JPanel {
     private WeakReference<ModifiedRequestResponse> currentModified;
 
     // 四个可拖拽的面板
-    private DraggablePanel originalRequestPanel;
-    private DraggablePanel modifiedRequestPanel;
-    private DraggablePanel originalResponsePanel;
-    private DraggablePanel modifiedResponsePanel;
+    private ResizablePanel originalRequestPanel;
+    private ResizablePanel modifiedRequestPanel;
+    private ResizablePanel originalResponsePanel;
+    private ResizablePanel modifiedResponsePanel;
 
-    private ResizablePanelContainer panelContainer;
+    private CustomLayoutContainer layoutContainer;
 
     public RequestResponseViewer(MontoyaApi api) {
         super(new BorderLayout());
@@ -56,21 +55,21 @@ public class RequestResponseViewer extends JPanel {
         originalResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
         modifiedResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
 
-        // 创建四个可拖拽面板
-        originalRequestPanel = new DraggablePanel("Original Request", originalRequestViewer.uiComponent());
-        modifiedRequestPanel = new DraggablePanel("Modified Request", modifiedRequestViewer.uiComponent());
-        originalResponsePanel = new DraggablePanel("Original Response", originalResponseViewer.uiComponent());
-        modifiedResponsePanel = new DraggablePanel("Modified Response", modifiedResponseViewer.uiComponent());
+        // 创建四个可调整大小的面板
+        originalRequestPanel = new ResizablePanel("Original Request", originalRequestViewer.uiComponent());
+        modifiedRequestPanel = new ResizablePanel("Modified Request", modifiedRequestViewer.uiComponent());
+        originalResponsePanel = new ResizablePanel("Original Response", originalResponseViewer.uiComponent());
+        modifiedResponsePanel = new ResizablePanel("Modified Response", modifiedResponseViewer.uiComponent());
 
-        // 创建可调整大小的面板容器
-        panelContainer = new ResizablePanelContainer();
-        panelContainer.addPanel(originalRequestPanel);
-        panelContainer.addPanel(modifiedRequestPanel);
-        panelContainer.addPanel(originalResponsePanel);
-        panelContainer.addPanel(modifiedResponsePanel);
+        // 创建自定义布局容器
+        layoutContainer = new CustomLayoutContainer();
+        layoutContainer.addPanel(originalRequestPanel);
+        layoutContainer.addPanel(modifiedRequestPanel);
+        layoutContainer.addPanel(originalResponsePanel);
+        layoutContainer.addPanel(modifiedResponsePanel);
 
         // 将容器添加到主面板
-        add(panelContainer, BorderLayout.CENTER);
+        add(layoutContainer, BorderLayout.CENTER);
         add(navigationPanel, BorderLayout.SOUTH);
 
         // 设置按钮状态
@@ -231,63 +230,159 @@ public class RequestResponseViewer extends JPanel {
     }
 
     /**
-     * 现代化可拖拽面板类
+     * 可调整大小的面板 - 完全自主控制折叠
      */
-    private static class DraggablePanel extends JPanel {
+    private static class ResizablePanel extends JPanel {
         private final String title;
         private final Component content;
+        private boolean isCollapsed = false;
         private boolean isDragging = false;
         private Point dragStart;
-        private ResizablePanelContainer parentContainer;
+        private CustomLayoutContainer parentContainer;
 
-        public DraggablePanel(String title, Component content) {
-            super(new BorderLayout());
+        private JPanel titlePanel;
+        private JButton collapseButton;
+        private int preferredWidth = 300; // 默认宽度
+        private int collapsedWidth = 150;  // 折叠宽度
+
+        public ResizablePanel(String title, Component content) {
+            super();
             this.title = title;
             this.content = content;
 
+            // 不使用布局管理器，手动控制
+            setLayout(null);
             setupPanel();
             setupDragListeners();
         }
 
         private void setupPanel() {
-            // 创建现代化标题栏
-            JPanel titlePanel = new JPanel(new BorderLayout());
-            titlePanel.setBackground(new Color(248, 249, 250)); // 浅灰色背景
-            titlePanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+            // 创建标题栏
+            titlePanel = new JPanel(new BorderLayout());
+            titlePanel.setBackground(new Color(248, 249, 250));
+            titlePanel.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 8));
             titlePanel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
 
             JLabel titleLabel = new JLabel(title);
-            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 11f));
-            titleLabel.setForeground(new Color(52, 58, 64)); // 深灰色文字
+            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            titleLabel.setForeground(new Color(52, 58, 64));
 
-            // 添加拖拽图标
+            // 创建按钮面板
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+            buttonPanel.setOpaque(false);
+
+            // 折叠按钮
+            collapseButton = new JButton("−");
+            collapseButton.setFont(new Font(Font.MONOSPACED, Font.BOLD, 12));
+            collapseButton.setPreferredSize(new Dimension(18, 18));
+            collapseButton.setFocusPainted(false);
+            collapseButton.setBorderPainted(false);
+            collapseButton.setContentAreaFilled(false);
+            collapseButton.setForeground(new Color(108, 117, 125));
+            collapseButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            collapseButton.setToolTipText("折叠面板");
+
+            // 按钮悬停效果
+            collapseButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    collapseButton.setForeground(new Color(52, 58, 64));
+                    collapseButton.setContentAreaFilled(true);
+                    collapseButton.setBackground(new Color(233, 236, 239));
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    collapseButton.setForeground(new Color(108, 117, 125));
+                    collapseButton.setContentAreaFilled(false);
+                }
+            });
+
+            collapseButton.addActionListener(e -> toggleCollapse());
+
+            // 拖拽图标
             JLabel dragIcon = new JLabel("⋮⋮");
             dragIcon.setForeground(new Color(134, 142, 150));
             dragIcon.setFont(dragIcon.getFont().deriveFont(Font.BOLD, 10f));
 
-            titlePanel.add(titleLabel, BorderLayout.CENTER);
-            titlePanel.add(dragIcon, BorderLayout.EAST);
+            buttonPanel.add(collapseButton);
+            buttonPanel.add(dragIcon);
 
-            // 设置现代化的细边框
-            setBorder(new ModernBorder());
-            setBackground(Color.WHITE);
+            titlePanel.add(titleLabel, BorderLayout.CENTER);
+            titlePanel.add(buttonPanel, BorderLayout.EAST);
 
             // 添加组件
-            add(titlePanel, BorderLayout.NORTH);
-            add(content, BorderLayout.CENTER);
+            add(titlePanel);
+            add(content);
+
+            // 设置边框
+            setBorder(new ModernBorder());
+            setBackground(Color.WHITE);
+        }
+
+        private void toggleCollapse() {
+            isCollapsed = !isCollapsed;
+
+            if (isCollapsed) {
+                collapseButton.setText("+");
+                collapseButton.setToolTipText("展开面板");
+                content.setVisible(false);
+            } else {
+                collapseButton.setText("−");
+                collapseButton.setToolTipText("折叠面板");
+                content.setVisible(true);
+            }
+
+            // 通知父容器重新布局
+            if (parentContainer != null) {
+                parentContainer.layoutPanels();
+            }
+        }
+
+        @Override
+        public void setBounds(int x, int y, int width, int height) {
+            super.setBounds(x, y, width, height);
+
+            // 手动布局子组件
+            if (titlePanel != null && content != null) {
+                int titleHeight = 35;
+                titlePanel.setBounds(0, 0, width, titleHeight);
+
+                if (isCollapsed) {
+                    content.setBounds(0, titleHeight, 0, 0); // 完全隐藏
+                } else {
+                    content.setBounds(0, titleHeight, width, height - titleHeight);
+                }
+            }
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            if (isCollapsed) {
+                return new Dimension(collapsedWidth, 35);
+            } else {
+                return new Dimension(preferredWidth, 400);
+            }
+        }
+
+        @Override
+        public Dimension getMinimumSize() {
+            if (isCollapsed) {
+                return new Dimension(collapsedWidth, 35);
+            } else {
+                return new Dimension(200, 150);
+            }
         }
 
         private void setupDragListeners() {
             MouseAdapter dragListener = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (SwingUtilities.isLeftMouseButton(e) && isInTitleArea(e)) {
+                    if (SwingUtilities.isLeftMouseButton(e) && !isOverButton(e)) {
                         isDragging = true;
                         dragStart = e.getPoint();
-                        SwingUtilities.convertPointToScreen(dragStart, DraggablePanel.this);
-
-                        // 高亮面板表示正在拖拽 - 使用现代化的蓝色边框
-                        setBorder(new ModernBorder(new Color(13, 110, 253), true)); // Bootstrap蓝色
+                        SwingUtilities.convertPointToScreen(dragStart, ResizablePanel.this);
+                        setBorder(new ModernBorder(new Color(13, 110, 253), true));
                     }
                 }
 
@@ -295,14 +390,11 @@ public class RequestResponseViewer extends JPanel {
                 public void mouseReleased(MouseEvent e) {
                     if (isDragging) {
                         isDragging = false;
-
-                        // 恢复原始边框
                         setBorder(new ModernBorder());
 
-                        // 处理拖放
                         if (parentContainer != null) {
                             Point currentPoint = e.getLocationOnScreen();
-                            parentContainer.handleDrop(DraggablePanel.this, currentPoint);
+                            parentContainer.handleDrop(ResizablePanel.this, currentPoint);
                         }
                     }
                 }
@@ -311,14 +403,14 @@ public class RequestResponseViewer extends JPanel {
                 public void mouseDragged(MouseEvent e) {
                     if (isDragging && parentContainer != null) {
                         Point currentPoint = e.getLocationOnScreen();
-                        parentContainer.handleDragOver(DraggablePanel.this, currentPoint);
+                        parentContainer.handleDragOver(ResizablePanel.this, currentPoint);
                     }
                 }
 
                 @Override
                 public void mouseEntered(MouseEvent e) {
                     if (!isDragging) {
-                        setBorder(new ModernBorder(new Color(206, 212, 218), false)); // 悬停效果
+                        setBorder(new ModernBorder(new Color(206, 212, 218), false));
                     }
                 }
 
@@ -332,30 +424,196 @@ public class RequestResponseViewer extends JPanel {
 
             addMouseListener(dragListener);
             addMouseMotionListener(dragListener);
-
-            // 也为标题面板添加监听器
-            Component titleComponent = ((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.NORTH);
-            if (titleComponent != null) {
-                titleComponent.addMouseListener(dragListener);
-                titleComponent.addMouseMotionListener(dragListener);
-            }
         }
 
-        private boolean isInTitleArea(MouseEvent e) {
-            Component titleComponent = ((BorderLayout) getLayout()).getLayoutComponent(BorderLayout.NORTH);
-            if (titleComponent != null) {
-                Rectangle titleBounds = titleComponent.getBounds();
-                return titleBounds.contains(e.getPoint());
-            }
-            return false;
+        private boolean isOverButton(MouseEvent e) {
+            Component deepestComponent = SwingUtilities.getDeepestComponentAt(this, e.getX(), e.getY());
+            return deepestComponent instanceof JButton;
         }
 
         public String getTitle() {
             return title;
         }
 
-        public void setParentContainer(ResizablePanelContainer container) {
+        public boolean isCollapsed() {
+            return isCollapsed;
+        }
+
+        public void setParentContainer(CustomLayoutContainer container) {
             this.parentContainer = container;
+        }
+
+        public int getPreferredWidth() {
+            return preferredWidth;
+        }
+
+        public void setPreferredWidth(int width) {
+            this.preferredWidth = width;
+        }
+    }
+
+    /**
+     * 自定义布局容器 - 手动控制所有布局
+     */
+    private static class CustomLayoutContainer extends JPanel {
+        private final List<ResizablePanel> panels;
+        private final List<ResizableHandle> handles;
+        private ResizablePanel draggedPanel;
+
+        public CustomLayoutContainer() {
+            super();
+            setLayout(null); // 不使用布局管理器
+            this.panels = new ArrayList<>();
+            this.handles = new ArrayList<>();
+            setBackground(new Color(245, 245, 245));
+        }
+
+        public void addPanel(ResizablePanel panel) {
+            panels.add(panel);
+            panel.setParentContainer(this);
+            add(panel);
+
+            // 如果不是第一个面板，添加调整柄
+            if (panels.size() > 1) {
+                ResizableHandle handle = new ResizableHandle(this, panels.size() - 2);
+                handles.add(handle);
+                add(handle);
+            }
+
+            layoutPanels();
+        }
+
+        public void layoutPanels() {
+            if (panels.isEmpty()) return;
+
+            int totalWidth = getWidth();
+            int totalHeight = getHeight();
+            int handleWidth = 5;
+
+            // 计算面板宽度
+            int availableWidth = totalWidth - (handles.size() * handleWidth);
+            int expandedPanelCount = 0;
+            int collapsedTotalWidth = 0;
+
+            for (ResizablePanel panel : panels) {
+                if (panel.isCollapsed()) {
+                    collapsedTotalWidth += panel.getPreferredSize().width;
+                } else {
+                    expandedPanelCount++;
+                }
+            }
+
+            int expandedPanelWidth = expandedPanelCount > 0 ?
+                    Math.max(200, (availableWidth - collapsedTotalWidth) / expandedPanelCount) : 0;
+
+            // 设置面板位置
+            int x = 0;
+            for (int i = 0; i < panels.size(); i++) {
+                ResizablePanel panel = panels.get(i);
+                int panelWidth = panel.isCollapsed() ? panel.getPreferredSize().width : expandedPanelWidth;
+
+                panel.setBounds(x, 0, panelWidth, totalHeight);
+                x += panelWidth;
+
+                // 设置调整柄位置
+                if (i < handles.size()) {
+                    handles.get(i).setBounds(x, 0, handleWidth, totalHeight);
+                    x += handleWidth;
+                }
+            }
+
+            repaint();
+        }
+
+        @Override
+        public void setBounds(int x, int y, int width, int height) {
+            super.setBounds(x, y, width, height);
+            layoutPanels();
+        }
+
+        public void handleDragOver(ResizablePanel draggedPanel, Point screenPoint) {
+            this.draggedPanel = draggedPanel;
+            repaint();
+        }
+
+        public void handleDrop(ResizablePanel draggedPanel, Point screenPoint) {
+            Point containerPoint = new Point(screenPoint);
+            SwingUtilities.convertPointFromScreen(containerPoint, this);
+
+            int newIndex = getDropIndex(containerPoint);
+            int oldIndex = panels.indexOf(draggedPanel);
+
+            if (oldIndex != -1 && newIndex != oldIndex && newIndex >= 0 && newIndex < panels.size()) {
+                panels.remove(oldIndex);
+                panels.add(newIndex, draggedPanel);
+                layoutPanels();
+            }
+        }
+
+        private int getDropIndex(Point point) {
+            int panelCount = panels.size();
+            if (panelCount == 0) return 0;
+
+            int totalWidth = getWidth();
+            int panelWidth = totalWidth / panelCount;
+            int index = point.x / panelWidth;
+
+            return Math.max(0, Math.min(index, panelCount - 1));
+        }
+    }
+
+    /**
+     * 调整柄组件 - 用于调整面板宽度
+     */
+    private static class ResizableHandle extends JComponent {
+        private final CustomLayoutContainer parent;
+        private final int panelIndex;
+        private boolean isDragging = false;
+        private int dragStartX;
+
+        public ResizableHandle(CustomLayoutContainer parent, int panelIndex) {
+            this.parent = parent;
+            this.panelIndex = panelIndex;
+            setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
+            setBackground(new Color(200, 200, 200));
+            addMouseListener(new ResizeMouseListener());
+            addMouseMotionListener(new ResizeMouseListener());
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            g.setColor(new Color(233, 236, 239));
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
+
+        private class ResizeMouseListener extends MouseAdapter {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                isDragging = true;
+                dragStartX = e.getXOnScreen();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                isDragging = false;
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (isDragging && panelIndex < parent.panels.size()) {
+                    int deltaX = e.getXOnScreen() - dragStartX;
+                    ResizablePanel leftPanel = parent.panels.get(panelIndex);
+
+                    if (!leftPanel.isCollapsed()) {
+                        int newWidth = Math.max(200, leftPanel.getPreferredWidth() + deltaX);
+                        leftPanel.setPreferredWidth(newWidth);
+                        parent.layoutPanels();
+                    }
+
+                    dragStartX = e.getXOnScreen();
+                }
+            }
         }
     }
 
@@ -369,7 +627,7 @@ public class RequestResponseViewer extends JPanel {
         private static final int BORDER_RADIUS = 6;
 
         public ModernBorder() {
-            this(new Color(222, 226, 230), false); // 默认边框颜色
+            this(new Color(222, 226, 230), false);
         }
 
         public ModernBorder(Color borderColor, boolean isSelected) {
@@ -389,8 +647,6 @@ public class RequestResponseViewer extends JPanel {
             }
 
             g2d.setColor(borderColor);
-
-            // 绘制圆角矩形边框
             g2d.drawRoundRect(x, y, width - 1, height - 1, BORDER_RADIUS, BORDER_RADIUS);
             g2d.dispose();
         }
@@ -403,127 +659,6 @@ public class RequestResponseViewer extends JPanel {
         @Override
         public boolean isBorderOpaque() {
             return false;
-        }
-    }
-
-    /**
-     * 可调整大小的面板容器类（使用嵌套的JSplitPane）
-     */
-    private static class ResizablePanelContainer extends JPanel {
-        private final List<DraggablePanel> panels;
-        private DraggablePanel draggedPanel;
-        private JSplitPane mainSplit;
-        private JSplitPane leftSplit;
-        private JSplitPane rightSplit;
-
-        public ResizablePanelContainer() {
-            super(new BorderLayout());
-            this.panels = new ArrayList<>();
-            setupSplitPanes();
-        }
-
-        private void setupSplitPanes() {
-            // 创建三个嵌套的JSplitPane来支持四个面板的宽度调节
-            leftSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-            rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-            mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftSplit, rightSplit);
-
-            // 设置分割条样式
-            customizeSplitPane(mainSplit);
-            customizeSplitPane(leftSplit);
-            customizeSplitPane(rightSplit);
-
-            // 设置初始比例
-            mainSplit.setResizeWeight(0.5); // 左右各占一半
-            leftSplit.setResizeWeight(0.5); // 左边两个面板各占一半
-            rightSplit.setResizeWeight(0.5); // 右边两个面板各占一半
-
-            add(mainSplit, BorderLayout.CENTER);
-        }
-
-        private void customizeSplitPane(JSplitPane splitPane) {
-            splitPane.setDividerSize(5); // 细分割条
-            splitPane.setBorder(null);
-            splitPane.setOpaque(false);
-
-            // 自定义分割条颜色
-            splitPane.setUI(new javax.swing.plaf.basic.BasicSplitPaneUI() {
-                @Override
-                public javax.swing.plaf.basic.BasicSplitPaneDivider createDefaultDivider() {
-                    return new javax.swing.plaf.basic.BasicSplitPaneDivider(this) {
-                        @Override
-                        public void paint(Graphics g) {
-                            g.setColor(new Color(233, 236, 239)); // 浅灰色分割条
-                            g.fillRect(0, 0, getSize().width, getSize().height);
-                        }
-                    };
-                }
-            });
-        }
-
-        public void addPanel(DraggablePanel panel) {
-            panels.add(panel);
-            panel.setParentContainer(this);
-            refreshLayout();
-        }
-
-        public void handleDragOver(DraggablePanel draggedPanel, Point screenPoint) {
-            this.draggedPanel = draggedPanel;
-            // 在拖拽过程中可以添加视觉指示器
-            repaint();
-        }
-
-        public void handleDrop(DraggablePanel draggedPanel, Point screenPoint) {
-            // 将屏幕坐标转换为容器坐标
-            Point containerPoint = new Point(screenPoint);
-            SwingUtilities.convertPointFromScreen(containerPoint, this);
-
-            // 确定拖拽位置应该插入的索引
-            int newIndex = getDropIndex(containerPoint);
-
-            if (newIndex >= 0 && newIndex < panels.size()) {
-                // 移动面板到新位置
-                int oldIndex = panels.indexOf(draggedPanel);
-                if (oldIndex != -1 && oldIndex != newIndex) {
-                    panels.remove(oldIndex);
-
-                    // 调整索引（如果从前面移到后面）
-                    int adjustedIndex = newIndex;
-                    if (oldIndex < newIndex) {
-                        adjustedIndex--;
-                    }
-
-                    panels.add(adjustedIndex, draggedPanel);
-                    refreshLayout();
-                }
-            }
-        }
-
-        private int getDropIndex(Point point) {
-            int panelCount = panels.size();
-            if (panelCount == 0) return 0;
-
-            int panelWidth = getWidth() / panelCount;
-            int index = point.x / panelWidth;
-
-            // 如果点击位置超过中点，插入到下一个位置
-            int remainder = point.x % panelWidth;
-            if (remainder > panelWidth / 2) {
-                index++;
-            }
-
-            return Math.max(0, Math.min(index, panelCount));
-        }
-
-        private void refreshLayout() {
-            if (panels.size() >= 4) {
-                leftSplit.setLeftComponent(panels.get(0));
-                leftSplit.setRightComponent(panels.get(1));
-                rightSplit.setLeftComponent(panels.get(2));
-                rightSplit.setRightComponent(panels.get(3));
-            }
-            revalidate();
-            repaint();
         }
     }
 }
