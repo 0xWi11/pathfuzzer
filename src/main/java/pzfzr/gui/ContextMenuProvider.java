@@ -83,7 +83,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
                         SwitchState allEnabledState = new SwitchState(true,true, true, true, false);
-                        valueReplacer.unifiedTest(requestResponse.request(), allEnabledState, original.getMessageId());
+                        valueReplacer.unifiedTestForContext(requestResponse.request(), allEnabledState, original.getMessageId());
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
                     }

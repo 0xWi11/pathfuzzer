@@ -121,6 +121,40 @@ public class ValueReplacer {
         if (isShuttingDown) {
             return;
         }
+
+        // 添加与TrafficHandler中相同的过滤逻辑
+        if (configManager.shouldFilter(originalRequest.withBody(""))) {
+            return;
+        }
+
+        String host = extractHostFromRequest(originalRequest.url());
+        try {
+            if (switchState.isJsonlisterSwitch()) {
+                jsonLister.processRequest(originalRequest, messageId, host);
+            }
+
+            if (switchState.isRoutefuzzerSwitch()) {
+                routeFuzzer.processRequest(originalRequest, messageId, host);
+            }
+
+            if (switchState.isParamfuzzerSwitch()) {
+                paramFuzzer.processRequest(originalRequest, messageId, host);
+            }
+            if (switchState.isKnownSwitch()) {  // 新增
+//                KnownTest(originalRequest, messageId, host);
+            }
+            host = null;
+        } catch (Exception e) {
+//            api.logging().logToError("Error in unifiedTest: " + e.getMessage());
+        }
+    }
+
+
+
+    public void unifiedTestForContext(HttpRequest originalRequest, SwitchState switchState, int messageId) {
+        if (isShuttingDown) {
+            return;
+        }
         String host = extractHostFromRequest(originalRequest.url());
         try {
             if (switchState.isJsonlisterSwitch()) {
