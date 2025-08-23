@@ -37,6 +37,42 @@ public class TableModel extends AbstractTableModel {
             "Reflect"
     };
 
+    // 为"Modif. len"列创建自定义单元格渲染器，当同一行Payload包含"chaxx"时显示灰色背景
+    public static class ModifLenCellRenderer extends DefaultTableCellRenderer {
+        // 定义当Payload包含"chaxx"时使用的灰色背景
+        private static final Color CHAXX_BACKGROUND_COLOR = new Color(230, 230, 230);
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            // 处理选中状态
+            if (isSelected) {
+                c.setBackground(table.getSelectionBackground());
+                c.setForeground(table.getSelectionForeground());
+            } else {
+                // 检查同一行的Payload列（索引5）是否包含"chaxx"
+                Object payloadValue = table.getValueAt(row, 5);
+                if (payloadValue != null && payloadValue.toString().equals("chaxx")) {
+                    // 设置为灰色背景
+                    c.setBackground(CHAXX_BACKGROUND_COLOR);
+                } else {
+                    // 使用默认的交替行背景色
+                    if (row % 2 == 0) {
+                        c.setBackground(table.getBackground());
+                    } else {
+                        c.setBackground(new Color(251, 251, 251)); // 原有的斑马线浅灰色
+                    }
+                }
+                c.setForeground(table.getForeground());
+            }
+
+            return c;
+        }
+    }
+
     // 为Reflect字段创建自定义单元格渲染器
     public static class ReflectCellRenderer extends DefaultTableCellRenderer {
         @Override
@@ -424,7 +460,7 @@ public class TableModel extends AbstractTableModel {
         table.setRowSorter(sorter);
     }
 
-    // 更新setupTableRenderers方法中的列索引
+    // 更新setupTableRenderers方法，为"Modif. len"列设置ModifLenCellRenderer
     public void setupTableRenderers(JTable table) {
         // 为"Reflect"列（索引12）设置ReflectCellRenderer
         table.getColumnModel().getColumn(12).setCellRenderer(new ReflectCellRenderer());
@@ -434,6 +470,9 @@ public class TableModel extends AbstractTableModel {
 
         // 为"Modif. Time"列（索引11）设置TimeCellRenderer
         table.getColumnModel().getColumn(11).setCellRenderer(new TimeCellRenderer());
+
+        // 为"Modif. len"列（索引7）设置ModifLenCellRenderer
+        table.getColumnModel().getColumn(7).setCellRenderer(new ModifLenCellRenderer());
     }
 
     public ModifiedRequestResponse getModifiedEntry(int row) {
