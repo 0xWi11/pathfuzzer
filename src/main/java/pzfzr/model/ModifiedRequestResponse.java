@@ -15,6 +15,8 @@ public class ModifiedRequestResponse implements Serializable {
     private final String testParameterName; // 新增字段：当前测试参数的名称
     private int StatusCode = -1;
     private int ModifiedBodyLength = -1;
+    private int ModifiedBodyLengthWithoutHeader = -1;
+
     private long ResponseTime = -1;
     private String ReflectType = null;
     private final Logging logging;
@@ -100,14 +102,19 @@ public class ModifiedRequestResponse implements Serializable {
     }
 
     // 设置 ModifiedResponse 并异步计算元数据
-    public void setModifiedResponseAndCalculateMetadata(Short StatusCode, int ModifiedBodyLength, String ReflectType, long responseTime) {
+    public void setModifiedResponseAndCalculateMetadata(Short StatusCode, int ModifiedBodyLength,int ModifiedBodyWithoutHeaderLength, String ReflectType, long responseTime) {
         this.StatusCode = StatusCode;//response.statusCode();
         this.ModifiedBodyLength = ModifiedBodyLength;
+        this.ModifiedBodyLengthWithoutHeader = ModifiedBodyWithoutHeaderLength;
         this.ResponseTime = responseTime;
         this.ReflectType = ReflectType;
     }
 
     // 添加资源清理方法，关闭线程池
     public void cleanup() {
+    }
+
+    public int getModifiedBodyLengthWithoutHeader() {
+        return ModifiedBodyLengthWithoutHeader;
     }
 }

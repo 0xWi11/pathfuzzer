@@ -361,22 +361,22 @@ public class TableModel extends AbstractTableModel {
                 case 5: // Payload
                     return modifiedEntry.getPayloadAlias() != null ?
                             modifiedEntry.getPayloadAlias() : "";
-                case 6: // Modif. Status (原来是case 8)
+                case 6: // Modif. Status
                     return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
-                case 7: // Len Diff (原来是case 9)
+                case 7: // Len Diff WithoutHeader
                     // 计算长度差异 (UI 线程计算，简单操作)
-                    if (originalEntry != null && originalEntry.getOriginalResponseLen() != -1 &&
-                            modifiedEntry.getModifiedBodyLength() != -1) {
-                        int origLen = originalEntry.getOriginalResponseLen();
-                        int modifyLen = modifiedEntry.getModifiedBodyLength();
+                    if (originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 &&
+                            modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1) {
+                        int origLen = originalEntry.getOriginalResponseLenWithoutHeader();
+                        int modifyLen = modifiedEntry.getModifiedBodyLengthWithoutHeader();
                         return Math.abs(modifyLen - origLen);
                     }
                     return "Pending";
-                case 8: // Orig. Len (原来是case 6)
-                    return originalEntry != null && originalEntry.getOriginalResponseLen() != -1 ?
-                            originalEntry.getOriginalResponseLen() : "Pending";
-                case 9: // Modif. Len (原来是case 7)
+                case 8: // Orig. Len
+                    return originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 ?
+                            originalEntry.getOriginalResponseLenWithoutHeader() : "Pending";
+                case 9: // Modif. Len
                     return modifiedEntry.getModifiedBodyLength() != -1 ?
                             modifiedEntry.getModifiedBodyLength() : "Pending";
                 case 10: // Modif. Time

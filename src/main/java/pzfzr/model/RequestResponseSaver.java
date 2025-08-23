@@ -192,7 +192,7 @@ public class RequestResponseSaver {
                     int modifiedResponseLength = calculateResponseLengthWithoutSetCookieValues(response);
 
                     modifiedEntry.setModifiedResponseAndCalculateMetadata(
-                            response.statusCode(), modifiedResponseLength, detectReflectType(response),
+                            response.statusCode(), modifiedResponseLength, response.body().length(), detectReflectType(response),
                             httpRequestResponse.timingData().get().timeBetweenRequestSentAndStartOfResponse().toMillis()
                     );
                     httpRequestResponse = null;

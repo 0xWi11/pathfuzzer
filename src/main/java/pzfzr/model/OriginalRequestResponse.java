@@ -11,6 +11,8 @@ public class OriginalRequestResponse {
     private final String originalMethod;
     private final String originalUrl;
     private int OriginalResponseLen = -1;
+    private int OriginalResponseLenWithoutHeader = -1;
+
     private final RequestResponseSaver requestResponseSaver;
     // 移除 transient HttpRequest loadedOriginalRequest; 和 transient HttpResponse loadedOriginalResponse;
     private final Logging logging;
@@ -57,9 +59,13 @@ public class OriginalRequestResponse {
     public void setOriginalResponse(HttpResponse originalResponse) {
         // 修改为使用完整响应长度减去Set-Cookie值的长度
         this.OriginalResponseLen = calculateResponseLengthWithoutSetCookieValues(originalResponse);
+        this.OriginalResponseLenWithoutHeader = originalResponse.body().length(); // 直接设置长度
         requestResponseSaver.saveOriginalResponse(originalResponse, messageId);
     }
 
+    public int getOriginalResponseLenWithoutHeader() {
+        return OriginalResponseLenWithoutHeader;
+    }
     public String getOriginalMethod() {
         return originalMethod; // 直接返回构造函数中初始化的值
     }
