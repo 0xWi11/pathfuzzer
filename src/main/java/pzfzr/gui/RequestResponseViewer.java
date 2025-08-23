@@ -28,9 +28,9 @@ public class RequestResponseViewer extends JSplitPane {
     private WeakReference<ModifiedRequestResponse> currentModified;
 
     public RequestResponseViewer(MontoyaApi api) {
-        super(JSplitPane.VERTICAL_SPLIT);
+        super(JSplitPane.HORIZONTAL_SPLIT); // 修改：改为水平分割（左右结构）
 
-        // 创建导航按钮
+        // 创建导航按钮（保持功能，但暂时隐藏）
         previousButton = new JButton("▲ Previous");
         nextButton = new JButton("▼ Next");
 
@@ -44,6 +44,9 @@ public class RequestResponseViewer extends JSplitPane {
         navigationPanel.add(Box.createVerticalStrut(0));
         navigationPanel.add(nextButton);
         navigationPanel.add(Box.createVerticalStrut(0));
+
+        // 暂时隐藏导航面板
+        navigationPanel.setVisible(false);
 
         // 设置按钮的首选大小以保持一致的宽度
         Dimension buttonSize = new Dimension(200, 22);
@@ -120,50 +123,45 @@ public class RequestResponseViewer extends JSplitPane {
         previousButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         nextButton.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // 创建上部面板（原始请求/响应）
-        JPanel upperPanel = new JPanel(new BorderLayout());
-        JTabbedPane upperTabs = new JTabbedPane();
+        // 创建左侧面板（请求 - 原始和修改后）
+        JPanel leftPanel = new JPanel(new BorderLayout());
+        JTabbedPane leftTabs = new JTabbedPane();
 
         originalRequestViewer = api.userInterface().createHttpRequestEditor(READ_ONLY);
         JPanel originalRequestTab = new JPanel(new BorderLayout());
         originalRequestTab.add(originalRequestViewer.uiComponent(), BorderLayout.CENTER);
 
-        originalResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
-        JPanel originalResponseTab = new JPanel(new BorderLayout());
-        originalResponseTab.add(originalResponseViewer.uiComponent(), BorderLayout.CENTER);
-
-        upperTabs.addTab("Original Request", originalRequestTab);
-        upperTabs.addTab("Original Response", originalResponseTab);
-        upperPanel.add(upperTabs, BorderLayout.CENTER);
-
-        // 创建包含导航按钮的中间面板
-        JPanel middlePanel = new JPanel(new BorderLayout());
-        middlePanel.add(navigationPanel, BorderLayout.CENTER);
-
-        // 创建包含所有组件的主面板
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(upperPanel, BorderLayout.CENTER);
-        mainPanel.add(middlePanel, BorderLayout.SOUTH);
-
-        // 创建下部面板（修改后的请求/响应）
-        JPanel lowerPanel = new JPanel(new BorderLayout());
-        JTabbedPane lowerTabs = new JTabbedPane();
-
         requestViewer = api.userInterface().createHttpRequestEditor(READ_ONLY);
         JPanel modifiedRequestTab = new JPanel(new BorderLayout());
         modifiedRequestTab.add(requestViewer.uiComponent(), BorderLayout.CENTER);
+
+        leftTabs.addTab("Original Request", originalRequestTab);
+        leftTabs.addTab("Modified Request", modifiedRequestTab);
+        leftPanel.add(leftTabs, BorderLayout.CENTER);
+
+        // 可选择性地将导航面板添加到左侧面板的底部（暂时隐藏）
+        leftPanel.add(navigationPanel, BorderLayout.SOUTH);
+
+        // 创建右侧面板（响应 - 原始和修改后）
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        JTabbedPane rightTabs = new JTabbedPane();
+
+        originalResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
+        JPanel originalResponseTab = new JPanel(new BorderLayout());
+        originalResponseTab.add(originalResponseViewer.uiComponent(), BorderLayout.CENTER);
 
         responseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
         JPanel modifiedResponseTab = new JPanel(new BorderLayout());
         modifiedResponseTab.add(responseViewer.uiComponent(), BorderLayout.CENTER);
 
-        lowerTabs.addTab("Modified Request", modifiedRequestTab);
-        lowerTabs.addTab("Modified Response", modifiedResponseTab);
-        lowerPanel.add(lowerTabs, BorderLayout.CENTER);
+        rightTabs.addTab("Original Response", originalResponseTab);
+        rightTabs.addTab("Modified Response", modifiedResponseTab);
+        rightPanel.add(rightTabs, BorderLayout.CENTER);
 
-        setTopComponent(mainPanel);
-        setBottomComponent(lowerPanel);
-        setResizeWeight(0.5);
+        // 设置左右组件
+        setLeftComponent(leftPanel);
+        setRightComponent(rightPanel);
+        setResizeWeight(0.5); // 左右各占一半
 
         // 设置按钮状态
         updateButtonState();
@@ -209,6 +207,7 @@ public class RequestResponseViewer extends JSplitPane {
             nextButton.setEnabled(historyPanel.hasNext());
         }
     }
+
     private void clearViewers() {
         SwingUtilities.invokeLater(() -> {
             try {
@@ -230,6 +229,7 @@ public class RequestResponseViewer extends JSplitPane {
             }
         });
     }
+
     // 添加清理方法
     public void cleanup() {
         clearViewers();
@@ -237,5 +237,26 @@ public class RequestResponseViewer extends JSplitPane {
         previousButton.removeActionListener(l -> {});
         nextButton.removeActionListener(l -> {});
         historyPanel = null;
+    }
+
+    // 添加显示/隐藏导航按钮的方法（以备将来使用）
+    public void setNavigationVisible(boolean visible) {
+        // 找到导航面板并设置可见性
+        Component leftComponent = getLeftComponent();
+        if (leftComponent instanceof JPanel) {
+            JPanel leftPanel = (JPanel) leftComponent;
+            Component[] components = leftPanel.getComponents();
+            for (Component component : components) {
+                if (component instanceof JPanel) {
+                    JPanel panel = (JPanel) component;
+                    if (panel.getLayout() instanceof BoxLayout) {
+                        panel.setVisible(visible);
+                        break;
+                    }
+                }
+            }
+        }
+        revalidate();
+        repaint();
     }
 }

@@ -22,7 +22,7 @@ public class MainPanel extends JSplitPane {
                      RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                      TrafficHandler trafficHandler, CookieChanger cookieChanger,
                      ParamFuzzer paramFuzzer) { // 修改：添加 ParamFuzzer 参数
-        super(JSplitPane.HORIZONTAL_SPLIT);
+        super(JSplitPane.VERTICAL_SPLIT); // 修改：改为垂直分割（上下结构）
         this.api = api;
         this.tableModel = tableModel;
         // this.cookieChanger = cookieChanger; // 可选：在此处赋值
@@ -40,9 +40,9 @@ public class MainPanel extends JSplitPane {
         // 设置 RequestResponseViewer 的 historyPanel 引用
         controlPanel.getRequestResponseViewer().setHistoryPanel(historyPanel);
 
-        // 设置分割面板的组件
-        setLeftComponent(historyPanel);
-        setRightComponent(controlPanel);
-        setResizeWeight(0.90); // 您可以将此值调整为更适合您布局的值，例如0.5使左右面板均分，或0.3使历史面板更小
+        // 设置分割面板的组件 - 修改：上面是historyPanel，下面是controlPanel
+        setTopComponent(historyPanel);
+        setBottomComponent(controlPanel);
+        setResizeWeight(0.67); // 修改：history panel占2/3的高度
     }
 }

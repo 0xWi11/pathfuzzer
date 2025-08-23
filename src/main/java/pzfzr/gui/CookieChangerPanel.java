@@ -32,8 +32,15 @@ public class CookieChangerPanel extends JPanel {
         // 为主面板使用 BorderLayout 布局
         setLayout(new BorderLayout());
 
+        // 可选：添加标题
+        JLabel titleLabel = new JLabel("Cookie & Header Manager", JLabel.CENTER);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 10, 5));
+        add(titleLabel, BorderLayout.NORTH);
+
         // 创建一个面板来容纳现有的表格和按钮
-        JPanel topPanel = new JPanel(new BorderLayout());
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createTitledBorder("Header Entries"));
 
         // 创建表格模型和表格
         tableModel = new HeaderTableModel();
@@ -59,13 +66,22 @@ public class CookieChangerPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(headerTable);
 
         // 创建按钮面板
-        JPanel buttonPanel = new JPanel();
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         JButton addButton = new JButton("Add");
         JButton editButton = new JButton("Edit");
         JButton deleteButton = new JButton("Delete");
         JButton clearAllButton = new JButton("Clear All");
         JButton refreshButton = new JButton("Refresh");
+
+        // 设置按钮样式保持一致
+        Dimension buttonSize = new Dimension(80, 25);
+        addButton.setPreferredSize(buttonSize);
+        editButton.setPreferredSize(buttonSize);
+        deleteButton.setPreferredSize(buttonSize);
+        clearAllButton.setPreferredSize(buttonSize);
+        refreshButton.setPreferredSize(buttonSize);
 
         // 为按钮添加动作监听器
         addButton.addActionListener(this::addHeaderEntry);
@@ -81,15 +97,12 @@ public class CookieChangerPanel extends JPanel {
         buttonPanel.add(clearAllButton);
         buttonPanel.add(refreshButton);
 
-        // 将滚动面板（表格）和按钮面板添加到顶部面板
-        topPanel.add(scrollPane, BorderLayout.CENTER);
-        topPanel.add(buttonPanel, BorderLayout.SOUTH);
+        // 将滚动面板（表格）和按钮面板添加到主面板
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        // 将顶部面板添加到主面板的北部
-        add(topPanel, BorderLayout.NORTH);
-
-        // 面板的其余部分（BorderLayout.CENTER）将是空白区域
-        // 在此处使用 BorderLayout.CENTER 或另一个面板添加未来组件
+        // 将主面板添加到中心区域
+        add(mainPanel, BorderLayout.CENTER);
 
         // 初始表格刷新
         refreshTable();
