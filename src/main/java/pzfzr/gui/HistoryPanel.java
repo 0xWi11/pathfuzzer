@@ -166,7 +166,7 @@ public class HistoryPanel extends JPanel {
             }
         });
 
-        // 设置列宽 - 更新为新的列顺序 (ID, Method, URL, Test type, Param, Payload, modif status, modif len(withoutheader), modif len+(withheader), lendiff(withoutheader), origin len(withoutheader), Modif. Time, Reflect)
+        // 设置列宽 - 更新为新的列顺序 (ID, Method, URL, Test type, Param, Payload, modif status, Len Diff, modif len(withoutheader), modif len+(withheader), origin len(withoutheader), Modif. Time, Reflect)
         if (table.getColumnModel().getColumnCount() >= 13) {
             table.getColumnModel().getColumn(0).setPreferredWidth(35);    // ID
             table.getColumnModel().getColumn(1).setPreferredWidth(30);    // Method
@@ -175,9 +175,9 @@ public class HistoryPanel extends JPanel {
             table.getColumnModel().getColumn(4).setPreferredWidth(100);   // Param
             table.getColumnModel().getColumn(5).setPreferredWidth(100);   // Payload
             table.getColumnModel().getColumn(6).setPreferredWidth(72);    // modif status
-            table.getColumnModel().getColumn(7).setPreferredWidth(90);    // modif len(withoutheader)
-            table.getColumnModel().getColumn(8).setPreferredWidth(90);    // modif len+(withheader)
-            table.getColumnModel().getColumn(9).setPreferredWidth(90);    // lendiff(withoutheader)
+            table.getColumnModel().getColumn(7).setPreferredWidth(90);    // Len Diff
+            table.getColumnModel().getColumn(8).setPreferredWidth(90);    // modif len(withoutheader)
+            table.getColumnModel().getColumn(9).setPreferredWidth(90);    // modif len+(withheader)
             table.getColumnModel().getColumn(10).setPreferredWidth(90);   // origin len(withoutheader)
             table.getColumnModel().getColumn(11).setPreferredWidth(72);   // Modif. Time
             table.getColumnModel().getColumn(12).setPreferredWidth(80);   // Reflect

@@ -20,7 +20,7 @@ public class TableModel extends AbstractTableModel {
     private RequestResponseSaver requestResponseSaver; // 声明 RequestResponseSaver 成员变量
     private final Logging logging;
 
-    // 更新列名顺序：ID, Method, URL, Test type, Param, Payload, modif status, modif len(withoutheader), modif len+(withheader), lendiff(withoutheader), origin len(withoutheader), Modif. Time, Reflect
+    // 更新列名顺序：ID, Method, URL, Test type, Param, Payload, modif status, Len Diff, modif len(withoutheader), modif len+(withheader), origin len(withoutheader), Modif. Time, Reflect
     private static final String[] COLUMN_NAMES = {
             "ID",
             "Method",
@@ -29,16 +29,16 @@ public class TableModel extends AbstractTableModel {
             "Param",        // testParameterName
             "Payload",      // payloadAlias
             "Modif. Status",
-            "Modif. len",
-            "Modif. len+",
-            "Len Diff",
+            "Len Diff",     // 移动到第7位
+            "Modif. len",   // 移动到第8位
+            "Modif. len+",  // 移动到第9位
             "Orig. Len",
             "Modif. Time",
             "Reflect"
     };
 
-    // 为"Modif. len"列创建自定义单元格渲染器，当同一行Payload包含"chaxx"时显示灰色背景
-    public static class ModifLenCellRenderer extends DefaultTableCellRenderer {
+    // 为"Len Diff"列创建自定义单元格渲染器，当同一行Payload包含"chaxx"时显示灰色背景
+    public static class LenDiffCellRenderer extends DefaultTableCellRenderer {
         // 定义当Payload包含"chaxx"时使用的灰色背景
         private static final Color CHAXX_BACKGROUND_COLOR = new Color(230, 230, 230);
 
@@ -203,9 +203,9 @@ public class TableModel extends AbstractTableModel {
 
                     if (responseTime > 7000) {
                         c.setBackground(MEDIUM_GRAY);
-                    } else if (responseTime > 1000) {
-                        c.setBackground(LIGHT_GRAY);
-                    } else {
+                    }
+//                    else if (responseTime > 1000) { c.setBackground(LIGHT_GRAY); }
+                    else {
                         // 对于响应时间 < 1000，使用默认行背景（交替行）
                         if (row % 2 == 0) {
                             c.setBackground(table.getBackground());
@@ -401,13 +401,7 @@ public class TableModel extends AbstractTableModel {
                 case 6: // Modif. Status
                     return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
-                case 7: // modif len(withoutheader)
-                    return modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1 ?
-                            modifiedEntry.getModifiedBodyLengthWithoutHeader() : "Pending";
-                case 8: // modif len+(withheader)
-                    return modifiedEntry.getModifiedBodyLength() != -1 ?
-                            modifiedEntry.getModifiedBodyLength() : "Pending";
-                case 9: // lendiff(withoutheader)
+                case 7: // Len Diff (新位置)
                     // 计算长度差异 (UI 线程计算，简单操作)
                     if (originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 &&
                             modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1) {
@@ -416,6 +410,12 @@ public class TableModel extends AbstractTableModel {
                         return Math.abs(modifyLen - origLen);
                     }
                     return "Pending";
+                case 8: // modif len(withoutheader) - 新位置
+                    return modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1 ?
+                            modifiedEntry.getModifiedBodyLengthWithoutHeader() : "Pending";
+                case 9: // modif len+(withheader) - 新位置
+                    return modifiedEntry.getModifiedBodyLength() != -1 ?
+                            modifiedEntry.getModifiedBodyLength() : "Pending";
                 case 10: // origin len(withoutheader)
                     return originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 ?
                             originalEntry.getOriginalResponseLenWithoutHeader() : "Pending";
@@ -460,7 +460,7 @@ public class TableModel extends AbstractTableModel {
         table.setRowSorter(sorter);
     }
 
-    // 更新setupTableRenderers方法，为"Modif. len"列设置ModifLenCellRenderer
+    // 更新setupTableRenderers方法，为"Len Diff"列设置LenDiffCellRenderer
     public void setupTableRenderers(JTable table) {
         // 为"Reflect"列（索引12）设置ReflectCellRenderer
         table.getColumnModel().getColumn(12).setCellRenderer(new ReflectCellRenderer());
@@ -471,8 +471,8 @@ public class TableModel extends AbstractTableModel {
         // 为"Modif. Time"列（索引11）设置TimeCellRenderer
         table.getColumnModel().getColumn(11).setCellRenderer(new TimeCellRenderer());
 
-        // 为"Modif. len"列（索引7）设置ModifLenCellRenderer
-        table.getColumnModel().getColumn(7).setCellRenderer(new ModifLenCellRenderer());
+        // 为"Len Diff"列（索引7）设置LenDiffCellRenderer - 新位置
+        table.getColumnModel().getColumn(7).setCellRenderer(new LenDiffCellRenderer());
     }
 
     public ModifiedRequestResponse getModifiedEntry(int row) {
