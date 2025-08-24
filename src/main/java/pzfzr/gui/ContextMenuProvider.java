@@ -41,7 +41,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
         this.configManager = ConfigManager.getInstance();
-        this.taskManager = new TaskManager(api, 5); // 最多同时执行3个批量任务
+        this.taskManager = new TaskManager(api, 5); // 最多同时执行5个批量任务
     }
 
     @Override
@@ -58,7 +58,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             requestResponse = messageEditor.get().requestResponse();
             allSelectedRequests.add(requestResponse);
         }
-        // 然后检查选择的请求响应列表（HTTP history右键）
+        // 然后检查选择的请求响应列表（HTTP历史记录右键）
         else {
             List<HttpRequestResponse> selectedRequestResponses = event.selectedRequestResponses();
             if (!selectedRequestResponses.isEmpty()) {
@@ -83,7 +83,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
         // 如果有正在执行的任务，在菜单中显示状态
         if (activeTasks > 0 || queuedTasks > 0) {
-            JMenuItem statusItem = new JMenuItem(String.format("Tasks: %d active, %d queued", activeTasks, queuedTasks));
+            JMenuItem statusItem = new JMenuItem(String.format("任务状态: %d 个正在执行, %d 个等待中", activeTasks, queuedTasks));
             statusItem.setEnabled(false);
             headerIntruderMenu.add(statusItem);
 
@@ -92,13 +92,13 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             cancelItem.addActionListener(e -> {
                 int result = JOptionPane.showConfirmDialog(
                         null,
-                        String.format("Cancel %d active and %d queued tasks?", activeTasks, queuedTasks),
-                        "Cancel Tasks",
+                        String.format("取消 %d 个正在执行和 %d 个等待中的任务？", activeTasks, queuedTasks),
+                        "取消任务",
                         JOptionPane.YES_NO_OPTION
                 );
                 if (result == JOptionPane.YES_OPTION) {
                     taskManager.cancelAllTasks();
-                    JOptionPane.showMessageDialog(null, "All tasks have been cancelled.", "Tasks Cancelled", JOptionPane.INFORMATION_MESSAGE);
+                    api.logging().logToOutput("所有任务已被取消");
                 }
             });
             headerIntruderMenu.add(cancelItem);
@@ -112,8 +112,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                     return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
                 });
 
-        // Add Filter 菜单项 - 这个不需要异步，保持原有逻辑
-        JMenuItem addFilterItem = new JMenuItem(String.format("Add Filter (%d selected)", finalAllSelectedRequests.size()));
+        // 添加过滤器菜单项 - 这个不需要异步，保持原有逻辑
+        JMenuItem addFilterItem = new JMenuItem(String.format("Add Filter (%d 个已选择)", finalAllSelectedRequests.size()));
         addFilterItem.addActionListener(e -> addFiltersSync(finalAllSelectedRequests));
 
         // 各种测试菜单项
@@ -153,7 +153,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
      * 创建带任务管理的测试菜单项
      */
     private JMenuItem createTestMenuItem(String testName, List<HttpRequestResponse> requests, AsyncTestExecutor testExecutor) {
-        String menuText = String.format("%s (%d selected)", testName, requests.size());
+        String menuText = String.format("%s (%d 个已选择)", testName, requests.size());
         JMenuItem menuItem = new JMenuItem(menuText);
 
         menuItem.addActionListener(e -> {
@@ -164,12 +164,13 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
                 boolean submitted = taskManager.submitTask(task);
                 if (submitted) {
-                    showTaskSubmittedMessage(testName, requests.size(), taskId);
+                    // 改为日志输出，不显示弹窗
+                    api.logging().logToOutput(String.format("[ContextMenuProvider] 任务已提交: %s，共 %d 个请求 (任务ID: %d)", testName, requests.size(), taskId));
                 } else {
-                    showTaskRejectedMessage(testName, "Task queue is full. Please wait for current tasks to complete.");
+                    showTaskRejectedMessage(testName, "任务队列已满。请等待当前任务完成。");
                 }
             } else {
-                showTaskRejectedMessage(testName, "Too many tasks are running. Please wait for current tasks to complete.");
+                showTaskRejectedMessage(testName, "运行的任务太多。请等待当前任务完成。");
             }
         });
 
@@ -205,35 +206,21 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
                             configManager.addFilterRule(filterRule);
                             successCount++;
-                            api.logging().logToOutput("[ContextMenuProvider] Added filter rule: " + baseUrl);
+                            api.logging().logToOutput("[ContextMenuProvider] 已添加过滤器规则: " + baseUrl);
                         }
                     }
                 } catch (Exception ex) {
                     errorCount++;
-                    api.logging().logToError("[ContextMenuProvider] Error processing request: " + ex.getMessage());
+                    api.logging().logToError("[ContextMenuProvider] 处理请求时发生错误: " + ex.getMessage());
                 }
             }
 
-            showBatchResult("Filter Rules", requests.size(), successCount, errorCount);
+            showBatchResult("过滤器规则", requests.size(), successCount, errorCount);
 
         } catch (Exception ex) {
-            api.logging().logToError("[ContextMenuProvider] Error adding filter rules: " + ex.getMessage());
-            showErrorMessage("Error adding filter rules: " + ex.getMessage());
+            api.logging().logToError("[ContextMenuProvider] 添加过滤器规则时发生错误: " + ex.getMessage());
+            showErrorMessage("添加过滤器规则时发生错误: " + ex.getMessage());
         }
-    }
-
-    /**
-     * 显示任务提交成功消息
-     */
-    private void showTaskSubmittedMessage(String testName, int requestCount, long taskId) {
-        SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(
-                    null,
-                    String.format("Task submitted: %s for %d requests (Task ID: %d)", testName, requestCount, taskId),
-                    "Task Submitted",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        });
     }
 
     /**
@@ -243,8 +230,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         SwingUtilities.invokeLater(() -> {
             JOptionPane.showMessageDialog(
                     null,
-                    String.format("Cannot start %s: %s", testName, reason),
-                    "Task Rejected",
+                    String.format("无法启动 %s: %s", testName, reason),
+                    "任务被拒绝",
                     JOptionPane.WARNING_MESSAGE
             );
         });
@@ -257,26 +244,26 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
             if (errorCount == 0) {
                 if (successCount == totalRequests) {
-                    message = String.format("Successfully processed %d %s", successCount, operation);
+                    message = String.format("成功处理了 %d 个%s", successCount, operation);
                 } else {
                     int duplicateCount = totalRequests - successCount;
-                    message = String.format("Processed %d new %s. %d already existed.",
+                    message = String.format("处理了 %d 个新%s。%d 个已经存在。",
                             successCount, operation, duplicateCount);
                 }
                 messageType = JOptionPane.INFORMATION_MESSAGE;
             } else {
-                message = String.format("Processed %d %s, %d error(s) occurred",
+                message = String.format("处理了 %d 个%s，发生 %d 个错误",
                         successCount, operation, errorCount);
                 messageType = JOptionPane.WARNING_MESSAGE;
             }
 
-            JOptionPane.showMessageDialog(null, message, operation + " Results", messageType);
+            JOptionPane.showMessageDialog(null, message, operation + " 结果", messageType);
         });
     }
 
     private void showErrorMessage(String errorMessage) {
         SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(null, errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, errorMessage, "错误", JOptionPane.ERROR_MESSAGE);
         });
     }
 
@@ -316,7 +303,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                 return;
             }
 
-            api.logging().logToOutput(String.format("[Task %d] Starting batch %s for %d requests", taskId, testName, requests.size()));
+            api.logging().logToOutput(String.format("[ContextMenuProvider] [任务 %d] 开始批量 %s，共 %d 个请求", taskId, testName, requests.size()));
 
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             int processedCount = 0;
@@ -325,7 +312,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             try {
                 for (HttpRequestResponse reqRes : requests) {
                     if (cancelled) {
-                        api.logging().logToOutput(String.format("[Task %d] Cancelled", taskId));
+                        api.logging().logToOutput(String.format("[ContextMenuProvider] [任务 %d] 已取消", taskId));
                         return;
                     }
 
@@ -348,7 +335,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                                             original.setOriginalResponse(originalReqRes.response());
                                         }
                                     } catch (Exception ex) {
-                                        api.logging().logToError(String.format("[Task %d] Error sending original request: %s", taskId, ex.getMessage()));
+                                        api.logging().logToError(String.format("[ContextMenuProvider] [任务 %d] 发送原始请求时发生错误: %s", taskId, ex.getMessage()));
                                     }
                                 }, executor);
 
@@ -360,7 +347,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             }
                         } catch (Exception ex) {
                             errorCount++;
-                            api.logging().logToError(String.format("[Task %d] Error processing request: %s", taskId, ex.getMessage()));
+                            api.logging().logToError(String.format("[ContextMenuProvider] [任务 %d] 处理请求时发生错误: %s", taskId, ex.getMessage()));
                         }
                     }
                 }
@@ -369,34 +356,17 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                 CompletableFuture<Void> allTasks = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
                 allTasks.get(30, TimeUnit.MINUTES); // 设置30分钟超时
 
-                final int finalProcessedCount = processedCount;
-                final int finalErrorCount = errorCount;
-
-                SwingUtilities.invokeLater(() -> {
-                    if (!cancelled) {
-                        String message = String.format("Task %d completed: %s\nProcessed: %d requests\nErrors: %d",
-                                taskId, testName, finalProcessedCount, finalErrorCount);
-                        JOptionPane.showMessageDialog(null, message, "Task Completed", JOptionPane.INFORMATION_MESSAGE);
-                    }
-                });
-
-                api.logging().logToOutput(String.format("[Task %d] Completed batch %s: %d processed, %d errors",
-                        taskId, testName, processedCount, errorCount));
+                // 改为日志输出，不显示弹窗
+                if (!cancelled) {
+                    api.logging().logToOutput(String.format("[ContextMenuProvider] [任务 %d] 任务已完成: %s - 已处理 %d 个请求，发生 %d 个错误",
+                            taskId, testName, processedCount, errorCount));
+                }
 
             } catch (TimeoutException e) {
-                api.logging().logToError(String.format("[Task %d] Timeout after 30 minutes", taskId));
-                showTimeoutMessage();
+                api.logging().logToError(String.format("[ContextMenuProvider] [任务 %d] %s 在30分钟后超时", taskId, testName));
             } catch (Exception e) {
-                api.logging().logToError(String.format("[Task %d] Error in batch execution: %s", taskId, e.getMessage()));
+                api.logging().logToError(String.format("[ContextMenuProvider] [任务 %d] 批量执行时发生错误: %s", taskId, e.getMessage()));
             }
-        }
-
-        private void showTimeoutMessage() {
-            SwingUtilities.invokeLater(() -> {
-                JOptionPane.showMessageDialog(null,
-                        String.format("Task %d (%s) timed out after 30 minutes", taskId, testName),
-                        "Task Timeout", JOptionPane.WARNING_MESSAGE);
-            });
         }
 
         public void cancel() {
