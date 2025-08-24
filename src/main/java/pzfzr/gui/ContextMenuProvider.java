@@ -18,9 +18,9 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ContextMenuProvider implements ContextMenuItemsProvider {
     private final MontoyaApi api;
@@ -28,8 +28,12 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
     private final TableModel tableModel;
     private final RequestResponseSaver requestResponseSaver;
     private final ConfigManager configManager;
-    private final ExecutorService executor = Executors.newFixedThreadPool(5);
+    private final ExecutorService executor = Executors.newFixedThreadPool(8);
     private final AtomicInteger messageIdGenerator = new AtomicInteger(5000000);
+
+    // 添加任务管理相关字段
+    private final TaskManager taskManager;
+    private final AtomicLong taskIdGenerator = new AtomicLong(1);
 
     public ContextMenuProvider(MontoyaApi api, ValueReplacer valueReplacer, TableModel tableModel, RequestResponseSaver requestResponseSaver) {
         this.api = api;
@@ -37,6 +41,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
         this.configManager = ConfigManager.getInstance();
+        this.taskManager = new TaskManager(api, 5); // 最多同时执行3个批量任务
     }
 
     @Override
@@ -57,9 +62,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         else {
             List<HttpRequestResponse> selectedRequestResponses = event.selectedRequestResponses();
             if (!selectedRequestResponses.isEmpty()) {
-                // 取第一个选中的请求用于测试功能
                 requestResponse = selectedRequestResponses.get(0);
-                // 保存所有选中的请求用于过滤功能
                 allSelectedRequests.addAll(selectedRequestResponses);
             }
         }
@@ -69,247 +72,76 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             return menuItems;
         }
 
-        // 为了在lambda中使用，创建final引用
-        final HttpRequestResponse finalRequestResponse = requestResponse;
         final List<HttpRequestResponse> finalAllSelectedRequests = new ArrayList<>(allSelectedRequests);
 
         // 创建子菜单
         JMenu headerIntruderMenu = new JMenu("Path Fuzzer");
 
-        // 添加各种测试选项
-        JMenuItem allTests = new JMenuItem("Run All Tests");
-        allTests.addActionListener(e -> {
-            // 在后台线程中执行测试
-            executor.submit(() -> {
-                try {
-                    int messageId = messageIdGenerator.getAndIncrement();
-                    OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
-                                    finalRequestResponse.request().method(),
-                                    finalRequestResponse.request().url(),
-                                    messageId,
-                                    requestResponseSaver, api.logging())
-                            ,messageId);
+        // 获取当前任务状态信息
+        int activeTasks = taskManager.getActiveTaskCount();
+        int queuedTasks = taskManager.getQueuedTaskCount();
 
-                    if (original != null) {
-                        try {
-                            HttpRequestResponse originalReqRes = api.http().sendRequest(finalRequestResponse.request());
-                            if (originalReqRes != null && originalReqRes.response() != null) {
-                                original.setOriginalResponse(originalReqRes.response());
-                            }
-                        } catch (Exception ex) {
-                            api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
-                        }
-                        SwitchState allEnabledState = new SwitchState(true,true, true, true, false);
-                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), allEnabledState, original.getMessageId());
-                    } else {
-                        api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
-                    }
-                } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running all tests: " + ex.getMessage());
+        // 如果有正在执行的任务，在菜单中显示状态
+        if (activeTasks > 0 || queuedTasks > 0) {
+            JMenuItem statusItem = new JMenuItem(String.format("Tasks: %d active, %d queued", activeTasks, queuedTasks));
+            statusItem.setEnabled(false);
+            headerIntruderMenu.add(statusItem);
+
+            // 添加取消任务选项
+            JMenuItem cancelItem = new JMenuItem("Cancel All Tasks");
+            cancelItem.addActionListener(e -> {
+                int result = JOptionPane.showConfirmDialog(
+                        null,
+                        String.format("Cancel %d active and %d queued tasks?", activeTasks, queuedTasks),
+                        "Cancel Tasks",
+                        JOptionPane.YES_NO_OPTION
+                );
+                if (result == JOptionPane.YES_OPTION) {
+                    taskManager.cancelAllTasks();
+                    JOptionPane.showMessageDialog(null, "All tasks have been cancelled.", "Tasks Cancelled", JOptionPane.INFORMATION_MESSAGE);
                 }
             });
-        });
+            headerIntruderMenu.add(cancelItem);
+            headerIntruderMenu.addSeparator();
+        }
 
-        // Add Filter 菜单项 - 修改为处理多个选中的请求
-        JMenuItem addFilterItem = new JMenuItem("Add Filter");
-        addFilterItem.addActionListener(e -> {
-            try {
-                List<String> addedUrls = new ArrayList<>();
-                int successCount = 0;
-                int errorCount = 0;
-
-                for (HttpRequestResponse reqRes : finalAllSelectedRequests) {
-                    try {
-                        if (reqRes != null && reqRes.request() != null) {
-                            String fullUrl = reqRes.request().url();
-
-                            // 去掉?和后方的所有字符
-                            String baseUrl = fullUrl.split("\\?")[0];
-
-                            // 检查是否已经存在相同的过滤规则
-                            boolean ruleExists = configManager.getFilterRules().stream()
-                                    .anyMatch(rule -> rule.getValue().equals(baseUrl) &&
-                                            rule.getType() == FilterRule.RuleType.URL &&
-                                            rule.getMatchType() == FilterRule.RuleMatchType.CONTAINS);
-
-                            if (!ruleExists) {
-                                // 创建过滤规则，使用URL类型和CONTAINS匹配
-                                FilterRule filterRule = new FilterRule(
-                                        baseUrl,
-                                        FilterRule.RuleType.URL,
-                                        FilterRule.RuleMatchType.CONTAINS
-                                );
-
-                                // 添加到配置管理器
-                                configManager.addFilterRule(filterRule);
-                                addedUrls.add(baseUrl);
-                                successCount++;
-
-                                api.logging().logToOutput("[ContextMenuProvider] Added filter rule: " + baseUrl);
-                            } else {
-                                api.logging().logToOutput("[ContextMenuProvider] Filter rule already exists: " + baseUrl);
-                            }
-                        }
-                    } catch (Exception ex) {
-                        errorCount++;
-                        api.logging().logToError("[ContextMenuProvider] Error processing request: " + ex.getMessage());
-                    }
-                }
-
-                // 显示结果消息
-                final int finalSuccessCount = successCount;
-                final int finalErrorCount = errorCount;
-                final int totalRequests = finalAllSelectedRequests.size();
-
-                SwingUtilities.invokeLater(() -> {
-                    String message;
-                    int messageType;
-
-                    if (finalErrorCount == 0) {
-                        if (finalSuccessCount == totalRequests) {
-                            message = String.format("Successfully added %d filter rule(s)", finalSuccessCount);
-                        } else {
-                            int duplicateCount = totalRequests - finalSuccessCount;
-                            message = String.format("Added %d new filter rule(s). %d rule(s) already existed.",
-                                    finalSuccessCount, duplicateCount);
-                        }
-                        messageType = JOptionPane.INFORMATION_MESSAGE;
-                    } else {
-                        message = String.format("Added %d filter rule(s), %d error(s) occurred",
-                                finalSuccessCount, finalErrorCount);
-                        messageType = JOptionPane.WARNING_MESSAGE;
-                    }
-
-                    JOptionPane.showMessageDialog(
-                            null,
-                            message,
-                            "Filter Rules Added",
-                            messageType
-                    );
+        // 添加各种测试选项 - 修改为带任务管理的批量处理
+        JMenuItem allTests = createTestMenuItem("Run All Tests", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState allEnabledState = new SwitchState(true, true, true, true, false);
+                    return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
                 });
 
-            } catch (Exception ex) {
-                api.logging().logToError("[ContextMenuProvider] Error adding filter rules: " + ex.getMessage());
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(
-                            null,
-                            "Error adding filter rules: " + ex.getMessage(),
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                    );
+        // Add Filter 菜单项 - 这个不需要异步，保持原有逻辑
+        JMenuItem addFilterItem = new JMenuItem(String.format("Add Filter (%d selected)", finalAllSelectedRequests.size()));
+        addFilterItem.addActionListener(e -> addFiltersSync(finalAllSelectedRequests));
+
+        // 各种测试菜单项
+        JMenuItem JsonListerTest = createTestMenuItem("JsonLister Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false);
+                    return valueReplacer.unifiedTestForContextAsync(request, jsonListerOnlyState, messageId);
                 });
-            }
-        });
 
-        // 修改后的JsonLister Test - 使用unifiedTestForContext
-        JMenuItem protoTest = new JMenuItem("Run JsonLister Test");
-        protoTest.addActionListener(e -> {
-            executor.submit(() -> {
-                try {
-                    int messageId = messageIdGenerator.getAndIncrement();
-                    OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
-                                    finalRequestResponse.request().method(),
-                                    finalRequestResponse.request().url(),
-                                    messageId,
-                                    requestResponseSaver, api.logging())
-                            ,messageId);
+        JMenuItem routeFuzzerTest = createTestMenuItem("RouteFuzzer Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false);
+                    return valueReplacer.unifiedTestForContextAsync(request, routeFuzzerOnlyState, messageId);
+                });
 
-                    if (original != null) {
-                        try {
-                            HttpRequestResponse originalReqRes = api.http().sendRequest(finalRequestResponse.request());
-                            if (originalReqRes != null && originalReqRes.response() != null) {
-                                original.setOriginalResponse(originalReqRes.response());
-                            }
-                        } catch (Exception ex) {
-                            api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
-                        }
-                        // 创建只启用JsonLister的SwitchState
-                        SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false);
-                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), jsonListerOnlyState, original.getMessageId());
-                    } else {
-                        api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
-                    }
-                } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running JsonListerTest: " + ex.getMessage());
-                }
-            });
-        });
-
-        // 修改后的RouteFuzzer Test - 使用unifiedTestForContext
-        JMenuItem collectedTest = new JMenuItem("Run RouteFuzzer Test");
-        collectedTest.addActionListener(e -> {
-            executor.submit(() -> {
-                try {
-                    int messageId = messageIdGenerator.getAndIncrement();
-                    OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
-                                    finalRequestResponse.request().method(),
-                                    finalRequestResponse.request().url(),
-                                    messageId,
-                                    requestResponseSaver, api.logging())
-                            ,messageId);
-
-                    if (original != null) {
-                        try {
-                            HttpRequestResponse originalReqRes = api.http().sendRequest(finalRequestResponse.request());
-                            if (originalReqRes != null && originalReqRes.response() != null) {
-                                original.setOriginalResponse(originalReqRes.response());
-                            }
-                        } catch (Exception ex) {
-                            api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
-                        }
-                        // 创建只启用RouteFuzzer的SwitchState
-                        SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false);
-                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), routeFuzzerOnlyState, original.getMessageId());
-                    } else {
-                        api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
-                    }
-                } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running RouteFuzzerTest: " + ex.getMessage());
-                }
-            });
-        });
-
-        // 修改后的ParamFuzzer Test - 使用unifiedTestForContext
-        JMenuItem suspiciousTest = new JMenuItem("Run ParamFuzzer Test");
-        suspiciousTest.addActionListener(e -> {
-            executor.submit(() -> {
-                try {
-                    int messageId = messageIdGenerator.getAndIncrement();
-                    OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
-                                    finalRequestResponse.request().method(),
-                                    finalRequestResponse.request().url(),
-                                    messageId,
-                                    requestResponseSaver, api.logging())
-                            ,messageId);
-
-                    if (original != null) {
-                        try {
-                            HttpRequestResponse originalReqRes = api.http().sendRequest(finalRequestResponse.request());
-                            if (originalReqRes != null && originalReqRes.response() != null) {
-                                original.setOriginalResponse(originalReqRes.response());
-                            }
-                        } catch (Exception ex) {
-                            api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
-                        }
-                        // 创建只启用ParamFuzzer的SwitchState
-                        SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false);
-                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), paramFuzzerOnlyState, original.getMessageId());
-                    } else {
-                        api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
-                    }
-                } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running ParamFuzzerTest: " + ex.getMessage());
-                }
-            });
-        });
+        JMenuItem ParamFuzzerTest = createTestMenuItem("ParamFuzzer Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false);
+                    return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
+                });
 
         // 添加菜单项到子菜单
         headerIntruderMenu.add(allTests);
         headerIntruderMenu.add(addFilterItem);
         headerIntruderMenu.addSeparator();
-        headerIntruderMenu.add(protoTest);
-        headerIntruderMenu.add(collectedTest);
-        headerIntruderMenu.add(suspiciousTest);
+        headerIntruderMenu.add(JsonListerTest);
+        headerIntruderMenu.add(routeFuzzerTest);
+        headerIntruderMenu.add(ParamFuzzerTest);
 
         // 添加子菜单到列表
         menuItems.add(headerIntruderMenu);
@@ -317,8 +149,353 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         return menuItems;
     }
 
-    // 确保在插件卸载时调用此方法
+    /**
+     * 创建带任务管理的测试菜单项
+     */
+    private JMenuItem createTestMenuItem(String testName, List<HttpRequestResponse> requests, AsyncTestExecutor testExecutor) {
+        String menuText = String.format("%s (%d selected)", testName, requests.size());
+        JMenuItem menuItem = new JMenuItem(menuText);
+
+        menuItem.addActionListener(e -> {
+            // 检查是否可以添加新任务
+            if (taskManager.canAcceptNewTask()) {
+                long taskId = taskIdGenerator.getAndIncrement();
+                BatchTestTask task = new BatchTestTask(taskId, testName, requests, testExecutor);
+
+                boolean submitted = taskManager.submitTask(task);
+                if (submitted) {
+                    showTaskSubmittedMessage(testName, requests.size(), taskId);
+                } else {
+                    showTaskRejectedMessage(testName, "Task queue is full. Please wait for current tasks to complete.");
+                }
+            } else {
+                showTaskRejectedMessage(testName, "Too many tasks are running. Please wait for current tasks to complete.");
+            }
+        });
+
+        return menuItem;
+    }
+
+    /**
+     * 同步版本的添加过滤器方法
+     */
+    private void addFiltersSync(List<HttpRequestResponse> requests) {
+        // 原有的添加过滤器逻辑，保持同步执行
+        try {
+            int successCount = 0;
+            int errorCount = 0;
+
+            for (HttpRequestResponse reqRes : requests) {
+                try {
+                    if (reqRes != null && reqRes.request() != null) {
+                        String fullUrl = reqRes.request().url();
+                        String baseUrl = fullUrl.split("\\?")[0];
+
+                        boolean ruleExists = configManager.getFilterRules().stream()
+                                .anyMatch(rule -> rule.getValue().equals(baseUrl) &&
+                                        rule.getType() == FilterRule.RuleType.URL &&
+                                        rule.getMatchType() == FilterRule.RuleMatchType.CONTAINS);
+
+                        if (!ruleExists) {
+                            FilterRule filterRule = new FilterRule(
+                                    baseUrl,
+                                    FilterRule.RuleType.URL,
+                                    FilterRule.RuleMatchType.CONTAINS
+                            );
+
+                            configManager.addFilterRule(filterRule);
+                            successCount++;
+                            api.logging().logToOutput("[ContextMenuProvider] Added filter rule: " + baseUrl);
+                        }
+                    }
+                } catch (Exception ex) {
+                    errorCount++;
+                    api.logging().logToError("[ContextMenuProvider] Error processing request: " + ex.getMessage());
+                }
+            }
+
+            showBatchResult("Filter Rules", requests.size(), successCount, errorCount);
+
+        } catch (Exception ex) {
+            api.logging().logToError("[ContextMenuProvider] Error adding filter rules: " + ex.getMessage());
+            showErrorMessage("Error adding filter rules: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * 显示任务提交成功消息
+     */
+    private void showTaskSubmittedMessage(String testName, int requestCount, long taskId) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(
+                    null,
+                    String.format("Task submitted: %s for %d requests (Task ID: %d)", testName, requestCount, taskId),
+                    "Task Submitted",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+    }
+
+    /**
+     * 显示任务被拒绝消息
+     */
+    private void showTaskRejectedMessage(String testName, String reason) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(
+                    null,
+                    String.format("Cannot start %s: %s", testName, reason),
+                    "Task Rejected",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        });
+    }
+
+    private void showBatchResult(String operation, int totalRequests, int successCount, int errorCount) {
+        SwingUtilities.invokeLater(() -> {
+            String message;
+            int messageType;
+
+            if (errorCount == 0) {
+                if (successCount == totalRequests) {
+                    message = String.format("Successfully processed %d %s", successCount, operation);
+                } else {
+                    int duplicateCount = totalRequests - successCount;
+                    message = String.format("Processed %d new %s. %d already existed.",
+                            successCount, operation, duplicateCount);
+                }
+                messageType = JOptionPane.INFORMATION_MESSAGE;
+            } else {
+                message = String.format("Processed %d %s, %d error(s) occurred",
+                        successCount, operation, errorCount);
+                messageType = JOptionPane.WARNING_MESSAGE;
+            }
+
+            JOptionPane.showMessageDialog(null, message, operation + " Results", messageType);
+        });
+    }
+
+    private void showErrorMessage(String errorMessage) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(null, errorMessage, "Error", JOptionPane.ERROR_MESSAGE);
+        });
+    }
+
     public void shutdown() {
+        taskManager.shutdown();
         executor.shutdown();
+    }
+
+    /**
+     * 异步测试执行器接口
+     */
+    @FunctionalInterface
+    private interface AsyncTestExecutor {
+        CompletableFuture<Void> execute(burp.api.montoya.http.message.requests.HttpRequest request, int messageId);
+    }
+
+    /**
+     * 批量测试任务类
+     */
+    private class BatchTestTask implements Runnable {
+        private final long taskId;
+        private final String testName;
+        private final List<HttpRequestResponse> requests;
+        private final AsyncTestExecutor testExecutor;
+        private volatile boolean cancelled = false;
+
+        public BatchTestTask(long taskId, String testName, List<HttpRequestResponse> requests, AsyncTestExecutor testExecutor) {
+            this.taskId = taskId;
+            this.testName = testName;
+            this.requests = new ArrayList<>(requests); // 创建副本避免并发修改
+            this.testExecutor = testExecutor;
+        }
+
+        @Override
+        public void run() {
+            if (cancelled) {
+                return;
+            }
+
+            api.logging().logToOutput(String.format("[Task %d] Starting batch %s for %d requests", taskId, testName, requests.size()));
+
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            int processedCount = 0;
+            int errorCount = 0;
+
+            try {
+                for (HttpRequestResponse reqRes : requests) {
+                    if (cancelled) {
+                        api.logging().logToOutput(String.format("[Task %d] Cancelled", taskId));
+                        return;
+                    }
+
+                    if (reqRes != null && reqRes.request() != null) {
+                        try {
+                            int messageId = messageIdGenerator.getAndIncrement();
+                            OriginalRequestResponse original = tableModel.createEntry(new OriginalRequestResponse(
+                                            reqRes.request().method(),
+                                            reqRes.request().url(),
+                                            messageId,
+                                            requestResponseSaver, api.logging()),
+                                    messageId);
+
+                            if (original != null) {
+                                // 异步发送原始请求
+                                CompletableFuture<Void> originalRequestFuture = CompletableFuture.runAsync(() -> {
+                                    try {
+                                        HttpRequestResponse originalReqRes = api.http().sendRequest(reqRes.request());
+                                        if (originalReqRes != null && originalReqRes.response() != null) {
+                                            original.setOriginalResponse(originalReqRes.response());
+                                        }
+                                    } catch (Exception ex) {
+                                        api.logging().logToError(String.format("[Task %d] Error sending original request: %s", taskId, ex.getMessage()));
+                                    }
+                                }, executor);
+
+                                // 执行具体的测试
+                                CompletableFuture<Void> testFuture = testExecutor.execute(reqRes.request(), messageId);
+
+                                futures.add(CompletableFuture.allOf(originalRequestFuture, testFuture));
+                                processedCount++;
+                            }
+                        } catch (Exception ex) {
+                            errorCount++;
+                            api.logging().logToError(String.format("[Task %d] Error processing request: %s", taskId, ex.getMessage()));
+                        }
+                    }
+                }
+
+                // 等待所有任务完成
+                CompletableFuture<Void> allTasks = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+                allTasks.get(30, TimeUnit.MINUTES); // 设置30分钟超时
+
+                final int finalProcessedCount = processedCount;
+                final int finalErrorCount = errorCount;
+
+                SwingUtilities.invokeLater(() -> {
+                    if (!cancelled) {
+                        String message = String.format("Task %d completed: %s\nProcessed: %d requests\nErrors: %d",
+                                taskId, testName, finalProcessedCount, finalErrorCount);
+                        JOptionPane.showMessageDialog(null, message, "Task Completed", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                });
+
+                api.logging().logToOutput(String.format("[Task %d] Completed batch %s: %d processed, %d errors",
+                        taskId, testName, processedCount, errorCount));
+
+            } catch (TimeoutException e) {
+                api.logging().logToError(String.format("[Task %d] Timeout after 30 minutes", taskId));
+                showTimeoutMessage();
+            } catch (Exception e) {
+                api.logging().logToError(String.format("[Task %d] Error in batch execution: %s", taskId, e.getMessage()));
+            }
+        }
+
+        private void showTimeoutMessage() {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(null,
+                        String.format("Task %d (%s) timed out after 30 minutes", taskId, testName),
+                        "Task Timeout", JOptionPane.WARNING_MESSAGE);
+            });
+        }
+
+        public void cancel() {
+            this.cancelled = true;
+        }
+
+        public long getTaskId() {
+            return taskId;
+        }
+    }
+
+    /**
+     * 任务管理器
+     */
+    private static class TaskManager {
+        private final ExecutorService taskExecutor;
+        private final Semaphore taskSemaphore;
+        private final MontoyaApi api;
+        private final ConcurrentHashMap<Long, BatchTestTask> activeTasks = new ConcurrentHashMap<>();
+        private final BlockingQueue<BatchTestTask> taskQueue = new ArrayBlockingQueue<>(10);
+
+        public TaskManager(MontoyaApi api, int maxConcurrentTasks) {
+            this.api = api;
+            this.taskExecutor = Executors.newFixedThreadPool(maxConcurrentTasks);
+            this.taskSemaphore = new Semaphore(maxConcurrentTasks);
+        }
+
+        public boolean canAcceptNewTask() {
+            return taskSemaphore.availablePermits() > 0 || taskQueue.remainingCapacity() > 0;
+        }
+
+        public boolean submitTask(BatchTestTask task) {
+            if (taskSemaphore.tryAcquire()) {
+                // 可以立即执行
+                activeTasks.put(task.getTaskId(), task);
+                taskExecutor.submit(() -> {
+                    try {
+                        task.run();
+                    } finally {
+                        activeTasks.remove(task.getTaskId());
+                        taskSemaphore.release();
+                        // 检查队列中是否有等待的任务
+                        processQueuedTask();
+                    }
+                });
+                return true;
+            } else if (taskQueue.remainingCapacity() > 0) {
+                // 加入队列等待
+                return taskQueue.offer(task);
+            } else {
+                // 无法接受更多任务
+                return false;
+            }
+        }
+
+        private void processQueuedTask() {
+            BatchTestTask queuedTask = taskQueue.poll();
+            if (queuedTask != null && taskSemaphore.tryAcquire()) {
+                activeTasks.put(queuedTask.getTaskId(), queuedTask);
+                taskExecutor.submit(() -> {
+                    try {
+                        queuedTask.run();
+                    } finally {
+                        activeTasks.remove(queuedTask.getTaskId());
+                        taskSemaphore.release();
+                        processQueuedTask(); // 递归处理下一个任务
+                    }
+                });
+            }
+        }
+
+        public int getActiveTaskCount() {
+            return activeTasks.size();
+        }
+
+        public int getQueuedTaskCount() {
+            return taskQueue.size();
+        }
+
+        public void cancelAllTasks() {
+            // 取消所有活动任务
+            for (BatchTestTask task : activeTasks.values()) {
+                task.cancel();
+            }
+            // 清空队列
+            taskQueue.clear();
+        }
+
+        public void shutdown() {
+            cancelAllTasks();
+            taskExecutor.shutdown();
+            try {
+                if (!taskExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    taskExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                taskExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 }
