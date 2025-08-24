@@ -162,7 +162,7 @@ public class ValueReplacer {
             }
 
             if (switchState.isRoutefuzzerSwitch()) {
-                routeFuzzer.processRequest(originalRequest, messageId, host);
+                routeFuzzer.processRequestWithoutDeduplication(originalRequest, messageId, host);
             }
 
             if (switchState.isParamfuzzerSwitch()) {

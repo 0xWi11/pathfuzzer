@@ -201,6 +201,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             }
         });
 
+        // 修改后的JsonLister Test - 使用unifiedTestForContext
         JMenuItem protoTest = new JMenuItem("Run JsonLister Test");
         protoTest.addActionListener(e -> {
             executor.submit(() -> {
@@ -222,9 +223,9 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        valueReplacer.JsonListerTest(finalRequestResponse.request(),
-                                original.getMessageId(),
-                                valueReplacer.extractHostFromRequest(finalRequestResponse.request().url()));
+                        // 创建只启用JsonLister的SwitchState
+                        SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false);
+                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), jsonListerOnlyState, original.getMessageId());
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
                     }
@@ -234,6 +235,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             });
         });
 
+        // 修改后的RouteFuzzer Test - 使用unifiedTestForContext
         JMenuItem collectedTest = new JMenuItem("Run RouteFuzzer Test");
         collectedTest.addActionListener(e -> {
             executor.submit(() -> {
@@ -255,9 +257,9 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        valueReplacer.RouteFuzzerTest(finalRequestResponse.request(),
-                                original.getMessageId(),
-                                valueReplacer.extractHostFromRequest(finalRequestResponse.request().url()));
+                        // 创建只启用RouteFuzzer的SwitchState
+                        SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false);
+                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), routeFuzzerOnlyState, original.getMessageId());
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
                     }
@@ -267,6 +269,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             });
         });
 
+        // 修改后的ParamFuzzer Test - 使用unifiedTestForContext
         JMenuItem suspiciousTest = new JMenuItem("Run ParamFuzzer Test");
         suspiciousTest.addActionListener(e -> {
             executor.submit(() -> {
@@ -288,14 +291,14 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                         } catch (Exception ex) {
                             api.logging().logToError("[ContextMenuProvider] Error sending original request: " + ex.getMessage());
                         }
-                        valueReplacer.ParamFuzzerTest(finalRequestResponse.request(),
-                                original.getMessageId(),
-                                valueReplacer.extractHostFromRequest(finalRequestResponse.request().url()));
+                        // 创建只启用ParamFuzzer的SwitchState
+                        SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false);
+                        valueReplacer.unifiedTestForContext(finalRequestResponse.request(), paramFuzzerOnlyState, original.getMessageId());
                     } else {
                         api.logging().logToError("[ContextMenuProvider] Failed to create OriginalRequestResponse entry for messageId: " + messageId);
                     }
                 } catch (Exception ex) {
-                    api.logging().logToError("[ContextMenuProvider] Error running suspicious test: " + ex.getMessage());
+                    api.logging().logToError("[ContextMenuProvider] Error running ParamFuzzerTest: " + ex.getMessage());
                 }
             });
         });
