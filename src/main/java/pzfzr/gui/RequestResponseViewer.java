@@ -9,9 +9,7 @@ import pzfzr.model.ModifiedRequestResponse;
 import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.KeyEvent;
+import java.awt.event.*;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +38,9 @@ public class RequestResponseViewer extends JPanel {
 
     private CustomLayoutContainer layoutContainer;
 
+    // 滚轮增强倍数
+    private static final double SCROLL_MULTIPLIER = 1.0; // 200% 增强
+
     public RequestResponseViewer(MontoyaApi api) {
         super(new BorderLayout());
 
@@ -54,6 +55,12 @@ public class RequestResponseViewer extends JPanel {
         modifiedRequestViewer = api.userInterface().createHttpRequestEditor(READ_ONLY);
         originalResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
         modifiedResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
+
+        // 为每个编辑器添加滚轮增强
+        enhanceScrolling(originalRequestViewer.uiComponent());
+        enhanceScrolling(modifiedRequestViewer.uiComponent());
+        enhanceScrolling(originalResponseViewer.uiComponent());
+        enhanceScrolling(modifiedResponseViewer.uiComponent());
 
         // 创建四个可调整大小的面板
         originalRequestPanel = new ResizablePanel("Original Request", originalRequestViewer.uiComponent());
@@ -74,6 +81,81 @@ public class RequestResponseViewer extends JPanel {
 
         // 设置按钮状态
         updateButtonState();
+    }
+
+    /**
+     * 增强组件及其子组件的滚轮滚动功能
+     */
+    private void enhanceScrolling(Component component) {
+        // 递归增强所有子组件的滚动
+        enhanceComponentScrolling(component);
+    }
+
+    /**
+     * 递归增强组件滚动
+     */
+    private void enhanceComponentScrolling(Component component) {
+        // 为当前组件添加滚轮监听器
+        component.addMouseWheelListener(new EnhancedMouseWheelListener());
+
+        // 如果是容器，递归处理子组件
+        if (component instanceof Container) {
+            Container container = (Container) component;
+            for (Component child : container.getComponents()) {
+                enhanceComponentScrolling(child);
+            }
+        }
+    }
+
+    /**
+     * 增强的鼠标滚轮监听器
+     */
+    private class EnhancedMouseWheelListener implements MouseWheelListener {
+        @Override
+        public void mouseWheelMoved(MouseWheelEvent e) {
+            // 寻找最近的JScrollPane
+            JScrollPane scrollPane = findScrollPane(e.getComponent());
+            if (scrollPane != null) {
+                // 消费原始事件，避免重复处理
+                e.consume();
+
+                // 获取垂直滚动条
+                JScrollBar verticalScrollBar = scrollPane.getVerticalScrollBar();
+                if (verticalScrollBar != null && verticalScrollBar.isVisible()) {
+                    // 计算增强后的滚动量
+                    int scrollAmount = e.getUnitsToScroll();
+                    int enhancedScrollAmount = (int) (scrollAmount * SCROLL_MULTIPLIER);
+
+                    // 获取当前值和单位增量
+                    int currentValue = verticalScrollBar.getValue();
+                    int unitIncrement = verticalScrollBar.getUnitIncrement(1);
+
+                    // 计算新的滚动位置
+                    int newValue = currentValue + (enhancedScrollAmount * unitIncrement);
+
+                    // 确保在有效范围内
+                    newValue = Math.max(verticalScrollBar.getMinimum(),
+                            Math.min(verticalScrollBar.getMaximum() - verticalScrollBar.getVisibleAmount(), newValue));
+
+                    // 设置新值
+                    verticalScrollBar.setValue(newValue);
+                }
+            }
+        }
+
+        /**
+         * 向上查找JScrollPane
+         */
+        private JScrollPane findScrollPane(Component component) {
+            Component current = component;
+            while (current != null) {
+                if (current instanceof JScrollPane) {
+                    return (JScrollPane) current;
+                }
+                current = current.getParent();
+            }
+            return null;
+        }
     }
 
     private JPanel createNavigationPanel() {
