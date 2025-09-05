@@ -23,15 +23,15 @@ public class TrafficHandler implements HttpHandler {
     private final ConfigManager configManager;
     private final SwitchManager switchManager;
     // 线程池参数配置
-    private static final int CORE_POOL_SIZE = 10;
-    private static final int MAX_POOL_SIZE = 20;
+    private static final int CORE_POOL_SIZE = 40;
+    private static final int MAX_POOL_SIZE = 40;
     private static final long KEEP_ALIVE_TIME = 60L;
     // 使用单个ScheduledExecutorService处理所有任务
     private final ScheduledExecutorService executorService;
-    private final Map<Integer, DelayedResponse> pendingResponses = new ConcurrentHashMap<>();
+//    private final Map<Integer, DelayedResponse> pendingResponses = new ConcurrentHashMap<>();
     private volatile boolean isShuttingDown = false;
     private final RequestDeduplicator requestDeduplicator; // 请求去重器实例
-    private ThreadPoolMonitor threadPoolMonitor;
+    private final ThreadPoolMonitor threadPoolMonitor;
 
 
     private static class DelayedResponse {
@@ -261,7 +261,7 @@ public class TrafficHandler implements HttpHandler {
         }
 
         // 清理剩余资源
-        pendingResponses.clear();
+//        pendingResponses.clear();
         if (requestDeduplicator != null) { // 关闭请求去重器
             requestDeduplicator.shutdown();
         }
