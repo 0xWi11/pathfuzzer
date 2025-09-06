@@ -42,9 +42,6 @@ public class OkHttpManager {
     private static final int READ_TIMEOUT = 30; // seconds
     private static final int WRITE_TIMEOUT = 30; // seconds
 
-    // 重试配置
-    private static final int MAX_RETRIES = 2;
-
     // 代理配置
     private static final String PROXY_HOST = "127.0.0.1";
     private static final int PROXY_PORT = 20808;
@@ -57,7 +54,7 @@ public class OkHttpManager {
         this.http2Client = createOkHttpClient(true);  // HTTP/2 and HTTP/1.1
 
         logging.logToOutput("[OkHttpManager] 初始化完成，连接池大小: " + MAX_IDLE_CONNECTIONS +
-                "，代理配置: " + PROXY_HOST + ":" + PROXY_PORT + "，支持Burp解压缩工具");
+                "，代理配置: " + PROXY_HOST + ":" + PROXY_PORT + "，支持Burp解压缩工具，已禁用重试逻辑");
     }
 
     /**
@@ -132,12 +129,12 @@ public class OkHttpManager {
             // 创建Dispatcher用于并发控制
             Dispatcher dispatcher = new Dispatcher();
             dispatcher.setMaxRequests(100); // 最大并发请求数
-            dispatcher.setMaxRequestsPerHost(20); // 每个主机的最大并发请求数
+            dispatcher.setMaxRequestsPerHost(100); // 每个主机的最大并发请求数
 
             // 配置代理 - 所有请求都走20808端口代理
             Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(PROXY_HOST, PROXY_PORT));
 
-            // 构建OkHttpClient - 禁用自动解压缩以便手动处理
+            // 构建OkHttpClient - 禁用自动解压缩以便手动处理，禁用重试
             OkHttpClient.Builder builder = new OkHttpClient.Builder()
                     .proxy(proxy) // 设置代理
                     .connectionPool(connectionPool)
@@ -145,13 +142,12 @@ public class OkHttpManager {
                     .connectTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
                     .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
                     .writeTimeout(WRITE_TIMEOUT, TimeUnit.SECONDS)
-                    .retryOnConnectionFailure(true)
+                    .retryOnConnectionFailure(false) // 禁用OkHttp内置的连接失败重试
                     .followRedirects(false) // 不自动跟随重定向
                     .followSslRedirects(false)
                     .sslSocketFactory(sslSocketFactory, (X509TrustManager) trustAllCerts[0])
                     .hostnameVerifier((hostname, session) -> true)
                     .addNetworkInterceptor(new SimpleTimingInterceptor()) // 简化的时间测量拦截器
-                    .addInterceptor(new RetryInterceptor(MAX_RETRIES))
                     .addInterceptor(new LoggingInterceptor(logging))
                     .addNetworkInterceptor(new DecompressionInterceptor());
 
@@ -165,7 +161,7 @@ public class OkHttpManager {
             builder.protocols(protocols);
 
             logging.logToOutput("[OkHttpManager] 代理配置完成: " + PROXY_HOST + ":" + PROXY_PORT +
-                    ", HTTP2支持: " + supportHttp2);
+                    ", HTTP2支持: " + supportHttp2 + ", 重试功能: 完全禁用");
 
             return builder.build();
 
@@ -344,8 +340,6 @@ public class OkHttpManager {
 
         Headers modifiedHeaders = modifiedHeadersBuilder.build();
 
-
-
         // 添加修改后的headers到响应
         for (int i = 0; i < modifiedHeaders.size(); i++) {
             responseBuilder.append(modifiedHeaders.name(i)).append(": ").append(modifiedHeaders.value(i)).append("\r\n");
@@ -450,59 +444,7 @@ public class OkHttpManager {
         }
     }
 
-    /**
-     * 重试拦截器
-     */
-    private static class RetryInterceptor implements Interceptor {
-        private final int maxRetries;
 
-        public RetryInterceptor(int maxRetries) {
-            this.maxRetries = maxRetries;
-        }
-
-        @Override
-        public Response intercept(Chain chain) throws IOException {
-            Request request = chain.request();
-            Response response = null;
-            IOException lastException = null;
-
-            for (int i = 0; i <= maxRetries; i++) {
-                try {
-                    if (response != null) {
-                        response.close();
-                    }
-                    response = chain.proceed(request);
-
-                    // 如果响应成功或不需要重试的状态码，直接返回
-                    if (response.isSuccessful() || !shouldRetry(response.code())) {
-                        return response;
-                    }
-                } catch (IOException e) {
-                    lastException = e;
-                    if (i == maxRetries) {
-                        throw e;
-                    }
-                    // 等待一段时间后重试
-                    try {
-                        Thread.sleep((long) Math.pow(2, i) * 100);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Retry interrupted", ie);
-                    }
-                }
-            }
-
-            if (response != null) {
-                return response;
-            } else {
-                throw lastException != null ? lastException : new IOException("Failed after " + maxRetries + " retries");
-            }
-        }
-
-        private boolean shouldRetry(int code) {
-            return code == 408 || code == 429 || code >= 500;
-        }
-    }
 
     /**
      * 日志拦截器
