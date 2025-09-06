@@ -278,9 +278,6 @@ public class RouteFuzzer {
             // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
 
-            // 记录请求开始时间
-            long startTime = System.currentTimeMillis();
-
             // 转换为OkHttp请求并异步发送
             Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
             Call call = okHttpManager.newCall(okHttpRequest);
@@ -307,13 +304,13 @@ public class RouteFuzzer {
                     activeRequests.remove(call);
 
                     try {
-                        long endTime = System.currentTimeMillis();
-                        long responseTime = endTime - startTime;
+                        // **修改点：使用OkHttpManager的extractResponseTime方法获取精确的响应时间**
+                        long responseTime = okHttpManager.extractResponseTime(response);
 
                         // 转换响应为Burp格式
                         HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
 
-                        // 处理响应
+                        // 处理响应，使用从OkHttpManager获取的精确响应时间
                         requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
 
                     } catch (Exception e) {
