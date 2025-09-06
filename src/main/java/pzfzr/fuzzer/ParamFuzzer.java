@@ -570,10 +570,10 @@ public class ParamFuzzer {
                     logging.logToError("[ParamFuzzer] Request failed for ID " + tempID + ": " + e.getMessage());
 
                     // 更新表格模型中的错误状态
-                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
-                    if (entry != null) {
-//                        entry.setError("Request failed: " + e.getMessage());
-                    }
+//                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
+//                    if (entry != null) {
+////                        entry.setError("Request failed: " + e.getMessage());
+//                    }
                 }
 
                 @Override
