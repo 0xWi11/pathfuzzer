@@ -61,17 +61,37 @@ public class OkHttpManager {
     }
 
     /**
-     * 获取单例实例
+     * 获取单例实例 - 带参数版本（用于首次初始化）
      */
     public static OkHttpManager getInstance(Logging logging, RateLimiter rateLimiter, CompressionUtils compressionUtils) {
         if (instance == null) {
             synchronized (OkHttpManager.class) {
                 if (instance == null) {
+                    if (logging == null || rateLimiter == null || compressionUtils == null) {
+                        throw new IllegalArgumentException("OkHttpManager首次初始化时，所有参数都不能为null");
+                    }
                     instance = new OkHttpManager(logging, rateLimiter, compressionUtils);
                 }
             }
         }
         return instance;
+    }
+
+    /**
+     * 获取单例实例 - 无参数版本（用于后续调用）
+     */
+    public static OkHttpManager getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException("OkHttpManager尚未初始化，请先调用getInstance(logging, rateLimiter, compressionUtils)进行初始化");
+        }
+        return instance;
+    }
+
+    /**
+     * 检查实例是否已初始化
+     */
+    public static boolean isInitialized() {
+        return instance != null;
     }
 
     /**

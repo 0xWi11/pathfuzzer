@@ -7,6 +7,7 @@ import pzfzr.config.ConfigManager;
 import pzfzr.config.PersistenceManager;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.ValueReplacer;
+import pzfzr.core.OkHttpManager;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.gui.MainPanel;
 import pzfzr.gui.ContextMenuProvider;
@@ -30,6 +31,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private CSVExporter csvExporter;
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
+    private OkHttpManager okHttpManager; // 添加OkHttpManager引用
 
     public PathFuzzer() {
         // No need to instantiate TableModel here anymore
@@ -50,11 +52,15 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         // 正确的初始化顺序：先创建 TableModel，再创建 RequestResponseSaver 并传入 TableModel
         this.tableModel = new TableModel(null, api.logging()); // 初始化 TableModel，requestResponseSaver 暂时传入 null
         this.requestResponseSaver = new RequestResponseSaver(api.logging(), tableModel); // 初始化 RequestResponseSaver 并传入 TableModel 实例
-        this.tableModel.setRequestResponseSaver(requestResponseSaver); // **重要**:  将 RequestResponseSaver 设置到 TableModel 中, 确保 TableModel 内部可以访问 RequestResponseSaver (如果 TableModel 中需要使用 RequestResponseSaver 的话，根据代码来看，TableModel 目前不需要直接使用RequestResponseSaver，这行代码可以删除，但为了代码的完整性和未来可能的扩展，建议保留)
+        this.tableModel.setRequestResponseSaver(requestResponseSaver); // **重要**:  将 RequestResponseSaver 设置到 TableModel 中, 确保 TableModel 内部可以访问 RequestResponseSaver
 
         // 初始化CSV导出器
         this.csvExporter = new CSVExporter(api.logging(), tableModel, requestResponseSaver);
         this.rateLimiter = RateLimiter.getInstance(api.logging()); // 获取 RateLimiter 实例
+
+        // **新增: 在此处初始化OkHttpManager**
+        this.okHttpManager = OkHttpManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
+        api.logging().logToOutput("[PathFuzzer]: OkHttpManager initialized");
 
         this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter); // 传递 *同一个* TableModel 和 RequestResponseSaver 和 RateLimiter 实例
         this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver); // 传递 *同一个* TableModel 和 RequestResponseSaver 实例
@@ -92,6 +98,17 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     @Override
     public void extensionUnloaded() {
         api.logging().logToOutput("[PathFuzzer]: Starting extension unload process...");
+
+        // **新增: 优先关闭OkHttpManager**
+        if (okHttpManager != null) {
+            try {
+                okHttpManager.shutdown();
+                api.logging().logToOutput("[PathFuzzer]: OkHttpManager shutdown completed");
+            } catch (Exception e) {
+                api.logging().logToError("[PathFuzzer]: Error during OkHttpManager shutdown: " + e.getMessage());
+            }
+        }
+
         // 通知HeaderReplacer停止接受新请求
         if (rateLimiter != null) {
             rateLimiter.shutdown();

@@ -71,8 +71,8 @@ public class RouteFuzzer {
         this.nextModifiedId = nextModifiedId;
         this.payloadManager = PayloadManager.getInstance();
 
-        // 初始化OkHttpManager - 第一次调用时传入MontoyaApi实例
-        this.okHttpManager = OkHttpManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
+        // **修改: 使用无参数的getInstance方法获取已初始化的OkHttpManager实例**
+        this.okHttpManager = OkHttpManager.getInstance();
 
         logging.logToOutput("[RouteFuzzer] 初始化完成，使用OkHttp客户端和Burp解压缩工具");
     }
@@ -502,8 +502,8 @@ public class RouteFuzzer {
                 activeRequests.clear();
             }
 
-            // 关闭OkHttpManager
-            okHttpManager.shutdown();
+            // **修改: 不再在这里关闭OkHttpManager，因为它现在由PathFuzzer统一管理**
+            // okHttpManager.shutdown(); // 移除这行
 
             logging.logToOutput("[RouteFuzzer] 关闭完成");
         }
