@@ -38,9 +38,9 @@ public class OkHttpManager {
     private static final long KEEP_ALIVE_DURATION = 5; // minutes
 
     // 超时配置
-    private static final int CONNECT_TIMEOUT = 10; // seconds
-    private static final int READ_TIMEOUT = 30; // seconds
-    private static final int WRITE_TIMEOUT = 30; // seconds
+    private static final int CONNECT_TIMEOUT = 15; // seconds
+    private static final int READ_TIMEOUT = 120; // seconds
+    private static final int WRITE_TIMEOUT = 60; // seconds
 
     // 代理配置
     private static final String PROXY_HOST = "127.0.0.1";

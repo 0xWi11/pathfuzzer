@@ -41,7 +41,16 @@
             <version>4.12.0</version>
         </dependency>
     </dependencies>
-
+    <!-- 防止传递依赖升级 -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>1.9.10</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <build>
         <plugins>
             <!-- 使用 Maven Shade 插件来打包所有依赖到一个 JAR 文件中 -->
