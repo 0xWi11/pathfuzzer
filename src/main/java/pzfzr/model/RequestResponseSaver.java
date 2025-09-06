@@ -23,55 +23,362 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.security.MessageDigest;
 
+/**
+ * 改进的RequestResponseSaver - 优化了异步处理和性能
+ */
 public class RequestResponseSaver {
 
     private final Path STORAGE_DIR;
     private static final int HEADER_SIZE = 4;
     private final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();
     private final Logging logging;
-    private final ScheduledExecutorService executorService;
-    private final Map<Integer, HttpRequestResponse> modifiedRequestResponses = new ConcurrentHashMap<>();
-    // 新增：记录每个ID的轮询重试次数
-    private final ConcurrentMap<Integer, Integer> pollingRetries = new ConcurrentHashMap<>();
-    private final String dailyDirHash;
     private final TableModel tableModel;
+    private final String dailyDirHash;
+
+    // 使用更高效的线程池配置
+    private final ExecutorService ioExecutor;
+    private final ExecutorService processingExecutor;
+
+    // 批处理配置
+    private static final int BATCH_SIZE = 50;
+    private static final int BATCH_TIMEOUT_MS = 200;
+
+    // 缓存配置
+    private final Map<Integer, CompletableFuture<Void>> pendingWrites = new ConcurrentHashMap<>();
+    private final BlockingQueue<WriteTask> writeQueue = new LinkedBlockingQueue<>();
+
+    // 统计信息
+    private final AtomicLong totalWrites = new AtomicLong(0);
+    private final AtomicLong totalReads = new AtomicLong(0);
+    private final AtomicLong writeErrors = new AtomicLong(0);
+
     private static final Path BASE_DIR = Paths.get(System.getProperty("user.home"), ".burp", "path_fuzzer");
     private static final Path HISTORY_DIR = BASE_DIR.resolve("project_request_history");
-    private final Set<Integer> pendingResponseIds = new ConcurrentSkipListSet<>();
-    private volatile boolean pollingScheduled = false;
-    private static final int POLLING_DELAY_MS = 500;
-    private static final int MAX_POLLING_RETRIES = 210;
+
+    private volatile boolean isShutdown = false;
 
     public RequestResponseSaver(Logging logging, TableModel tableModel) {
         this.logging = logging;
+        this.tableModel = tableModel;
         this.dailyDirHash = generateRandomHash();
         this.STORAGE_DIR = createDailyStorageDir();
+
         if (this.STORAGE_DIR == null) {
             throw new StorageException("[RequestResponseSaver] Failed to create daily storage directory.");
         }
-        this.tableModel = tableModel;
 
-        this.executorService = new ScheduledThreadPoolExecutor(
-                5,
+        // 创建IO线程池 - 用于文件操作
+        this.ioExecutor = new ThreadPoolExecutor(
+                5, 20,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(1000),
                 new ThreadFactory() {
                     private final AtomicInteger threadNumber = new AtomicInteger(1);
                     @Override
                     public Thread newThread(Runnable r) {
-                        Thread thread = new Thread(r, "request-response-saver-thread-" + threadNumber.getAndIncrement());
+                        Thread thread = new Thread(r, "rs-io-" + threadNumber.getAndIncrement());
                         thread.setDaemon(true);
+                        thread.setPriority(Thread.MIN_PRIORITY + 1);
                         return thread;
                     }
-                }
+                },
+                new ThreadPoolExecutor.CallerRunsPolicy()
         );
-        ((ScheduledThreadPoolExecutor) executorService).setMaximumPoolSize(25);
-        ((ScheduledThreadPoolExecutor) executorService).setKeepAliveTime(60L, TimeUnit.SECONDS);
-        ((ScheduledThreadPoolExecutor) executorService).setRejectedExecutionHandler(
-                (r, executor) -> logging.logToError("[RequestResponseSaver] RequestResponseSaver task rejected: thread pool overloaded")
+
+        // 创建处理线程池 - 用于响应处理
+        this.processingExecutor = new ForkJoinPool(
+                Math.min(Runtime.getRuntime().availableProcessors() * 2, 16),
+                ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+                null,
+                true
         );
+
+        // 启动批处理写入线程
+        startBatchWriter();
+
+        logging.logToOutput("[RequestResponseSaver] 初始化完成，存储目录: " + STORAGE_DIR);
     }
 
+    /**
+     * 处理OkHttp的异步响应
+     */
+    public void handleOkHttpResponse(HttpResponse response, int id, long responseTime,
+                                     ModifiedRequestResponse modifiedEntry) {
+        if (isShutdown) {
+            return;
+        }
+
+        processingExecutor.execute(() -> {
+            try {
+                // 保存响应
+                saveModifiedResponseAsync(response, id, responseTime).thenRun(() -> {
+                    // 更新表格模型
+                    if (modifiedEntry != null) {
+                        int responseLength = calculateResponseLengthWithoutSetCookieValues(response);
+                        modifiedEntry.setModifiedResponseAndCalculateMetadata(
+                                response.statusCode(),
+                                responseLength,
+                                response.body().length(),
+                                detectReflectType(response),
+                                responseTime
+                        );
+                    }
+                }).exceptionally(ex -> {
+                    logging.logToError("[RequestResponseSaver] Failed to process response for ID " + id + ": " + ex.getMessage());
+                    return null;
+                });
+            } catch (Exception e) {
+                logging.logToError("[RequestResponseSaver] Error handling OkHttp response: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 异步保存修改后的响应
+     */
+    private CompletableFuture<Void> saveModifiedResponseAsync(HttpResponse response, int id, long timingData) {
+        String filename = "ModResp_" + id + "_" + timingData + ".lz4";
+        return storeDataAsync(response.toByteArray(), filename);
+    }
+
+    /**
+     * 异步存储数据
+     */
+    private CompletableFuture<Void> storeDataAsync(ByteArray data, String filename) {
+        if (isShutdown) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        pendingWrites.put(filename.hashCode(), future);
+
+        WriteTask task = new WriteTask(data, filename, future);
+        writeQueue.offer(task);
+
+        return future;
+    }
+
+    /**
+     * 批处理写入线程
+     */
+    private void startBatchWriter() {
+        Thread writerThread = new Thread(() -> {
+            List<WriteTask> batch = new ArrayList<>(BATCH_SIZE);
+
+            while (!isShutdown) {
+                try {
+                    // 等待第一个任务
+                    WriteTask task = writeQueue.poll(BATCH_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                    if (task != null) {
+                        batch.add(task);
+
+                        // 收集更多任务形成批次
+                        writeQueue.drainTo(batch, BATCH_SIZE - 1);
+
+                        // 批量写入
+                        processBatch(batch);
+                        batch.clear();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    logging.logToError("[RequestResponseSaver] Batch writer error: " + e.getMessage());
+                }
+            }
+        });
+
+        writerThread.setName("rs-batch-writer");
+        writerThread.setDaemon(true);
+        writerThread.start();
+    }
+
+    /**
+     * 处理批量写入
+     */
+    private void processBatch(List<WriteTask> batch) {
+        if (batch.isEmpty()) {
+            return;
+        }
+
+        // 使用并行流处理批次
+        batch.parallelStream().forEach(task -> {
+            try {
+                storeDataInternal(task.data, task.filename);
+                task.future.complete(null);
+                totalWrites.incrementAndGet();
+            } catch (Exception e) {
+                task.future.completeExceptionally(e);
+                writeErrors.incrementAndGet();
+                logging.logToError("[RequestResponseSaver] Failed to write " + task.filename + ": " + e.getMessage());
+            } finally {
+                pendingWrites.remove(task.filename.hashCode());
+            }
+        });
+    }
+
+    /**
+     * 内部存储数据方法 - 优化版本
+     */
+    private void storeDataInternal(ByteArray data, String filename) throws StorageException {
+        Path file = STORAGE_DIR.resolve(filename);
+
+        try (FileChannel channel = FileChannel.open(file,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.TRUNCATE_EXISTING)) {
+
+            byte[] rawData = data.getBytes();
+            LZ4Compressor compressor = lz4Factory.fastCompressor();
+
+            // 使用更高的压缩级别以减少IO
+            int maxCompressedSize = compressor.maxCompressedLength(rawData.length);
+            byte[] compressedData = new byte[maxCompressedSize];
+
+            int compressedSize = compressor.compress(rawData, 0, rawData.length,
+                    compressedData, 0, maxCompressedSize);
+
+            // 写入原始长度和压缩数据
+            ByteBuffer buffer = ByteBuffer.allocateDirect(HEADER_SIZE + compressedSize);
+            buffer.putInt(rawData.length);
+            buffer.put(compressedData, 0, compressedSize);
+            buffer.flip();
+
+            channel.write(buffer);
+
+        } catch (IOException e) {
+            throw new StorageException("[RequestResponseSaver] Failed to store data to " + filename, e);
+        }
+    }
+
+    /**
+     * 保存原始请求 - 异步版本
+     */
+    public void saveOriginalRequest(HttpRequest request, int messageID) {
+        if (isShutdown) return;
+        storeDataAsync(request.toByteArray(), "OrigReq_" + messageID + ".lz4");
+    }
+
+    /**
+     * 保存原始响应 - 异步版本
+     */
+    public void saveOriginalResponse(HttpResponse response, int messageID) {
+        if (isShutdown) return;
+        storeDataAsync(response.toByteArray(), "OrigResp_" + messageID + ".lz4");
+    }
+
+    /**
+     * 保存修改后的请求 - 异步版本
+     */
+    public void saveModifiedRequest(HttpRequest request, int id) {
+        if (isShutdown) return;
+        storeDataAsync(request.toByteArray(), "ModReq_" + id + ".lz4");
+    }
+
+    /**
+     * 旧的处理延迟响应方法 - 保留兼容性
+     */
+    public void handleDelayedModifiedResponse(HttpRequestResponse modifiedRequestResponse, int id) {
+        if (isShutdown) return;
+
+        HttpResponse response = modifiedRequestResponse.response();
+        if (response != null) {
+            long responseTime = modifiedRequestResponse.timingData()
+                    .map(td -> td.timeBetweenRequestSentAndStartOfResponse().toMillis())
+                    .orElse(0L);
+
+            ModifiedRequestResponse modifiedEntry = tableModel.getModifiedEntryById(id);
+            handleOkHttpResponse(response, id, responseTime, modifiedEntry);
+        }
+    }
+
+    /**
+     * 计算响应长度，排除Set-Cookie值
+     */
+    private int calculateResponseLengthWithoutSetCookieValues(HttpResponse response) {
+        if (response == null) {
+            return -1;
+        }
+
+        byte[] fullResponse = response.toByteArray().getBytes();
+        int totalLength = fullResponse.length;
+        int setCookieValuesLength = 0;
+
+        for (HttpHeader header : response.headers()) {
+            if ("Set-Cookie".equalsIgnoreCase(header.name())) {
+                setCookieValuesLength += header.value().length();
+            }
+        }
+
+        return totalLength - setCookieValuesLength;
+    }
+
+    /**
+     * 检测反射类型
+     */
+    private String detectReflectType(HttpResponse response) {
+        if (response == null) {
+            return "";
+        }
+
+        List<String> detectedTypes = new ArrayList<>();
+
+        try {
+            if (response.contains("/bin/sh", false)) {
+                detectedTypes.add("LFI");
+            }
+
+            // 检测CRLF漏洞
+            for (HttpHeader header : response.headers()) {
+                if (header.name().toLowerCase().contains("c9w") ||
+                        header.name().toLowerCase().contains("v5m")) {
+                    detectedTypes.add("CRLF");
+                    break;
+                }
+            }
+
+            return String.join(",", detectedTypes);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /**
+     * 数据加载方法 - 优化版本
+     */
+    public ByteArray loadData(String filename) throws StorageException {
+        Path file = STORAGE_DIR.resolve(filename);
+        if (!Files.exists(file)) {
+            return null;
+        }
+
+        totalReads.incrementAndGet();
+
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
+            ByteBuffer buffer = ByteBuffer.allocateDirect((int) channel.size());
+            channel.read(buffer);
+            buffer.flip();
+
+            int originalSize = buffer.getInt();
+            byte[] compressedData = new byte[buffer.remaining()];
+            buffer.get(compressedData);
+
+            LZ4FastDecompressor decompressor = lz4Factory.fastDecompressor();
+            byte[] restored = new byte[originalSize];
+            decompressor.decompress(compressedData, 0, restored, 0, originalSize);
+
+            return ByteArray.byteArray(restored);
+        } catch (IOException e) {
+            throw new StorageException("[RequestResponseSaver] Failed to load data from " + filename, e);
+        }
+    }
+
+    /**
+     * 创建每日存储目录
+     */
     private Path createDailyStorageDir() {
         LocalDateTime now = LocalDateTime.now();
         String monthDir = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
@@ -85,329 +392,121 @@ public class RequestResponseSaver {
             logging.logToOutput("[RequestResponseSaver] Created daily storage directory: " + dailyStorageDir);
             return dailyStorageDir;
         } catch (IOException e) {
-            logging.logToError("[RequestResponseSaver] Failed to create daily storage directory: " + dailyStorageDir + ", error: " + e.getMessage());
+            logging.logToError("[RequestResponseSaver] Failed to create directory: " + e.getMessage());
             return null;
         }
     }
 
+    /**
+     * 生成随机哈希
+     */
     private String generateRandomHash() {
         try {
             String randomStr = UUID.randomUUID().toString();
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(randomStr.getBytes(StandardCharsets.UTF_8));
             StringBuilder result = new StringBuilder();
-            for (byte b : hash) {
-                result.append(String.format("%02x", b));
+            for (int i = 0; i < Math.min(hash.length, 4); i++) {
+                result.append(String.format("%02x", hash[i]));
             }
-            return result.substring(0, 8);
+            return result.toString();
         } catch (Exception e) {
             return UUID.randomUUID().toString().substring(0, 8);
         }
     }
 
-    // 保存原始请求
-    public void saveOriginalRequest(HttpRequest request, int messageID) {
-        executorService.execute(() -> {
-            try {
-                storeData(request.toByteArray(), "OrigReq_" + messageID + ".lz4");
-            } catch (StorageException e) {
-                logging.logToError("[RequestResponseSaver] Failed to save original request for messageID " + messageID + ": " + e.getMessage());
-            }
-        });
-    }
-
-    // 保存原始响应
-    public void saveOriginalResponse(HttpResponse response, int messageID) {
-        executorService.execute(() -> {
-            try {
-                storeData(response.toByteArray(), "OrigResp_" + messageID + ".lz4");
-            } catch (StorageException e) {
-                logging.logToError("[RequestResponseSaver] Failed to save original response for messageID " + messageID + ": " + e.getMessage());
-            }
-        });
-    }
-
-    // 保存修改后的请求
-    public void saveModifiedRequest(HttpRequest request, int id) {
-        executorService.execute(() -> {
-            try {
-                storeData(request.toByteArray(), "ModReq_" + id + ".lz4");
-            } catch (StorageException e) {
-                logging.logToError("[RequestResponseSaver] Failed to save modified request for ID " + id + ": " + e.getMessage());
-            }
-        });
-    }
-
-    // 异步处理修改后的响应，使用 Debounce 机制
-    public void handleDelayedModifiedResponse(HttpRequestResponse modifiedRequestResponse, int id) {
-        modifiedRequestResponses.put(id, modifiedRequestResponse);
-        pendingResponseIds.add(id);
-        schedulePollingTask();
-    }
-
-    // 调度轮询任务，如果尚未调度
-    private void schedulePollingTask() {
-        if (!pollingScheduled) {
-            pollingScheduled = true;
-            executorService.schedule(this::pollAndSaveModifiedResponses, POLLING_DELAY_MS, TimeUnit.MILLISECONDS);
-        }
-    }
-
-    // 批量轮询并保存修改后的响应（优化后的部分）
-    private void pollAndSaveModifiedResponses() {
-        pollingScheduled = false;
-
-        if (pendingResponseIds.isEmpty()) {
-            return;
-        }
-
-        Set<Integer> idsToPoll = new HashSet<>(pendingResponseIds);
-        pendingResponseIds.clear();
-
-        for (Integer id : idsToPoll) {
-            HttpRequestResponse httpRequestResponse = modifiedRequestResponses.get(id);
-            if (httpRequestResponse == null) {
-                logging.logToError("[RequestResponseSaver] HttpRequestResponse not found for modified ID: " + id + ", potential memory leak or logic error.");
-                continue;
-            }
-
-            HttpResponse response = httpRequestResponse.response();
-            if (response != null) {
-                try {
-                    saveModifiedResponseInternal(response, id, httpRequestResponse.timingData().get().timeBetweenRequestSentAndStartOfResponse().toMillis());
-//                logging.logToOutput("RequestResponseSaver: Attempting to get ModifiedEntry by ID: " + id + " from TableModel"); // 添加日志，记录尝试获取的 ID
-                    ModifiedRequestResponse modifiedEntry = null;
-                    for (int i = 0; i < 4 && (modifiedEntry = tableModel.getModifiedEntryById(id)) == null; i++) {
-                        try {
-                            Thread.sleep(100* i * i);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                    }
-                    if (modifiedEntry == null)
-                        throw new RuntimeException("[RequestResponseSaver] ModifiedRequestResponse entry not found in TableModel for ID: " + id);
-
-                    // 修改这里：使用新的长度计算方法
-                    int modifiedResponseLength = calculateResponseLengthWithoutSetCookieValues(response);
-
-                    modifiedEntry.setModifiedResponseAndCalculateMetadata(
-                            response.statusCode(), modifiedResponseLength, response.body().length(), detectReflectType(response),
-                            httpRequestResponse.timingData().get().timeBetweenRequestSentAndStartOfResponse().toMillis()
-                    );
-                    httpRequestResponse = null;
-                    response = null;
-                    modifiedRequestResponses.remove(id);
-                    pollingRetries.remove(id);
-                } catch (StorageException e) {
-                    logging.logToError("[RequestResponseSaver] Failed to save modified response for ID " + id + ": " + e.getMessage());
-                }
-            } else {
-                // 累计重试次数
-                int retries = pollingRetries.getOrDefault(id, 0) + 1;
-                if (retries < MAX_POLLING_RETRIES) {
-                    pollingRetries.put(id, retries);
-                    pendingResponseIds.add(id);
-                } else {
-                    httpRequestResponse = null;
-                    response = null;
-                    pollingRetries.remove(id);
-                    modifiedRequestResponses.remove(id);
-                    logging.logToError("[RequestResponseSaver] Maximum polling retries reached for modified ID: " + id + ". Response might not be saved.retry times: " + retries);
-                }
-            }
-        }
-        if (!pendingResponseIds.isEmpty()) {
-            schedulePollingTask();
-        }
+    /**
+     * 获取统计信息
+     */
+    public String getStats() {
+        return String.format("存储统计 - 总写入: %d, 总读取: %d, 写入错误: %d, 待处理: %d",
+                totalWrites.get(), totalReads.get(), writeErrors.get(), writeQueue.size());
     }
 
     /**
-     * 计算响应长度，包括header，但排除Set-Cookie header的值部分
-     * @param response HTTP响应
-     * @return 计算后的长度
+     * 清理存储
      */
-    private int calculateResponseLengthWithoutSetCookieValues(HttpResponse response) {
-        if (response == null) {
-            return -1;
-        }
+    public void cleanupStorage() {
+        logging.logToOutput("[RequestResponseSaver] 开始清理...");
+        isShutdown = true;
 
-        // 获取完整响应的原始字节数组
-        byte[] fullResponse = response.toByteArray().getBytes();
-        int totalLength = fullResponse.length;
-
-        // 计算需要减去的Set-Cookie值的总长度
-        int setCookieValuesLength = 0;
-
-        for (HttpHeader header : response.headers()) {
-            if ("Set-Cookie".equalsIgnoreCase(header.name())) {
-                // 只计算值的长度，不包括header名称和冒号空格
-                setCookieValuesLength += header.value().length();
+        // 等待所有待处理的写入完成
+        int retries = 0;
+        while (!writeQueue.isEmpty() && retries < 50) {
+            try {
+                Thread.sleep(100);
+                retries++;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
             }
         }
 
-        return totalLength - setCookieValuesLength;
-    }
+        // 关闭线程池
+        ioExecutor.shutdown();
+        processingExecutor.shutdown();
 
-    // 内部方法：保存修改后的响应（被轮询和直接调用）
-    private void saveModifiedResponseInternal(HttpResponse response, int id, long timingData) throws StorageException {
-        storeData(response.toByteArray(), "ModResp_" + id + "_" + timingData + ".lz4");
-    }
-
-    // 底层数据存储方法
-    private void storeData(ByteArray data, String filename) throws StorageException {
-        Path file = STORAGE_DIR.resolve(filename);
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.TRUNCATE_EXISTING)) {
-
-            byte[] rawData = data.getBytes();
-            LZ4Compressor compressor = lz4Factory.fastCompressor();
-            int maxCompressedSize = compressor.maxCompressedLength(rawData.length);
-
-            ByteBuffer buffer = ByteBuffer.allocate(HEADER_SIZE + maxCompressedSize);
-            buffer.putInt(rawData.length); // 写入原始数据长度
-
-            int compressedSize = compressor.compress(rawData, 0, rawData.length,
-                    buffer.array(), HEADER_SIZE, maxCompressedSize);
-
-            buffer.position(0);
-            buffer.limit(HEADER_SIZE + compressedSize);
-            channel.write(buffer);
-            rawData = null;
-        } catch (IOException e) {
-            throw new StorageException("[RequestResponseSaver] Failed to store data to " + filename, e);
-        }
-    }
-
-    // 数据加载方法
-    public ByteArray loadData(String filename) throws StorageException {
-        Path file = STORAGE_DIR.resolve(filename);
-        if (!Files.exists(file)) {
-            return null;
-        }
-
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ)) {
-            ByteBuffer headerBuffer = ByteBuffer.allocate(HEADER_SIZE);
-            channel.read(headerBuffer);
-            headerBuffer.flip();
-            int originalSize = headerBuffer.getInt();
-
-            int compressedSize = (int)(channel.size() - HEADER_SIZE);
-            ByteBuffer compressedBuffer = ByteBuffer.allocate(compressedSize);
-            channel.read(compressedBuffer);
-            byte[] compressedData = compressedBuffer.array();
-
-            LZ4FastDecompressor decompressor = lz4Factory.fastDecompressor();
-            byte[] restored = new byte[originalSize];
-            decompressor.decompress(compressedData, 0, restored, 0, originalSize);
-
-            return ByteArray.byteArray(restored);
-        } catch (IOException e) {
-            throw new StorageException("[RequestResponseSaver] Failed to load data from " + filename, e);
-        }
-    }
-    private String detectReflectType(HttpResponse response) {
-        if (response == null) {
-            return "";
-        }
-        List<String> detectedTypes = new ArrayList<>(); // 使用 List 存储检测到的漏洞类型
         try {
-//            if (response.contains("chaxx123'\">", false)) {
-//                detectedTypes.add("RXSS");
-//            }
-//            if (response.contains("chaxx", false)) {
-//                detectedTypes.add("STRR");
-//            }
-//            if (response.contains("You have an error in your SQL", false) ||
-//                    response.contains("Unclosed quotation mark", false)) {
-//                detectedTypes.add("SQLI");
-//            }
-            if (response.contains("/bin/sh", false)) {
-                detectedTypes.add("LFI");
+            if (!ioExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                ioExecutor.shutdownNow();
             }
-//            if (response.contains("SHELL=/", false) || response.contains("PWD=/", false) || response.contains("HOME=/", false) ) {
-//                detectedTypes.add("CMDI");
-//            }
-            // 检测CRLF漏洞
-            for (HttpHeader header : response.headers()) {
-                if (header.name().toLowerCase().contains("c9w") || header.name().toLowerCase().contains("v5m")) {
-                    detectedTypes.add("CRLF");
-                    break; // 找到 CRLF 相关的 header 后，可以跳出循环，提高效率
-                }
+            if (!processingExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                processingExecutor.shutdownNow();
             }
-
-            // 将检测到的漏洞类型列表转换为逗号分隔的字符串
-            if (!detectedTypes.isEmpty()) {
-                return String.join(",", detectedTypes);
-            } else {
-                return "";
-            }
-
-        } catch (Exception e) {
-            return "";
+        } catch (InterruptedException e) {
+            ioExecutor.shutdownNow();
+            processingExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
+
+        // 清理空目录
+        if (STORAGE_DIR != null) {
+            try {
+                if (Files.list(STORAGE_DIR).findAny().isEmpty()) {
+                    Files.delete(STORAGE_DIR);
+                    logging.logToOutput("[RequestResponseSaver] 删除空目录: " + STORAGE_DIR);
+                }
+            } catch (IOException e) {
+                logging.logToError("[RequestResponseSaver] 清理目录失败: " + e.getMessage());
+            }
+        }
+
+        logging.logToOutput("[RequestResponseSaver] 清理完成. " + getStats());
     }
-    /**
-     * Returns the current daily storage directory path
-     * @return Path to daily storage directory
-     */
+
     public Path getDailyStorageDir() {
         return STORAGE_DIR;
     }
 
-    /**
-     * Generates a filename with the specified extension using YYYYMMDD+hash format
-     * @param extension File extension (without dot)
-     * @return Generated filename
-     */
     public String generateFilename(String extension) {
         String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String randomStr = UUID.randomUUID().toString().substring(0, 8);
         return dateStr + "_" + randomStr + "." + extension;
     }
-    public void cleanupStorage() {
-        executorService.shutdownNow(); // 更改为 shutdownNow 立即关闭
-        try {
-            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) { // 等待一段时间，以便记录错误信息 (可选，可以适当缩短时间)
-                logging.logToError("[RequestResponseSaver] Executor service did not terminate in 10 seconds after shutdownNow.");
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow(); // 再次调用 shutdownNow，确保停止
-            Thread.currentThread().interrupt();
-            logging.logToError("[RequestResponseSaver] Executor service termination interrupted.");
-        }
 
-        // 检查文件夹是否为空
-        if (STORAGE_DIR != null) {
-            try {
-                // 获取目录中的文件列表
-                try (java.util.stream.Stream<Path> files = Files.list(STORAGE_DIR)) {
-                    // 检查目录是否为空
-                    if (!files.findAny().isPresent()) {
-                        // 目录为空，删除它
-                        logging.logToOutput("[RequestResponseSaver] Directory is empty. Deleting: " + STORAGE_DIR);
-                        Files.delete(STORAGE_DIR);
-                        logging.logToOutput("[RequestResponseSaver] Successfully deleted empty directory: " + STORAGE_DIR);
-                    } else {
-                        // 目录不为空，不删除
-                        logging.logToOutput("[RequestResponseSaver] Directory is not empty. Keeping: " + STORAGE_DIR);
-                    }
-                }
-            } catch (IOException e) {
-                logging.logToError("[RequestResponseSaver] Failed to check or delete daily storage directory: " + STORAGE_DIR + ", error: " + e.getMessage());
-            }
-        }
+    /**
+     * 写入任务
+     */
+    private static class WriteTask {
+        final ByteArray data;
+        final String filename;
+        final CompletableFuture<Void> future;
 
-        modifiedRequestResponses.clear();
-        pendingResponseIds.clear();
-        pollingRetries.clear();
+        WriteTask(ByteArray data, String filename, CompletableFuture<Void> future) {
+            this.data = data;
+            this.filename = filename;
+            this.future = future;
+        }
     }
 
+    /**
+     * 存储异常
+     */
     private static class StorageException extends RuntimeException {
         public StorageException(String message, Throwable cause) {
             super(message, cause);
         }
+
         public StorageException(String message) {
             super(message);
         }

@@ -1,17 +1,24 @@
 package pzfzr.fuzzer;
 
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.io.UnsupportedEncodingException;
+
+import okhttp3.*;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
+import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
+import burp.api.montoya.core.ByteArray;
 import pzfzr.core.CookieChanger;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
+import pzfzr.core.OkHttpManager;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -26,11 +33,15 @@ public class RouteFuzzer {
     private final RateLimiter rateLimiter;
     private final CookieChanger cookieChanger;
     private final RequestDeduplicator requestDeduplicator;
-    private final PayloadManager payloadManager; // Add PayloadManager
+    private final PayloadManager payloadManager;
+    private final OkHttpManager okHttpManager;
 
-    // 定义ROUTE1类型的payload alias数组（{path}CRLF之前的所有payload）
+    // 用于跟踪正在进行的请求
+    private final Set<Call> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final CountDownLatch shutdownLatch = new CountDownLatch(1);
+
+    // 定义ROUTE1类型的payload alias数组
     private static final Set<String> ROUTE1_ALIASES = new HashSet<>(Arrays.asList(
-//            "chaxx",
             "{param}&chaxx=cha",
             "{param}%26chaxx=cha",
             "{path}@host",
@@ -42,10 +53,10 @@ public class RouteFuzzer {
             "{path}CRLF"
     ));
 
-    // 新增：定义ROUTE12类型的payload alias数组
+    // 定义ROUTE12类型的payload alias数组
     private static final Set<String> ROUTE12_ALIASES = new HashSet<>(Arrays.asList(
-            "chaxx",          // 对应 new PayloadInfo("chaxx123", "chaxx")
-            "{path}/chaxx"    // 对应 new PayloadInfo("{path}/chaxx", "{path}/chaxx")
+            "chaxx",
+            "{path}/chaxx"
     ));
 
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
@@ -58,14 +69,16 @@ public class RouteFuzzer {
         this.cookieChanger = CookieChanger.getInstance();
         this.requestDeduplicator = RequestDeduplicator.getInstance(this.logging);
         this.nextModifiedId = nextModifiedId;
-        this.payloadManager = PayloadManager.getInstance(); // Initialize PayloadManager
+        this.payloadManager = PayloadManager.getInstance();
+
+        // 初始化OkHttpManager - 第一次调用时传入MontoyaApi实例
+        this.okHttpManager = OkHttpManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
+
+        logging.logToOutput("[RouteFuzzer] 初始化完成，使用OkHttp客户端和Burp解压缩工具");
     }
 
     /**
      * 主要的测试方法，使用requestDeduplicator
-     * @param originalRequest 原始HTTP请求
-     * @param messageId 消息ID
-     * @param host 主机名
      */
     public void processRequest(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) {
@@ -74,17 +87,14 @@ public class RouteFuzzer {
         try {
             String path = originalRequest.pathWithoutQuery();
             if (path == null || path.isEmpty() || path.equals("/")) {
-                return; // 跳过根路径或空路径
+                return;
             }
-            // 处理结尾斜杠的情况
             boolean hasTrailingSlash = path.endsWith("/");
             String normalizedPath = hasTrailingSlash ? path.substring(0, path.length() - 1) : path;
-            // 分割路径段
             List<String> pathSegments = parsePathSegments(normalizedPath);
             if (pathSegments.isEmpty()) {
                 return;
             }
-            // 从完整路径开始，逐级减少测试
             for (int level = pathSegments.size(); level >= 1; level--) {
                 if (isShuttingDown) {
                     return;
@@ -94,15 +104,12 @@ public class RouteFuzzer {
                 testPathLevelWithDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash);
             }
         } catch (Exception e) {
-            // 错误处理
+            logging.logToError("[RouteFuzzer] processRequest error: " + e.getMessage());
         }
     }
 
     /**
      * 不经过requestDeduplicator的测试方法
-     * @param originalRequest 原始HTTP请求
-     * @param messageId 消息ID
-     * @param host 主机名
      */
     public void processRequestWithoutDeduplication(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) {
@@ -128,7 +135,7 @@ public class RouteFuzzer {
                 testPathLevelWithoutDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash);
             }
         } catch (Exception e) {
-            // 错误处理
+            logging.logToError("[RouteFuzzer] processRequestWithoutDeduplication error: " + e.getMessage());
         }
     }
 
@@ -151,29 +158,24 @@ public class RouteFuzzer {
      */
     private void testPathLevelWithDeduplication(HttpRequest originalRequest, int messageId, String host,
                                                 List<String> pathSegments, boolean testTrailingSlash) {
-        // 从最后一个路径段开始，依次向前测试每个段
         for (int segmentIndex = pathSegments.size() - 1; segmentIndex >= 0; segmentIndex--) {
             if (isShuttingDown) {
                 return;
             }
-            // 对当前段测试每个启用的payload - 使用PayloadManager获取启用的payloads
             for (PayloadInfo payloadInfo : payloadManager.getEnabledRoutePayloads()) {
                 if (isShuttingDown) {
                     return;
                 }
                 try {
                     String currentTestParam = pathSegments.get(segmentIndex);
-
-                    // 测试不带尾部斜杠的版本
                     testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payloadInfo.payload,
                             payloadInfo.alias, currentTestParam, false, true);
-                    // 如果原始路径有尾部斜杠，且当前是最后一个段，也测试带斜杠的版本
                     if (testTrailingSlash && segmentIndex == pathSegments.size() - 1) {
                         testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payloadInfo.payload,
                                 payloadInfo.alias, currentTestParam, true, true);
                     }
                 } catch (Exception e) {
-                    // 错误处理
+                    logging.logToError("[RouteFuzzer] testPathLevelWithDeduplication error: " + e.getMessage());
                 }
             }
         }
@@ -188,14 +190,12 @@ public class RouteFuzzer {
             if (isShuttingDown) {
                 return;
             }
-            // 使用PayloadManager获取启用的payloads
             for (PayloadInfo payloadInfo : payloadManager.getEnabledRoutePayloads()) {
                 if (isShuttingDown) {
                     return;
                 }
                 try {
                     String currentTestParam = pathSegments.get(segmentIndex);
-
                     testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payloadInfo.payload,
                             payloadInfo.alias, currentTestParam, false, false);
                     if (testTrailingSlash && segmentIndex == pathSegments.size() - 1) {
@@ -203,7 +203,7 @@ public class RouteFuzzer {
                                 payloadInfo.alias, currentTestParam, true, false);
                     }
                 } catch (Exception e) {
-                    // 错误处理
+                    logging.logToError("[RouteFuzzer] testPathLevelWithoutDeduplication error: " + e.getMessage());
                 }
             }
         }
@@ -221,11 +221,111 @@ public class RouteFuzzer {
             if (useDeduplication) {
                 String fullUrl = host + modifiedPath;
                 if (!requestDeduplicator.shouldSkipRequest(originalRequest.method(), fullUrl, "RouteFuzzer")) {
-                    sendTestRequest(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
+                    sendTestRequestAsync(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
                 }
             } else {
-                sendTestRequest(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
+                sendTestRequestAsync(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
             }
+        }
+    }
+
+    /**
+     * 异步发送测试请求 - 使用OkHttp
+     */
+    private void sendTestRequestAsync(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
+                                      String payloadAlias, String currentTestParam) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            // 构建完整的路径
+            String fullModifiedPath = buildFullPath(originalRequest, modifiedPath, payloadAlias);
+
+            // 创建修改后的请求
+            HttpRequest modifiedRequest = originalRequest.withPath(fullModifiedPath);
+
+            // 获取并添加认证相关的header
+            List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
+            if (authHeaders != null && !authHeaders.isEmpty()) {
+                modifiedRequest = modifiedRequest.withUpdatedHeaders(authHeaders);
+            }
+
+            // 获取令牌（阻塞直到获得令牌）
+            rateLimiter.acquire(originalRequest.url() + modifiedRequest.method());
+
+            // 生成请求ID
+            int tempID = nextModifiedId.getAndIncrement();
+
+            // 保存修改后的请求
+            requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
+
+            // 根据payloadAlias判断testType
+            String testType = determineTestType(payloadAlias);
+
+            // 创建ModifiedRequestResponse条目
+            ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
+                    tempID,
+                    messageId,
+                    testType,
+                    "",
+                    payloadAlias,
+                    currentTestParam,
+                    requestResponseSaver,
+                    logging
+            );
+
+            // 添加到表格模型
+            tableModel.addModifiedEntry(modifiedPair);
+
+            // 记录请求开始时间
+            long startTime = System.currentTimeMillis();
+
+            // 转换为OkHttp请求并异步发送
+            Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
+            Call call = okHttpManager.newCall(okHttpRequest);
+
+            // 跟踪活动请求
+            activeRequests.add(call);
+
+            // 异步执行请求
+            call.enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    activeRequests.remove(call);
+                    logging.logToError("[RouteFuzzer] Request failed for ID " + tempID + ": " + e.getMessage());
+
+                    // 更新表格模型中的错误状态
+                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
+                    if (entry != null) {
+//                        entry.setError("Request failed: " + e.getMessage());
+                    }
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    activeRequests.remove(call);
+
+                    try {
+                        long endTime = System.currentTimeMillis();
+                        long responseTime = endTime - startTime;
+
+                        // 转换响应为Burp格式
+                        HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
+
+                        // 处理响应
+                        requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
+
+                    } catch (Exception e) {
+                        logging.logToError("[RouteFuzzer] Error processing response for ID " + tempID + ": " + e.getMessage());
+                    } finally {
+                        response.close();
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            logging.logToError("[RouteFuzzer] sendTestRequestAsync error: " + e.getMessage());
         }
     }
 
@@ -241,7 +341,7 @@ public class RouteFuzzer {
             modifiedPayload = modifiedPayload.replace("{fuzz}", PayloadConstants.PayloadProcessor.generateRandomHash());
         }
 
-        // 处理特殊情况 {path_del} - 删除当前路径段
+        // 处理特殊情况 {path_del}
         if (modifiedPayload.equals("{path_del}")) {
             return handlePathDelPayload(modifiedSegments, targetIndex, addTrailingSlash);
         }
@@ -251,7 +351,7 @@ public class RouteFuzzer {
             return handlePath1Path2Payload(modifiedSegments, targetIndex, addTrailingSlash);
         }
 
-        // 处理URL编码的特殊情况 - 使用统一的PayloadConstants.PayloadProcessor
+        // 处理URL编码的特殊情况
         if (modifiedPayload.equals("{path_url_encoded}")) {
             String targetSegment = modifiedSegments.get(targetIndex);
             String urlEncoded = PayloadConstants.PayloadProcessor.urlEncodeFullly(targetSegment);
@@ -262,38 +362,31 @@ public class RouteFuzzer {
                     PayloadConstants.PayloadProcessor.urlEncodeFullly(targetSegment));
             modifiedSegments.set(targetIndex, doubleUrlEncoded);
         } else {
-            // 处理普通的替换，使用统一的处理方法
+            // 处理普通的替换
             String targetSegment = modifiedSegments.get(targetIndex);
             modifiedPayload = PayloadConstants.PayloadProcessor.processCommonReplacements(modifiedPayload, targetSegment);
             modifiedSegments.set(targetIndex, modifiedPayload);
         }
 
-        // 构建最终路径
         return buildPath(modifiedSegments, addTrailingSlash);
     }
 
     /**
-     * 处理 {path_del} 特殊情况 - 删除当前路径段
+     * 处理 {path_del} 特殊情况
      */
     private String handlePathDelPayload(List<String> pathSegments, int targetIndex, boolean addTrailingSlash) {
         List<String> modifiedSegments = new ArrayList<>(pathSegments);
 
-        // 如果只有一个路径段，删除后会变成根路径 "/"
         if (modifiedSegments.size() == 1) {
-            // 根据需求，可能需要返回 "/" 或者 null（跳过测试）
-            // 这里返回根路径 "/"
             return addTrailingSlash ? "/" : "/";
         }
 
-        // 删除目标索引处的路径段
         if (targetIndex >= 0 && targetIndex < modifiedSegments.size()) {
             modifiedSegments.remove(targetIndex);
         } else {
-            // 索引无效，返回null跳过这个测试
             return null;
         }
 
-        // 构建删除路径段后的路径
         return buildPath(modifiedSegments, addTrailingSlash);
     }
 
@@ -302,26 +395,21 @@ public class RouteFuzzer {
      */
     private String handlePath1Path2Payload(List<String> pathSegments, int targetIndex, boolean addTrailingSlash) {
         List<String> modifiedSegments = new ArrayList<>(pathSegments);
-        // 根据需求，{path1}{path2} 有几种变体：
-        // 1. 当前段 + 下一段 (如果存在下一段)
-        // 2. 上一段 + 当前段 (如果存在上一段)
-        // 3. 其他组合
+
         if (targetIndex < modifiedSegments.size() - 1) {
-            // 变体1：当前段与下一段组合
             String path1 = modifiedSegments.get(targetIndex);
             String path2 = modifiedSegments.get(targetIndex + 1);
             modifiedSegments.set(targetIndex, path1 + path2);
             modifiedSegments.remove(targetIndex + 1);
         } else if (targetIndex > 0) {
-            // 变体2：上一段与当前段组合
             String path1 = modifiedSegments.get(targetIndex - 1);
             String path2 = modifiedSegments.get(targetIndex);
             modifiedSegments.set(targetIndex - 1, path1 + path2);
             modifiedSegments.remove(targetIndex);
         } else {
-            // 只有一个段，无法应用 {path1}{path2}
             return null;
         }
+
         return buildPath(modifiedSegments, addTrailingSlash);
     }
 
@@ -341,16 +429,11 @@ public class RouteFuzzer {
 
     /**
      * 根据payload alias判断TestType
-     * @param payloadAlias payload的别名
-     * @return 对应的testType
      */
     private String determineTestType(String payloadAlias) {
-        // 首先检查是否为ROUTE12类型
         if (ROUTE12_ALIASES.contains(payloadAlias)) {
             return "ROUTE3";
-        }
-        // 如果alias在ROUTE1_ALIASES集合中，返回ROUTE1，否则返回ROUTE2
-        else if (ROUTE1_ALIASES.contains(payloadAlias)) {
+        } else if (ROUTE1_ALIASES.contains(payloadAlias)) {
             return "ROUTE1";
         } else {
             return "ROUTE2";
@@ -358,100 +441,71 @@ public class RouteFuzzer {
     }
 
     /**
-     * 发送测试请求
-     */
-    private void sendTestRequest(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
-                                 String payloadAlias, String currentTestParam) {
-        try {
-            // 构建完整的路径，包含原始查询参数（特殊payload除外）
-            String fullModifiedPath = buildFullPath(originalRequest, modifiedPath, payloadAlias);
-
-            // 创建修改后的请求
-            HttpRequest modifiedRequest = originalRequest.withPath(fullModifiedPath);
-
-            // 获取并添加认证相关的header
-            List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
-            if (authHeaders != null && !authHeaders.isEmpty()) {
-                modifiedRequest = modifiedRequest.withUpdatedHeaders(authHeaders);
-            }
-
-            rateLimiter.acquire(originalRequest.url() + modifiedRequest.method());
-
-            // 发送修改后的请求
-            HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
-            int tempID = nextModifiedId.getAndIncrement();
-
-            // 根据payloadAlias判断testType
-            String testType = determineTestType(payloadAlias);
-
-            // 保存修改后的请求和响应，传入新的参数
-            ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
-                    tempID,
-                    messageId,
-                    testType,           // 使用动态判断的testType
-                    "",
-                    payloadAlias,       // payload别名
-                    currentTestParam,    // 当前测试参数的名称（被替换的path片段）
-                    requestResponseSaver,
-                    logging
-            );
-
-            tableModel.addModifiedEntry(modifiedPair);
-            requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
-            requestResponseSaver.handleDelayedModifiedResponse(modifiedResponse, tempID);
-
-            // 清理引用
-            modifiedRequest = null;
-            modifiedResponse = null;
-        } catch (Exception e) {
-            // 错误处理
-        }
-    }
-
-    /**
      * 构建包含原始查询参数的完整路径
-     * @param originalRequest 原始请求
-     * @param modifiedPath 修改后的路径部分
-     * @param payloadAlias payload的别名，用于判断是否为特殊payload
-     * @return 包含查询参数的完整路径
      */
     private String buildFullPath(HttpRequest originalRequest, String modifiedPath, String payloadAlias) {
         try {
-            // 检查是否为不应该添加查询参数的特殊payload
             if (shouldSkipQueryParameters(payloadAlias)) {
                 return modifiedPath;
             }
 
-            // 获取原始请求的查询参数
             String originalQuery = originalRequest.query();
 
-            // 如果有查询参数，则添加到修改后的路径中
             if (originalQuery != null && !originalQuery.isEmpty()) {
                 return modifiedPath + "?" + originalQuery;
             } else {
                 return modifiedPath;
             }
         } catch (Exception e) {
-            // 如果获取查询参数出现异常，返回不带查询参数的路径
-            logging.logToError("Error building full path with query parameters: " + e.getMessage());
+            logging.logToError("[RouteFuzzer] Error building full path with query parameters: " + e.getMessage());
             return modifiedPath;
         }
     }
 
     /**
      * 判断是否应该跳过添加查询参数
-     * @param payloadAlias payload的别名
-     * @return true表示跳过查询参数，false表示正常添加查询参数
      */
     private boolean shouldSkipQueryParameters(String payloadAlias) {
-        // 这四个CRLF相关的payload不应该添加查询参数
         return "ng crlf".equals(payloadAlias) ||
                 "ng crlf2".equals(payloadAlias) ||
                 "ng crlf3".equals(payloadAlias) ||
                 "{path}CRLF".equals(payloadAlias);
     }
 
+    /**
+     * 设置关闭标志并等待所有请求完成
+     */
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
+
+        if (shuttingDown) {
+            logging.logToOutput("[RouteFuzzer] 开始关闭，取消所有活动请求...");
+
+            // 取消所有活动的请求
+            for (Call call : activeRequests) {
+                call.cancel();
+            }
+
+            // 等待所有请求完成（最多等待10秒）
+            long startTime = System.currentTimeMillis();
+            while (!activeRequests.isEmpty() && (System.currentTimeMillis() - startTime) < 10000) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            if (!activeRequests.isEmpty()) {
+                logging.logToOutput("[RouteFuzzer] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
+                activeRequests.clear();
+            }
+
+            // 关闭OkHttpManager
+            okHttpManager.shutdown();
+
+            logging.logToOutput("[RouteFuzzer] 关闭完成");
+        }
     }
 }
