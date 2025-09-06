@@ -30,7 +30,10 @@ public class OkHttpManager {
     private final RateLimiter rateLimiter;
     private final CompressionUtils compressionUtils;
 
-    // 连接池配置
+    // 简化的时间测量key
+    private static final String TIMING_HEADER = "X-Response-Time-Ms";
+
+    // 连接池配置等其他配置保持不变...
     private static final int MAX_IDLE_CONNECTIONS = 100;
     private static final long KEEP_ALIVE_DURATION = 5; // minutes
 
@@ -126,10 +129,11 @@ public class OkHttpManager {
                     .followRedirects(false) // 不自动跟随重定向
                     .followSslRedirects(false)
                     .sslSocketFactory(sslSocketFactory, (X509TrustManager) trustAllCerts[0])
-                    .hostnameVerifier((hostname, session) -> true) // 信任所有主机名
-                    .addInterceptor(new RetryInterceptor(MAX_RETRIES)) // 添加重试拦截器
-                    .addInterceptor(new LoggingInterceptor(logging)) // 添加日志拦截器
-                    .addNetworkInterceptor(new DecompressionInterceptor()); // 添加解压缩拦截器
+                    .hostnameVerifier((hostname, session) -> true)
+                    .addNetworkInterceptor(new SimpleTimingInterceptor()) // 简化的时间测量拦截器
+                    .addInterceptor(new RetryInterceptor(MAX_RETRIES))
+                    .addInterceptor(new LoggingInterceptor(logging))
+                    .addNetworkInterceptor(new DecompressionInterceptor());
 
             // 配置协议支持
             List<Protocol> protocols;
@@ -152,8 +156,58 @@ public class OkHttpManager {
     }
 
     /**
-     * 将Burp的HttpRequest转换为OkHttp的Request
+     * 简化的时间测量拦截器 - 只需几行代码就能获取精确时间
      */
+    private static class SimpleTimingInterceptor implements Interceptor {
+        @Override
+        public Response intercept(Chain chain) throws IOException {
+            Request request = chain.request();
+
+            // 记录网络请求开始时间（纳秒精度）
+            long startTime = System.nanoTime();
+
+            // 执行网络请求
+            Response response = chain.proceed(request);
+
+            // 计算网络响应时间（毫秒）
+            long responseTimeMs = (System.nanoTime() - startTime) / 1_000_000;
+
+            // 将时间信息添加到响应头中
+            return response.newBuilder()
+                    .addHeader(TIMING_HEADER, String.valueOf(responseTimeMs))
+                    .build();
+        }
+    }
+
+    /**
+     * 从响应中提取精确的响应时间
+     */
+    public long extractResponseTime(Response response) {
+        String timingHeader = response.header(TIMING_HEADER);
+        if (timingHeader != null) {
+            try {
+                return Long.parseLong(timingHeader);
+            } catch (NumberFormatException e) {
+                logging.logToError("[OkHttpManager] 解析响应时间失败: " + timingHeader);
+            }
+        }
+        return -1; // 表示无法获取精确时间
+    }
+
+    public Call newCall(Request request) {
+        RequestMetadata metadata = request.tag(RequestMetadata.class);
+        String httpVersion = metadata != null ? metadata.httpVersion : "HTTP/1.1";
+
+        OkHttpClient clientToUse;
+        if ("HTTP/2".equals(httpVersion)) {
+            clientToUse = http2Client;
+        } else {
+            clientToUse = http1Client;
+        }
+
+        return clientToUse.newCall(request);
+    }
+
     public Request convertToOkHttpRequest(HttpRequest burpRequest) {
         String url = burpRequest.url();
         String httpVersion = burpRequest.httpVersion();
@@ -190,26 +244,7 @@ public class OkHttpManager {
     }
 
     /**
-     * 根据HTTP版本选择合适的客户端并发送请求
-     */
-    public Call newCall(Request request) {
-        RequestMetadata metadata = request.tag(RequestMetadata.class);
-        String httpVersion = metadata != null ? metadata.httpVersion : "HTTP/1.1";
-
-        // 根据HTTP版本选择客户端
-        OkHttpClient clientToUse;
-        if ("HTTP/2".equals(httpVersion)) {
-            clientToUse = http2Client;
-        } else {
-            clientToUse = http1Client;
-        }
-
-        return clientToUse.newCall(request);
-    }
-
-    /**
-     * 将OkHttp的Response转换为Burp的HttpResponse（带自动解压缩）
-     * 移除Transfer-Encoding并确保包含Content-Length
+     * 将OkHttp的Response转换为Burp的HttpResponse，并移除时间测量头
      */
     public HttpResponse convertToBurpResponse(Response okHttpResponse) throws IOException {
         // 构建响应行
@@ -257,7 +292,11 @@ public class OkHttpManager {
             String headerName = originalHeaders.name(i);
             String headerValue = originalHeaders.value(i);
 
-            // 要求1: 不要带上Transfer-Encoding头
+            // 跳过我们添加的时间测量头，不要泄露到最终响应中
+            if (headerName.equals(TIMING_HEADER)) {
+                continue;
+            }
+
             if (headerName.equalsIgnoreCase("Transfer-Encoding")) {
                 continue; // 跳过Transfer-Encoding header
             }
@@ -285,13 +324,7 @@ public class OkHttpManager {
 
         Headers modifiedHeaders = modifiedHeadersBuilder.build();
 
-        // 记录重要头部信息
-//        String contentLength = modifiedHeaders.get("Content-Length");
-//        String connectionHeader = modifiedHeaders.get("Connection");
 
-//        logging.logToOutput(String.format("[OkHttpManager] 响应头处理完成 - Content-Length: %s, Connection: %s, Transfer-Encoding: 已移除",
-//                contentLength != null ? contentLength : "未设置",
-//                connectionHeader != null ? connectionHeader : "未设置"));
 
         // 添加修改后的headers到响应
         for (int i = 0; i < modifiedHeaders.size(); i++) {
@@ -331,8 +364,6 @@ public class OkHttpManager {
             } else if ("br".equalsIgnoreCase(contentEncoding)) {
                 compressionType = CompressionType.BROTLI;
             } else {
-                // 未知的压缩格式，返回原始数据
-                logging.logToOutput("[OkHttpManager] 未知的压缩格式: " + contentEncoding);
                 return compressedData;
             }
 
@@ -354,8 +385,7 @@ public class OkHttpManager {
      */
     private boolean shouldSkipHeader(String headerName) {
         String lowerName = headerName.toLowerCase();
-        return lowerName.equals("content-length") ||
-                lowerName.equals("transfer-encoding");
+        return lowerName.equals("content-length") || lowerName.equals("transfer-encoding");
     }
 
     /**
@@ -396,17 +426,7 @@ public class OkHttpManager {
     private class DecompressionInterceptor implements Interceptor {
         @Override
         public Response intercept(Chain chain) throws IOException {
-            Request originalRequest = chain.request();
-            Response response = chain.proceed(originalRequest);
-
-            // 检查响应是否被压缩
-            String contentEncoding = response.header("Content-Encoding");
-            if (contentEncoding != null && !contentEncoding.isEmpty()) {
-//                logging.logToOutput(String.format("[DecompressionInterceptor] 检测到压缩响应: %s, URL: %s",
-//                        contentEncoding, originalRequest.url()));
-            }
-
-            return response;
+            return chain.proceed(chain.request());
         }
     }
 
@@ -477,25 +497,7 @@ public class OkHttpManager {
         @Override
         public Response intercept(Chain chain) throws IOException {
             Request request = chain.request();
-            RequestMetadata metadata = request.tag(RequestMetadata.class);
-            long startTime = metadata != null ? metadata.timestamp : System.currentTimeMillis();
-
-            Response response;
-            try {
-                response = chain.proceed(request);
-            } catch (IOException e) {
-                long duration = System.currentTimeMillis() - startTime;
-                logging.logToError(String.format("[OkHttp] Request failed: %s %s (%.2fs) - %s",
-                        request.method(), request.url(), duration / 1000.0, e.getMessage()));
-                throw e;
-            }
-
-            long duration = System.currentTimeMillis() - startTime;
-            if (duration > 5000) { // 记录慢请求
-                logging.logToOutput(String.format("[OkHttp] Slow request: %s %s -> %d (%.2fs)",
-                        request.method(), request.url(), response.code(), duration / 1000.0));
-            }
-
+            Response response = chain.proceed(request);
             return response;
         }
     }
@@ -507,43 +509,9 @@ public class OkHttpManager {
         final long timestamp;
         final String httpVersion;
 
-        RequestMetadata(long timestamp) {
-            this.timestamp = timestamp;
-            this.httpVersion = "HTTP/1.1"; // 默认版本
-        }
-
         RequestMetadata(long timestamp, String httpVersion) {
             this.timestamp = timestamp;
             this.httpVersion = httpVersion;
         }
-    }
-
-    /**
-     * 获取连接池统计信息
-     */
-    public String getConnectionPoolStats() {
-        ConnectionPool pool1 = http1Client.connectionPool();
-        ConnectionPool pool2 = http2Client.connectionPool();
-        return String.format("连接池状态 - HTTP/1.1(空闲: %d, 总计: %d), HTTP/2(空闲: %d, 总计: %d)",
-                pool1.idleConnectionCount(), pool1.connectionCount(),
-                pool2.idleConnectionCount(), pool2.connectionCount());
-    }
-
-    /**
-     * 获取并发请求统计信息
-     */
-    public String getDispatcherStats() {
-        Dispatcher dispatcher1 = http1Client.dispatcher();
-        Dispatcher dispatcher2 = http2Client.dispatcher();
-        return String.format("调度器状态 - HTTP/1.1(运行: %d, 排队: %d), HTTP/2(运行: %d, 排队: %d)",
-                dispatcher1.runningCallsCount(), dispatcher1.queuedCallsCount(),
-                dispatcher2.runningCallsCount(), dispatcher2.queuedCallsCount());
-    }
-
-    /**
-     * 获取代理配置信息
-     */
-    public String getProxyInfo() {
-        return String.format("代理配置: %s:%d", PROXY_HOST, PROXY_PORT);
     }
 }
