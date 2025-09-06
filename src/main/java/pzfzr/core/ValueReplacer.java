@@ -263,8 +263,60 @@ public class ValueReplacer {
 
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
+
         if (shuttingDown) {
-            asyncExecutor.shutdown();
+            logging.logToOutput("[ValueReplacer] 开始关闭所有组件...");
+
+            // 首先设置所有子组件的关闭状态
+            try {
+                if (jsonLister != null) {
+                    jsonLister.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] 关闭JsonLister时出错: " + e.getMessage());
+            }
+
+            try {
+                if (routeFuzzer != null) {
+                    routeFuzzer.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] 关闭RouteFuzzer时出错: " + e.getMessage());
+            }
+
+            try {
+                if (paramFuzzer != null) {
+                    paramFuzzer.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] 关闭ParamFuzzer时出错: " + e.getMessage());
+            }
+
+            // 等待一段时间让子组件完成关闭
+            try {
+                Thread.sleep(2000); // 等待2秒，让子组件有时间完成关闭
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            // 关闭异步执行器
+            try {
+                asyncExecutor.shutdown();
+
+                // 等待执行器关闭（最多等待5秒）
+                if (!asyncExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    logging.logToOutput("[ValueReplacer] 强制关闭异步执行器");
+                    asyncExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                logging.logToError("[ValueReplacer] 关闭异步执行器时被中断");
+                asyncExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] 关闭异步执行器时出错: " + e.getMessage());
+            }
+
+            logging.logToOutput("[ValueReplacer] 所有组件关闭完成");
         }
     }
 }

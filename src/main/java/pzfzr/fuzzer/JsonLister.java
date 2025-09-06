@@ -1,6 +1,7 @@
 package pzfzr.fuzzer;
 
 import burp.api.montoya.http.message.requests.HttpRequest;
+import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.params.HttpParameter;
 import burp.api.montoya.http.message.params.HttpParameterType;
@@ -16,11 +17,15 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import pzfzr.core.CookieChanger;
 import pzfzr.core.RateLimiter;
+import pzfzr.core.OkHttpManager;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
+import okhttp3.*;
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -42,6 +47,10 @@ public class JsonLister {
     private final CookieChanger cookieChanger;
     private final AtomicInteger nextModifiedId;
     private volatile boolean isShuttingDown = false;
+    private final OkHttpManager okHttpManager;
+
+    // 用于跟踪正在进行的请求
+    private final Set<Call> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     // Hash 生成相关常量
     private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -66,6 +75,11 @@ public class JsonLister {
         this.rateLimiter = rateLimiter;
         this.cookieChanger = CookieChanger.getInstance();
         this.nextModifiedId = nextModifiedId;
+
+        // 获取已初始化的OkHttpManager实例
+        this.okHttpManager = OkHttpManager.getInstance();
+
+        logging.logToOutput("[JsonLister] 初始化完成，使用OkHttp客户端");
     }
 
     /**
@@ -853,7 +867,7 @@ public class JsonLister {
     }
 
     /**
-     * 发送修改后的请求并保存响应
+     * 发送修改后的请求并保存响应 - 使用OkHttp（与RouteFuzzer完全相同的逻辑）
      * @param modifiedRequest 修改后的请求
      * @param messageId 消息ID
      * @param host 主机名
@@ -876,15 +890,17 @@ public class JsonLister {
             // 应用速率限制
             rateLimiter.acquire(modifiedRequest.url().split("\\?")[0] + modifiedRequest.method());
 
-            // 发送修改后的请求
-            HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
+            // 生成请求ID
             int tempID = nextModifiedId.getAndIncrement();
+
+            // 保存修改后的请求
+            requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
 
             // 保存修改后的请求和响应，传递新的参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "JSON",             // 固定设置为"json"
+                    "JSON",             // 固定设置为"JSON"
                     expression,
                     payloadAlias,        // 新增：payload别名
                     currentParamName,    // 新增：当前测试参数名称
@@ -892,16 +908,77 @@ public class JsonLister {
                     logging
             );
 
+            // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
-            requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
-            requestResponseSaver.handleDelayedModifiedResponse(modifiedResponse, tempID);
 
-            // 清理内存
-            modifiedRequest = null;
-            modifiedResponse = null;
+            // 使用OkHttp发送请求
+            sendTestRequestAsync(modifiedRequest, tempID, modifiedPair);
 
         } catch (Exception e) {
             // 静默处理异常
+        }
+    }
+
+    /**
+     * 异步发送测试请求 - 使用OkHttp（与RouteFuzzer完全相同的逻辑）
+     */
+    private void sendTestRequestAsync(HttpRequest modifiedRequest, int tempID, ModifiedRequestResponse modifiedPair) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            // 转换为OkHttp请求并异步发送
+            Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
+            Call call = okHttpManager.newCall(okHttpRequest);
+
+            // 跟踪活动请求
+            activeRequests.add(call);
+
+            // 异步执行请求
+            call.enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    activeRequests.remove(call);
+                    logging.logToError("[JsonLister] Request failed for ID " + tempID + ": " + e.getMessage());
+
+                    // 更新表格模型中的错误状态
+                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
+                    if (entry != null) {
+//                        entry.setError("Request failed: " + e.getMessage());
+                    }
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    activeRequests.remove(call);
+
+                    try {
+                        // 使用OkHttpManager的extractResponseTime方法获取精确的响应时间
+                        long responseTime = okHttpManager.extractResponseTime(response);
+
+                        // 如果无法获取精确时间（返回-1），使用备用计算方法
+                        if (responseTime == -1) {
+                            responseTime = 0; // 或者设置为一个默认值
+                            logging.logToOutput("[JsonLister] 无法获取精确响应时间，使用默认值: " + responseTime + "ms");
+                        }
+
+                        // 转换响应为Burp格式
+                        HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
+
+                        // 处理响应，使用从OkHttpManager获取的精确响应时间
+                        requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
+
+                    } catch (Exception e) {
+                        logging.logToError("[JsonLister] Error processing response for ID " + tempID + ": " + e.getMessage());
+                    } finally {
+                        response.close();
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            logging.logToError("[JsonLister] sendTestRequestAsync error: " + e.getMessage());
         }
     }
 
@@ -1115,5 +1192,32 @@ public class JsonLister {
      */
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
+
+        if (shuttingDown) {
+            logging.logToOutput("[JsonLister] 开始关闭，取消所有活动请求...");
+
+            // 取消所有活动的请求
+            for (Call call : activeRequests) {
+                call.cancel();
+            }
+
+            // 等待所有请求完成（最多等待10秒）
+            long startTime = System.currentTimeMillis();
+            while (!activeRequests.isEmpty() && (System.currentTimeMillis() - startTime) < 10000) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            if (!activeRequests.isEmpty()) {
+                logging.logToOutput("[JsonLister] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
+                activeRequests.clear();
+            }
+
+            logging.logToOutput("[JsonLister] 关闭完成");
+        }
     }
 }

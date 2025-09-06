@@ -1,14 +1,18 @@
 package pzfzr.fuzzer;
 
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 
+import okhttp3.*;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
+import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.http.message.params.HttpParameter;
 import burp.api.montoya.http.message.params.HttpParameterType;
 import burp.api.montoya.http.message.params.ParsedHttpParameter;
@@ -20,6 +24,7 @@ import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.CookieChanger;
+import pzfzr.core.OkHttpManager;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,7 +39,11 @@ public class ParamFuzzer {
     private final Logging logging;
     private final CookieChanger cookieChanger;
     private volatile boolean isShuttingDown = false;
-    private final PayloadManager payloadManager; // Add PayloadManager
+    private final PayloadManager payloadManager;
+    private final OkHttpManager okHttpManager;
+
+    // 用于跟踪正在进行的请求
+    private final Set<Call> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     // 可动态修改的参数数量限制
     private volatile int maxParameterCount = 30;
@@ -50,7 +59,12 @@ public class ParamFuzzer {
         this.logging = api.logging();
         this.nextModifiedId = nextModifiedId;
         this.cookieChanger = CookieChanger.getInstance();
-        this.payloadManager = PayloadManager.getInstance(); // Initialize PayloadManager
+        this.payloadManager = PayloadManager.getInstance();
+
+        // 获取已初始化的OkHttpManager实例
+        this.okHttpManager = OkHttpManager.getInstance();
+
+        logging.logToOutput("[ParamFuzzer] 初始化完成，使用OkHttp客户端");
     }
 
     /**
@@ -142,7 +156,7 @@ public class ParamFuzzer {
     }
 
     /**
-     * 发送参数数量过多的请求
+     * 发送参数数量过多的请求 - 使用OkHttp
      */
     private void sendParameterTooManyRequest(HttpRequest originalRequest, int messageId, String host) {
         try {
@@ -154,8 +168,10 @@ public class ParamFuzzer {
 
             rateLimiter.acquire(originalRequest.url() + originalRequest.method());
 
-            HttpRequestResponse response = api.http().sendRequest(originalRequest);
             int tempID = nextModifiedId.getAndIncrement();
+
+            // 保存修改后的请求
+            requestResponseSaver.saveModifiedRequest(originalRequest, tempID);
 
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
@@ -168,9 +184,11 @@ public class ParamFuzzer {
                     logging
             );
 
+            // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
-            requestResponseSaver.saveModifiedRequest(originalRequest, tempID);
-            requestResponseSaver.handleDelayedModifiedResponse(response, tempID);
+
+            // 使用OkHttp发送请求
+            sendTestRequestAsync(originalRequest, tempID, modifiedPair);
 
         } catch (Exception e) {
             // 静默错误处理
@@ -481,11 +499,14 @@ public class ParamFuzzer {
     }
 
     /**
-     * 按照KnownTest模式发送测试请求
-     * 已更新以包含payloadAlias和parameterName
+     * 发送测试请求 - 使用OkHttp（与RouteFuzzer完全相同的逻辑）
      */
     private void sendTestRequest(HttpRequest modifiedRequest, int messageId, String host,
                                  String expression, String testType, String payloadAlias, String parameterName) {
+        if (isShuttingDown) {
+            return;
+        }
+
         try {
             // 获取并添加认证相关的header
             List<HttpHeader> authHeaders = cookieChanger.getHttpHeadersForHost(host);
@@ -493,11 +514,16 @@ public class ParamFuzzer {
                 modifiedRequest = modifiedRequest.withUpdatedHeaders(authHeaders);
             }
 
+            // 获取令牌（阻塞直到获得令牌）
             rateLimiter.acquire(modifiedRequest.url().split("\\?")[0] + modifiedRequest.method());
 
-            HttpRequestResponse modifiedResponse = api.http().sendRequest(modifiedRequest);
+            // 生成请求ID
             int tempID = nextModifiedId.getAndIncrement();
 
+            // 保存修改后的请求
+            requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
+
+            // 创建ModifiedRequestResponse条目
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
@@ -509,12 +535,77 @@ public class ParamFuzzer {
                     logging
             );
 
+            // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
-            requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
-            requestResponseSaver.handleDelayedModifiedResponse(modifiedResponse, tempID);
+
+            // 使用OkHttp发送请求
+            sendTestRequestAsync(modifiedRequest, tempID, modifiedPair);
 
         } catch (Exception e) {
             // 按照ValueReplacer模式进行静默错误处理
+        }
+    }
+
+    /**
+     * 异步发送测试请求 - 使用OkHttp（与RouteFuzzer完全相同的逻辑）
+     */
+    private void sendTestRequestAsync(HttpRequest modifiedRequest, int tempID, ModifiedRequestResponse modifiedPair) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            // 转换为OkHttp请求并异步发送
+            Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
+            Call call = okHttpManager.newCall(okHttpRequest);
+
+            // 跟踪活动请求
+            activeRequests.add(call);
+
+            // 异步执行请求
+            call.enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    activeRequests.remove(call);
+                    logging.logToError("[ParamFuzzer] Request failed for ID " + tempID + ": " + e.getMessage());
+
+                    // 更新表格模型中的错误状态
+                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
+                    if (entry != null) {
+//                        entry.setError("Request failed: " + e.getMessage());
+                    }
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    activeRequests.remove(call);
+
+                    try {
+                        // 使用OkHttpManager的extractResponseTime方法获取精确的响应时间
+                        long responseTime = okHttpManager.extractResponseTime(response);
+
+                        // 如果无法获取精确时间（返回-1），使用备用计算方法
+                        if (responseTime == -1) {
+                            responseTime = 0; // 或者设置为一个默认值
+                            logging.logToOutput("[ParamFuzzer] 无法获取精确响应时间，使用默认值: " + responseTime + "ms");
+                        }
+
+                        // 转换响应为Burp格式
+                        HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
+
+                        // 处理响应，使用从OkHttpManager获取的精确响应时间
+                        requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
+
+                    } catch (Exception e) {
+                        logging.logToError("[ParamFuzzer] Error processing response for ID " + tempID + ": " + e.getMessage());
+                    } finally {
+                        response.close();
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            logging.logToError("[ParamFuzzer] sendTestRequestAsync error: " + e.getMessage());
         }
     }
 
@@ -523,6 +614,33 @@ public class ParamFuzzer {
      */
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
+
+        if (shuttingDown) {
+            logging.logToOutput("[ParamFuzzer] 开始关闭，取消所有活动请求...");
+
+            // 取消所有活动的请求
+            for (Call call : activeRequests) {
+                call.cancel();
+            }
+
+            // 等待所有请求完成（最多等待10秒）
+            long startTime = System.currentTimeMillis();
+            while (!activeRequests.isEmpty() && (System.currentTimeMillis() - startTime) < 10000) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            if (!activeRequests.isEmpty()) {
+                logging.logToOutput("[ParamFuzzer] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
+                activeRequests.clear();
+            }
+
+            logging.logToOutput("[ParamFuzzer] 关闭完成");
+        }
     }
 
     /**
