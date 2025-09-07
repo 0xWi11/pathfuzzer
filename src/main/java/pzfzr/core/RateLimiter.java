@@ -19,7 +19,7 @@ public class RateLimiter {
     // 默认配置
     private static final int DEFAULT_CAPACITY = 30;
     private static final int DEFAULT_REFILL_RATE = 30; // 每秒添加的令牌数
-    private static final int DEFAULT_URL_RATE_LIMIT = 2; // 相同URL每秒最多获取的令牌数
+    private static final int DEFAULT_URL_RATE_LIMIT = 10; // 相同URL每秒最多获取的令牌数
     private static final long DEFAULT_URL_EXPIRE_TIME = 20000; // URL在无访问后的过期时间（毫秒）
     private static final long DEFAULT_REFILL_INTERVAL = 1000; // 默认令牌添加间隔（毫秒）
 

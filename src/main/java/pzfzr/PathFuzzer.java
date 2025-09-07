@@ -5,18 +5,14 @@ import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.extension.ExtensionUnloadingHandler;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.PersistenceManager;
-import pzfzr.core.RateLimiter;
-import pzfzr.core.ValueReplacer;
-import pzfzr.core.OkHttpManager;
+import pzfzr.core.*;
 import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter; // 新增导入
+import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.gui.MainPanel;
 import pzfzr.gui.ContextMenuProvider;
 import pzfzr.model.CSVExporter;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
-import pzfzr.core.TrafficHandler;
-import pzfzr.core.CookieChanger;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -32,6 +28,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private CSVExporter csvExporter;
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
+    private NettyManager nettyManager; // 改为NettyManager
     private OkHttpManager okHttpManager; // 添加OkHttpManager引用
 
     public PathFuzzer() {
@@ -58,6 +55,10 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         // 初始化CSV导出器
         this.csvExporter = new CSVExporter(api.logging(), tableModel, requestResponseSaver);
         this.rateLimiter = RateLimiter.getInstance(api.logging()); // 获取 RateLimiter 实例
+
+        // **使用NettyManager替代OkHttpManager**
+        this.nettyManager = NettyManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
+        api.logging().logToOutput("[PathFuzzer]: NettyManager initialized");
 
         // **新增: 在此处初始化OkHttpManager**
         this.okHttpManager = OkHttpManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
@@ -93,7 +94,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         api.logging().logToOutput(
                 String.format("[PathFuzzer]%s - %s",
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        " Path Fuzzer extension loaded")
+                        " Path Fuzzer extension loaded with Netty")
         );
     }
 
@@ -108,6 +109,16 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
                 api.logging().logToOutput("[PathFuzzer]: OkHttpManager shutdown completed");
             } catch (Exception e) {
                 api.logging().logToError("[PathFuzzer]: Error during OkHttpManager shutdown: " + e.getMessage());
+            }
+        }
+
+        // **优先关闭NettyManager**
+        if (nettyManager != null) {
+            try {
+                nettyManager.shutdown();
+                api.logging().logToOutput("[PathFuzzer]: NettyManager shutdown completed");
+            } catch (Exception e) {
+                api.logging().logToError("[PathFuzzer]: Error during NettyManager shutdown: " + e.getMessage());
             }
         }
 

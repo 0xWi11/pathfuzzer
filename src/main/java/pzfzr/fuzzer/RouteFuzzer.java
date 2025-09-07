@@ -3,11 +3,7 @@ package pzfzr.fuzzer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.io.UnsupportedEncodingException;
 
-import okhttp3.*;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
@@ -18,7 +14,7 @@ import burp.api.montoya.core.ByteArray;
 import pzfzr.core.CookieChanger;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
-import pzfzr.core.OkHttpManager;
+import pzfzr.core.NettyManager;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -34,10 +30,10 @@ public class RouteFuzzer {
     private final CookieChanger cookieChanger;
     private final RequestDeduplicator requestDeduplicator;
     private final PayloadManager payloadManager;
-    private final OkHttpManager okHttpManager;
+    private final NettyManager nettyManager;
 
     // 用于跟踪正在进行的请求
-    private final Set<Call> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<CompletableFuture<?>> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
 
     // 定义ROUTE1类型的payload alias数组
@@ -71,10 +67,10 @@ public class RouteFuzzer {
         this.nextModifiedId = nextModifiedId;
         this.payloadManager = PayloadManager.getInstance();
 
-        // **修改: 使用无参数的getInstance方法获取已初始化的OkHttpManager实例**
-        this.okHttpManager = OkHttpManager.getInstance();
+        // 使用NettyManager替代OkHttpManager
+        this.nettyManager = NettyManager.getInstance();
 
-        logging.logToOutput("[RouteFuzzer] 初始化完成，使用OkHttp客户端和Burp解压缩工具");
+        logging.logToOutput("[RouteFuzzer] 初始化完成，使用Netty客户端和Burp解压缩工具");
     }
 
     /**
@@ -230,7 +226,7 @@ public class RouteFuzzer {
     }
 
     /**
-     * 异步发送测试请求 - 使用OkHttp
+     * 异步发送测试请求 - 使用Netty
      */
     private void sendTestRequestAsync(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
                                       String payloadAlias, String currentTestParam) {
@@ -278,45 +274,31 @@ public class RouteFuzzer {
             // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
 
-            // 转换为OkHttp请求并异步发送
-            Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
-            Call call = okHttpManager.newCall(okHttpRequest);
+            // 使用Netty发送请求
+            CompletableFuture<NettyManager.NettyResponse> future = nettyManager.sendRequest(modifiedRequest);
 
             // 跟踪活动请求
-            activeRequests.add(call);
+            activeRequests.add(future);
 
-            // 异步执行请求
-            call.enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    activeRequests.remove(call);
-                    logging.logToError("[RouteFuzzer] Request failed for ID " + tempID + ": " + e.getMessage());
+            // 处理响应
+            future.whenComplete((nettyResponse, throwable) -> {
+                activeRequests.remove(future);
 
-                    // 更新表格模型中的错误状态
-//                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
-//                    if (entry != null) {
-////                        entry.setError("Request failed: " + e.getMessage());
-//                    }
-                }
-
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    activeRequests.remove(call);
-
+                if (throwable != null) {
+                    logging.logToError("[RouteFuzzer] Request failed for ID " + tempID + ": " + throwable.getMessage());
+                } else {
                     try {
-                        // **修改点：使用OkHttpManager的extractResponseTime方法获取精确的响应时间**
-                        long responseTime = okHttpManager.extractResponseTime(response);
-
                         // 转换响应为Burp格式
-                        HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
+                        HttpResponse burpResponse = nettyManager.convertToBurpResponse(nettyResponse);
 
-                        // 处理响应，使用从OkHttpManager获取的精确响应时间
-                        requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
+                        // 获取响应时间
+                        long responseTime = nettyResponse.getResponseTimeMs();
+
+                        // 处理响应
+                        requestResponseSaver.handleNettyResponse(burpResponse, tempID, responseTime, modifiedPair);
 
                     } catch (Exception e) {
                         logging.logToError("[RouteFuzzer] Error processing response for ID " + tempID + ": " + e.getMessage());
-                    } finally {
-                        response.close();
                     }
                 }
             });
@@ -479,8 +461,8 @@ public class RouteFuzzer {
             logging.logToOutput("[RouteFuzzer] 开始关闭，取消所有活动请求...");
 
             // 取消所有活动的请求
-            for (Call call : activeRequests) {
-                call.cancel();
+            for (CompletableFuture<?> future : activeRequests) {
+                future.cancel(true);
             }
 
             // 等待所有请求完成（最多等待10秒）
@@ -498,9 +480,6 @@ public class RouteFuzzer {
                 logging.logToOutput("[RouteFuzzer] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
                 activeRequests.clear();
             }
-
-            // **修改: 不再在这里关闭OkHttpManager，因为它现在由PathFuzzer统一管理**
-            // okHttpManager.shutdown(); // 移除这行
 
             logging.logToOutput("[RouteFuzzer] 关闭完成");
         }

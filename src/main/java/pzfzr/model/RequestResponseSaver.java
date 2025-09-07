@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.security.MessageDigest;
 
 /**
- * 改进的RequestResponseSaver - 优化了异步处理和性能
+ * RequestResponseSaver - 支持Netty的版本
  */
 public class RequestResponseSaver {
 
@@ -103,10 +103,10 @@ public class RequestResponseSaver {
     }
 
     /**
-     * 处理OkHttp的异步响应
+     * 处理Netty的异步响应
      */
-    public void handleOkHttpResponse(HttpResponse response, int id, long responseTime,
-                                     ModifiedRequestResponse modifiedEntry) {
+    public void handleNettyResponse(HttpResponse response, int id, long responseTime,
+                                    ModifiedRequestResponse modifiedEntry) {
         if (isShutdown) {
             return;
         }
@@ -131,9 +131,17 @@ public class RequestResponseSaver {
                     return null;
                 });
             } catch (Exception e) {
-                logging.logToError("[RequestResponseSaver] Error handling OkHttp response: " + e.getMessage());
+                logging.logToError("[RequestResponseSaver] Error handling Netty response: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * 处理OkHttp的异步响应（保留以支持向后兼容）
+     */
+    public void handleOkHttpResponse(HttpResponse response, int id, long responseTime,
+                                     ModifiedRequestResponse modifiedEntry) {
+        handleNettyResponse(response, id, responseTime, modifiedEntry);
     }
 
     /**
@@ -276,23 +284,6 @@ public class RequestResponseSaver {
     public void saveModifiedRequest(HttpRequest request, int id) {
         if (isShutdown) return;
         storeDataAsync(request.toByteArray(), "ModReq_" + id + ".lz4");
-    }
-
-    /**
-     * 旧的处理延迟响应方法 - 保留兼容性
-     */
-    public void handleDelayedModifiedResponse(HttpRequestResponse modifiedRequestResponse, int id) {
-        if (isShutdown) return;
-
-        HttpResponse response = modifiedRequestResponse.response();
-        if (response != null) {
-            long responseTime = modifiedRequestResponse.timingData()
-                    .map(td -> td.timeBetweenRequestSentAndStartOfResponse().toMillis())
-                    .orElse(0L);
-
-            ModifiedRequestResponse modifiedEntry = tableModel.getModifiedEntryById(id);
-            handleOkHttpResponse(response, id, responseTime, modifiedEntry);
-        }
     }
 
     /**
