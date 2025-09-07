@@ -25,7 +25,6 @@ import burp.api.montoya.utilities.CompressionType;
 
 import javax.net.ssl.SSLException;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
@@ -34,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Netty客户端管理器 - 替代OkHttpManager
- * 保持原始请求格式，避免URL规范化
+ * 保持原始请求格式，避免URL规范化，支持非规范化URL
  */
 public class NettyManager {
     private static volatile NettyManager instance;
@@ -126,6 +125,65 @@ public class NettyManager {
     }
 
     /**
+     * 手动解析URL信息，避免使用URI类的规范化
+     */
+    private static class UrlInfo {
+        final String scheme;
+        final String host;
+        final int port;
+        final String pathAndQuery;
+
+        UrlInfo(String url) {
+            // 解析scheme
+            int schemeEnd = url.indexOf("://");
+            if (schemeEnd == -1) {
+                throw new IllegalArgumentException("Invalid URL: " + url);
+            }
+            this.scheme = url.substring(0, schemeEnd);
+
+            // 跳过 ://
+            int hostStart = schemeEnd + 3;
+
+            // 查找路径开始位置
+            int pathStart = url.indexOf('/', hostStart);
+            if (pathStart == -1) {
+                // 没有路径，整个剩余部分都是host:port
+                this.pathAndQuery = "/";
+                pathStart = url.length();
+            } else {
+                // 保留原始路径和查询参数，不进行任何处理
+                this.pathAndQuery = url.substring(pathStart);
+            }
+
+            // 解析host和port
+            String hostPort = url.substring(hostStart, pathStart);
+            int portSeparator = hostPort.lastIndexOf(':');
+
+            if (portSeparator == -1) {
+                // 没有指定端口
+                this.host = hostPort;
+                this.port = "https".equals(scheme) ? 443 : 80;
+            } else {
+                // 检查是否是IPv6地址
+                if (hostPort.startsWith("[") && hostPort.contains("]:")) {
+                    // IPv6地址格式: [::1]:8080
+                    int ipv6End = hostPort.indexOf(']');
+                    this.host = hostPort.substring(1, ipv6End); // 去掉方括号
+                    this.port = Integer.parseInt(hostPort.substring(ipv6End + 2));
+                } else if (hostPort.startsWith("[")) {
+                    // IPv6地址没有端口: [::1]
+                    this.host = hostPort.substring(1, hostPort.length() - 1);
+                    this.port = "https".equals(scheme) ? 443 : 80;
+                } else {
+                    // 普通IPv4地址或域名
+                    this.host = hostPort.substring(0, portSeparator);
+                    this.port = Integer.parseInt(hostPort.substring(portSeparator + 1));
+                }
+            }
+        }
+    }
+
+    /**
      * 发送HTTP请求
      */
     public CompletableFuture<NettyResponse> sendRequest(HttpRequest burpRequest) {
@@ -133,10 +191,11 @@ public class NettyManager {
         long startTime = System.nanoTime();
 
         try {
-            URI uri = new URI(burpRequest.url());
-            String host = uri.getHost();
-            int port = uri.getPort() == -1 ? (uri.getScheme().equals("https") ? 443 : 80) : uri.getPort();
-            boolean isHttps = uri.getScheme().equals("https");
+            // 使用手动解析避免URI规范化
+            UrlInfo urlInfo = new UrlInfo(burpRequest.url());
+            String host = urlInfo.host;
+            int port = urlInfo.port;
+            boolean isHttps = "https".equals(urlInfo.scheme);
 
             // 创建请求上下文
             RequestContext context = new RequestContext(burpRequest, future, startTime);
@@ -206,7 +265,7 @@ public class NettyManager {
                     Channel channel = f.channel();
 
                     // 构建原始HTTP请求 - 保持原始格式
-                    FullHttpRequest nettyRequest = buildRawHttpRequest(burpRequest);
+                    FullHttpRequest nettyRequest = buildRawHttpRequest(burpRequest, urlInfo);
 
                     // 发送请求
                     channel.writeAndFlush(nettyRequest).addListener((ChannelFutureListener) writeFuture -> {
@@ -232,11 +291,9 @@ public class NettyManager {
     /**
      * 构建原始HTTP请求 - 保持原始格式不进行规范化
      */
-    private FullHttpRequest buildRawHttpRequest(HttpRequest burpRequest) throws Exception {
-        URI uri = new URI(burpRequest.url());
-
-        // 获取原始路径和查询字符串 - 不进行任何规范化
-        String rawPath = burpRequest.path();
+    private FullHttpRequest buildRawHttpRequest(HttpRequest burpRequest, UrlInfo urlInfo) throws Exception {
+        // 获取原始路径和查询字符串 - 完全不进行任何规范化
+        String rawPathAndQuery = urlInfo.pathAndQuery;
 
         // 确定HTTP方法
         HttpMethod method = HttpMethod.valueOf(burpRequest.method());
@@ -250,9 +307,9 @@ public class NettyManager {
                 Unpooled.wrappedBuffer(burpRequest.body().getBytes()) :
                 Unpooled.EMPTY_BUFFER;
 
-        // 创建请求 - 使用原始路径
+        // 创建请求 - 使用原始路径和查询参数
         FullHttpRequest nettyRequest = new DefaultFullHttpRequest(
-                version, method, rawPath, content);
+                version, method, rawPathAndQuery, content);
 
         // 添加headers - 保持原始headers
         for (HttpHeader header : burpRequest.headers()) {
@@ -266,7 +323,7 @@ public class NettyManager {
         }
 
         // 设置Host header
-        nettyRequest.headers().set(HttpHeaderNames.HOST, uri.getHost());
+        nettyRequest.headers().set(HttpHeaderNames.HOST, urlInfo.host);
 
         // 设置Content-Length
         if (content.readableBytes() > 0) {
