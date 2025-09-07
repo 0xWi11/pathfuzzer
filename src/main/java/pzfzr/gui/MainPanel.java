@@ -6,6 +6,7 @@ import pzfzr.core.CookieChanger; // 新增：导入 CookieChanger
 import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
+import pzfzr.fuzzer.ParamDeleter; // 新增导入
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
@@ -21,16 +22,16 @@ public class MainPanel extends JSplitPane {
     public MainPanel(MontoyaApi api, TableModel tableModel, ConfigManager configManager,
                      RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                      TrafficHandler trafficHandler, CookieChanger cookieChanger,
-                     ParamFuzzer paramFuzzer) { // 修改：添加 ParamFuzzer 参数
+                     ParamFuzzer paramFuzzer, ParamDeleter paramDeleter) { // 修改：添加 ParamDeleter 参数
         super(JSplitPane.VERTICAL_SPLIT); // 修改：改为垂直分割（上下结构）
         this.api = api;
         this.tableModel = tableModel;
         // this.cookieChanger = cookieChanger; // 可选：在此处赋值
 
-        // 创建控制面板 - 传入必要组件和 RateLimiter 实例，以及ParamFuzzer
+        // 创建控制面板 - 传入必要组件和 RateLimiter 实例，以及ParamFuzzer和ParamDeleter
         // ControlPanel 的构造函数不需要 CookieChanger，其内部的 CookieChangerPanel 会通过 CookieChanger.getInstance() 获取实例
         controlPanel = new ControlPanel(api, configManager, tableModel, requestResponseSaver,
-                rateLimiter, trafficHandler, paramFuzzer);
+                rateLimiter, trafficHandler, paramFuzzer, paramDeleter); // 新增paramDeleter参数
 
         // 创建历史面板
         historyPanel = new HistoryPanel(tableModel,

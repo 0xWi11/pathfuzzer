@@ -9,6 +9,7 @@ import pzfzr.core.RateLimiter;
 import pzfzr.core.ValueReplacer;
 import pzfzr.core.OkHttpManager;
 import pzfzr.fuzzer.ParamFuzzer;
+import pzfzr.fuzzer.ParamDeleter; // 新增导入
 import pzfzr.gui.MainPanel;
 import pzfzr.gui.ContextMenuProvider;
 import pzfzr.model.CSVExporter;
@@ -65,11 +66,12 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter); // 传递 *同一个* TableModel 和 RequestResponseSaver 和 RateLimiter 实例
         this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver); // 传递 *同一个* TableModel 和 RequestResponseSaver 实例
 
-        // 新增：从ValueReplacer获取ParamFuzzer引用
+        // 新增：从ValueReplacer获取ParamFuzzer和ParamDeleter引用
         ParamFuzzer paramFuzzer = valueReplacer.getParamFuzzer();
+        ParamDeleter paramDeleter = valueReplacer.getParamDeleter(); // 新增
 
-        // 注册UI - 修改：传入ParamFuzzer引用
-        MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter, trafficHandler, cookieChanger, paramFuzzer); // 传递必要组件、RateLimiter 实例、CookieChanger 和 ParamFuzzer
+        // 注册UI - 修改：传入ParamFuzzer和ParamDeleter引用
+        MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter, trafficHandler, cookieChanger, paramFuzzer, paramDeleter); // 传递必要组件、RateLimiter 实例、CookieChanger、ParamFuzzer 和 ParamDeleter
 
         api.userInterface().registerSuiteTab("Path Fuzzer", mainPanel);
 

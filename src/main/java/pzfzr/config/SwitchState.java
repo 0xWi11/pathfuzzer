@@ -5,17 +5,16 @@ public class SwitchState {
     private final boolean jsonlisterSwitch;
     private final boolean routefuzzerSwitch;
     private final boolean paramfuzzerSwitch;
-    private final boolean knownSwitch;  // 新增
-
+    private final boolean paramdeleterSwitch; // 新增
 
     public SwitchState(boolean masterSwitch, boolean jsonlisterSwitch,
                        boolean routefuzzerSwitch, boolean paramfuzzerSwitch,
-                       boolean knownSwitch) {  // 新增参数
+                       boolean paramdeleterSwitch) { // 新增参数
         this.masterSwitch = masterSwitch;
         this.jsonlisterSwitch = jsonlisterSwitch;
         this.routefuzzerSwitch = routefuzzerSwitch;
         this.paramfuzzerSwitch = paramfuzzerSwitch;
-        this.knownSwitch = knownSwitch;  // 新增
+        this.paramdeleterSwitch = paramdeleterSwitch; // 新增
     }
 
     public boolean isMasterSwitch() {
@@ -33,7 +32,9 @@ public class SwitchState {
     public boolean isParamfuzzerSwitch() {
         return paramfuzzerSwitch;
     }
-    public boolean isKnownSwitch() {
-        return knownSwitch;
+
+    // 新增getter方法
+    public boolean isParamdeleterSwitch() {
+        return paramdeleterSwitch;
     }
 }

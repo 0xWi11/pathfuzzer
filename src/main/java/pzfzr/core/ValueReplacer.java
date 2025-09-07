@@ -13,10 +13,10 @@ import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
 import pzfzr.config.ConfigManager;
-import pzfzr.config.KnownTestSets;
 import pzfzr.config.SwitchState;
 import pzfzr.fuzzer.JsonLister;
 import pzfzr.fuzzer.ParamFuzzer;
+import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.RouteFuzzer;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
@@ -45,6 +45,7 @@ public class ValueReplacer {
     private final JsonLister jsonLister;
     private final RouteFuzzer routeFuzzer;
     private final ParamFuzzer paramFuzzer;
+    private final ParamDeleter paramDeleter; // 新增
 
     // 添加专门用于异步执行的线程池
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
@@ -62,10 +63,16 @@ public class ValueReplacer {
         this.jsonLister = new JsonLister(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+        this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增
     }
 
     public ParamFuzzer getParamFuzzer() {
         return this.paramFuzzer;
+    }
+
+    // 新增getter方法
+    public ParamDeleter getParamDeleter() {
+        return this.paramDeleter;
     }
 
     public String extractHostFromRequest(String url) {
@@ -114,9 +121,11 @@ public class ValueReplacer {
                 paramFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            if (switchState.isKnownSwitch()) {
-                // KnownTest(originalRequest, messageId, host);
+            // 新增ParamDeleter支持
+            if (switchState.isParamdeleterSwitch()) {
+                paramDeleter.processRequest(originalRequest, messageId, host);
             }
+
             host = null;
         } catch (Exception e) {
             // api.logging().logToError("Error in unifiedTest: " + e.getMessage());
@@ -142,9 +151,11 @@ public class ValueReplacer {
                 paramFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            if (switchState.isKnownSwitch()) {
-                // KnownTest(originalRequest, messageId, host);
+            // 新增ParamDeleter支持
+            if (switchState.isParamdeleterSwitch()) {
+                paramDeleter.processRequest(originalRequest, messageId, host);
             }
+
             host = null;
         } catch (Exception e) {
             // api.logging().logToError("Error in unifiedTestForContext: " + e.getMessage());
@@ -198,6 +209,17 @@ public class ValueReplacer {
                 futures.add(paramFuzzerFuture);
             }
 
+            // 新增ParamDeleter异步支持
+            if (switchState.isParamdeleterSwitch()) {
+                CompletableFuture<Void> paramDeleterFuture = CompletableFuture.runAsync(() -> {
+                    try {
+                        paramDeleter.processRequest(originalRequest, messageId, host);
+                    } catch (Exception e) {
+                        api.logging().logToError("Error in ParamDeleter async execution: " + e.getMessage());
+                    }
+                }, asyncExecutor);
+                futures.add(paramDeleterFuture);
+            }
 
             // 返回一个组合的 CompletableFuture，当所有任务完成时完成
             return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
@@ -248,6 +270,17 @@ public class ValueReplacer {
         }, asyncExecutor);
     }
 
+    // 新增ParamDeleter异步测试方法
+    public CompletableFuture<Void> ParamDeleterTestAsync(HttpRequest originalRequest, int messageId, String host) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                paramDeleter.processRequest(originalRequest, messageId, host);
+            } catch (Exception e) {
+                api.logging().logToError("Error in ParamDeleterTestAsync: " + e.getMessage());
+            }
+        }, asyncExecutor);
+    }
+
     // 保持原有的同步版本的单独测试方法
     public void JsonListerTest(HttpRequest originalRequest, int messageId, String host) {
         jsonLister.processRequest(originalRequest, messageId, host);
@@ -259,6 +292,11 @@ public class ValueReplacer {
 
     public void ParamFuzzerTest(HttpRequest originalRequest, int messageId, String host) {
         paramFuzzer.processRequest(originalRequest, messageId, host);
+    }
+
+    // 新增ParamDeleter同步测试方法
+    public void ParamDeleterTest(HttpRequest originalRequest, int messageId, String host) {
+        paramDeleter.processRequest(originalRequest, messageId, host);
     }
 
     public void setShuttingDown(boolean shuttingDown) {
@@ -290,6 +328,15 @@ public class ValueReplacer {
                 }
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] 关闭ParamFuzzer时出错: " + e.getMessage());
+            }
+
+            // 新增ParamDeleter关闭逻辑
+            try {
+                if (paramDeleter != null) {
+                    paramDeleter.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] 关闭ParamDeleter时出错: " + e.getMessage());
             }
 
             // 等待一段时间让子组件完成关闭

@@ -106,9 +106,10 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         }
 
         // 添加各种测试选项 - 修改为带任务管理的批量处理
+        // 更新为包含ParamDeleter的全部测试
         JMenuItem allTests = createTestMenuItem("Run All Tests", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState allEnabledState = new SwitchState(true, true, true, true, false);
+                    SwitchState allEnabledState = new SwitchState(true, true, true, true, true);
                     return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
                 });
 
@@ -135,6 +136,13 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                     return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
                 });
 
+        // 新增ParamDeleter测试菜单项
+        JMenuItem ParamDeleterTest = createTestMenuItem("ParamDeleter Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true);
+                    return valueReplacer.unifiedTestForContextAsync(request, paramDeleterOnlyState, messageId);
+                });
+
         // 添加菜单项到子菜单
         headerIntruderMenu.add(allTests);
         headerIntruderMenu.add(addFilterItem);
@@ -142,6 +150,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         headerIntruderMenu.add(JsonListerTest);
         headerIntruderMenu.add(routeFuzzerTest);
         headerIntruderMenu.add(ParamFuzzerTest);
+        headerIntruderMenu.add(ParamDeleterTest); // 新增
 
         // 添加子菜单到列表
         menuItems.add(headerIntruderMenu);
