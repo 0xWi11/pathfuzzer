@@ -257,7 +257,7 @@ public class TableModel extends AbstractTableModel {
 
     /**
      * 更新过滤后的条目列表
-     * 修改此方法以支持ROUTE12类型在ROUTE1和ROUTE2标签页中都显示
+     * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
      */
     private void updateFilteredEntries() {
         filteredEntries.clear();
@@ -274,7 +274,7 @@ public class TableModel extends AbstractTableModel {
                     // 直接匹配当前过滤器
                     shouldInclude = true;
                 } else if ("ROUTE3".equals(entryTestType)) {
-                    // ROUTE12类型的条目在ROUTE1和ROUTE2标签页中都显示
+                    // ROUTE3类型的条目在ROUTE1和ROUTE2标签页中都显示
                     if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
                         shouldInclude = true;
                     }
@@ -295,7 +295,7 @@ public class TableModel extends AbstractTableModel {
 
     /**
      * 添加修改后的条目
-     * 修改此方法以支持ROUTE12类型在ROUTE1和ROUTE2标签页中都显示
+     * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
      */
     public synchronized void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
         if (SwingUtilities.isEventDispatchThread()) {
@@ -317,7 +317,7 @@ public class TableModel extends AbstractTableModel {
         } else if (entryTestType.equals(currentFilter)) {
             shouldAdd = true;
         } else if ("ROUTE3".equals(entryTestType)) {
-            // ROUTE12类型的条目在ROUTE1和ROUTE2标签页中都显示
+            // ROUTE3类型的条目在ROUTE1和ROUTE2标签页中都显示
             if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
                 shouldAdd = true;
             }
