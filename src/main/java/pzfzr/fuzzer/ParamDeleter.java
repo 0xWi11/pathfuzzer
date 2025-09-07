@@ -140,7 +140,7 @@ public class ParamDeleter {
 
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
-            List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
+            List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "", 0);
             return jsonPaths.size();
         } catch (Exception e) {
             return 0;
@@ -174,58 +174,71 @@ public class ParamDeleter {
             return;
         }
 
+        int paramCount = urlParams.size();
+
+        // 根据参数数量决定执行哪些测试
+        boolean shouldDoDeleteOne = paramCount >= 2;  // 至少2个参数才做DELETE_ONE
+        boolean shouldDoKeepOnly = paramCount >= 3;   // 至少3个参数才做KEEP_ONLY
+        boolean shouldDoDeleteAll = true;             // 总是做DELETE_ALL
+
         // 1. 单独轮流删除每个参数（保留其他参数）
-        for (ParsedHttpParameter paramToDelete : urlParams) {
-            if (isShuttingDown) return;
+        if (shouldDoDeleteOne) {
+            for (ParsedHttpParameter paramToDelete : urlParams) {
+                if (isShuttingDown) return;
 
-            try {
-                // 创建删除指定参数后的请求
-                List<ParsedHttpParameter> remainingParams = new ArrayList<>();
-                for (ParsedHttpParameter param : urlParams) {
-                    if (!param.name().equals(paramToDelete.name())) {
-                        remainingParams.add(param);
+                try {
+                    // 创建删除指定参数后的请求
+                    List<ParsedHttpParameter> remainingParams = new ArrayList<>();
+                    for (ParsedHttpParameter param : urlParams) {
+                        if (!param.name().equals(paramToDelete.name())) {
+                            remainingParams.add(param);
+                        }
                     }
+
+                    HttpRequest modifiedRequest = createRequestWithUrlParams(originalRequest, remainingParams);
+                    String expression = "DELETE_URL_PARAM: " + paramToDelete.name();
+
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_DELETE",
+                            "DELETE_ONE", paramToDelete.name());
+
+                } catch (Exception e) {
+                    // 静默错误处理
                 }
-
-                HttpRequest modifiedRequest = createRequestWithUrlParams(originalRequest, remainingParams);
-                String expression = "DELETE_URL_PARAM: " + paramToDelete.name();
-
-                sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_DELETE",
-                        "DELETE_ONE", paramToDelete.name());
-
-            } catch (Exception e) {
-                // 静默错误处理
             }
         }
 
         // 2. 保留单个参数的形式
-        for (ParsedHttpParameter paramToKeep : urlParams) {
-            if (isShuttingDown) return;
+        if (shouldDoKeepOnly) {
+            for (ParsedHttpParameter paramToKeep : urlParams) {
+                if (isShuttingDown) return;
 
-            try {
-                // 创建只保留指定参数的请求
-                List<ParsedHttpParameter> singleParam = Arrays.asList(paramToKeep);
-                HttpRequest modifiedRequest = createRequestWithUrlParams(originalRequest, singleParam);
-                String expression = "KEEP_ONLY_URL_PARAM: " + paramToKeep.name();
+                try {
+                    // 创建只保留指定参数的请求
+                    List<ParsedHttpParameter> singleParam = Arrays.asList(paramToKeep);
+                    HttpRequest modifiedRequest = createRequestWithUrlParams(originalRequest, singleParam);
+                    String expression = "KEEP_ONLY_URL_PARAM: " + paramToKeep.name();
 
-                sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_DELETE",
-                        "KEEP_ONLY", paramToKeep.name());
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_DELETE",
+                            "KEEP_ONLY", paramToKeep.name());
 
-            } catch (Exception e) {
-                // 静默错误处理
+                } catch (Exception e) {
+                    // 静默错误处理
+                }
             }
         }
 
         // 3. 发送无参数的请求
-        try {
-            HttpRequest modifiedRequest = createRequestWithUrlParams(originalRequest, new ArrayList<>());
-            String expression = "DELETE_ALL_URL_PARAMS";
+        if (shouldDoDeleteAll) {
+            try {
+                HttpRequest modifiedRequest = createRequestWithUrlParams(originalRequest, new ArrayList<>());
+                String expression = "DELETE_ALL_URL_PARAMS";
 
-            sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_DELETE",
-                    "DELETE_ALL", "");
+                sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_DELETE",
+                        "DELETE_ALL", "");
 
-        } catch (Exception e) {
-            // 静默错误处理
+            } catch (Exception e) {
+                // 静默错误处理
+            }
         }
     }
 
@@ -267,58 +280,71 @@ public class ParamDeleter {
             return;
         }
 
+        int paramCount = bodyParams.size();
+
+        // 根据参数数量决定执行哪些测试
+        boolean shouldDoDeleteOne = paramCount >= 2;  // 至少2个参数才做DELETE_ONE
+        boolean shouldDoKeepOnly = paramCount >= 3;   // 至少3个参数才做KEEP_ONLY
+        boolean shouldDoDeleteAll = true;             // 总是做DELETE_ALL
+
         // 1. 单独轮流删除每个参数（保留其他参数）
-        for (ParsedHttpParameter paramToDelete : bodyParams) {
-            if (isShuttingDown) return;
+        if (shouldDoDeleteOne) {
+            for (ParsedHttpParameter paramToDelete : bodyParams) {
+                if (isShuttingDown) return;
 
-            try {
-                // 创建删除指定参数后的请求
-                List<ParsedHttpParameter> remainingParams = new ArrayList<>();
-                for (ParsedHttpParameter param : bodyParams) {
-                    if (!param.name().equals(paramToDelete.name())) {
-                        remainingParams.add(param);
+                try {
+                    // 创建删除指定参数后的请求
+                    List<ParsedHttpParameter> remainingParams = new ArrayList<>();
+                    for (ParsedHttpParameter param : bodyParams) {
+                        if (!param.name().equals(paramToDelete.name())) {
+                            remainingParams.add(param);
+                        }
                     }
+
+                    HttpRequest modifiedRequest = createRequestWithBodyParams(originalRequest, remainingParams);
+                    String expression = "DELETE_BODY_PARAM: " + paramToDelete.name();
+
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_DELETE",
+                            "DELETE_ONE", paramToDelete.name());
+
+                } catch (Exception e) {
+                    // 静默错误处理
                 }
-
-                HttpRequest modifiedRequest = createRequestWithBodyParams(originalRequest, remainingParams);
-                String expression = "DELETE_BODY_PARAM: " + paramToDelete.name();
-
-                sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_DELETE",
-                        "DELETE_ONE", paramToDelete.name());
-
-            } catch (Exception e) {
-                // 静默错误处理
             }
         }
 
         // 2. 保留单个参数的形式
-        for (ParsedHttpParameter paramToKeep : bodyParams) {
-            if (isShuttingDown) return;
+        if (shouldDoKeepOnly) {
+            for (ParsedHttpParameter paramToKeep : bodyParams) {
+                if (isShuttingDown) return;
 
-            try {
-                // 创建只保留指定参数的请求
-                List<ParsedHttpParameter> singleParam = Arrays.asList(paramToKeep);
-                HttpRequest modifiedRequest = createRequestWithBodyParams(originalRequest, singleParam);
-                String expression = "KEEP_ONLY_BODY_PARAM: " + paramToKeep.name();
+                try {
+                    // 创建只保留指定参数的请求
+                    List<ParsedHttpParameter> singleParam = Arrays.asList(paramToKeep);
+                    HttpRequest modifiedRequest = createRequestWithBodyParams(originalRequest, singleParam);
+                    String expression = "KEEP_ONLY_BODY_PARAM: " + paramToKeep.name();
 
-                sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_DELETE",
-                        "KEEP_ONLY", paramToKeep.name());
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_DELETE",
+                            "KEEP_ONLY", paramToKeep.name());
 
-            } catch (Exception e) {
-                // 静默错误处理
+                } catch (Exception e) {
+                    // 静默错误处理
+                }
             }
         }
 
         // 3. 发送无参数的请求
-        try {
-            HttpRequest modifiedRequest = createRequestWithBodyParams(originalRequest, new ArrayList<>());
-            String expression = "DELETE_ALL_BODY_PARAMS";
+        if (shouldDoDeleteAll) {
+            try {
+                HttpRequest modifiedRequest = createRequestWithBodyParams(originalRequest, new ArrayList<>());
+                String expression = "DELETE_ALL_BODY_PARAMS";
 
-            sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_DELETE",
-                    "DELETE_ALL", "");
+                sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_DELETE",
+                        "DELETE_ALL", "");
 
-        } catch (Exception e) {
-            // 静默错误处理
+            } catch (Exception e) {
+                // 静默错误处理
+            }
         }
     }
 
@@ -360,62 +386,75 @@ public class ParamDeleter {
 
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
-            List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
+            List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "", 0);
 
             // 如果没有JSON参数，跳过
             if (jsonPaths.isEmpty()) {
                 return;
             }
 
+            int paramCount = jsonPaths.size();
+
+            // 根据参数数量决定执行哪些测试
+            boolean shouldDoDeleteOne = paramCount >= 2;  // 至少2个参数才做DELETE_ONE
+            boolean shouldDoKeepOnly = paramCount >= 3;   // 至少3个参数才做KEEP_ONLY
+            boolean shouldDoDeleteAll = true;             // 总是做DELETE_ALL
+
             // 1. 单独轮流删除每个参数（保留其他参数）
-            for (JsonPath pathToDelete : jsonPaths) {
-                if (isShuttingDown) return;
+            if (shouldDoDeleteOne) {
+                for (JsonPath pathToDelete : jsonPaths) {
+                    if (isShuttingDown) return;
 
-                try {
-                    JsonNode modifiedJson = deleteJsonPath(rootNode, pathToDelete.path);
-                    String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
+                    try {
+                        JsonNode modifiedJson = deleteJsonPath(rootNode, pathToDelete.path);
+                        String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
 
-                    HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
-                    String expression = "DELETE_JSON_PARAM: " + pathToDelete.lastKey;
+                        HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
+                        String expression = "DELETE_JSON_PARAM: " + pathToDelete.lastKey;
 
-                    sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM_DELETE",
-                            "DELETE_ONE", pathToDelete.lastKey);
+                        sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM_DELETE",
+                                "DELETE_ONE", pathToDelete.lastKey);
 
-                } catch (Exception e) {
-                    // 静默错误处理
+                    } catch (Exception e) {
+                        // 静默错误处理
+                    }
                 }
             }
 
             // 2. 保留单个参数的形式
-            for (JsonPath pathToKeep : jsonPaths) {
-                if (isShuttingDown) return;
+            if (shouldDoKeepOnly) {
+                for (JsonPath pathToKeep : jsonPaths) {
+                    if (isShuttingDown) return;
 
-                try {
-                    JsonNode modifiedJson = keepOnlyJsonPath(rootNode, pathToKeep.path);
-                    String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
+                    try {
+                        JsonNode modifiedJson = keepOnlyJsonPath(rootNode, pathToKeep.path);
+                        String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
 
-                    HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
-                    String expression = "KEEP_ONLY_JSON_PARAM: " + pathToKeep.lastKey;
+                        HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
+                        String expression = "KEEP_ONLY_JSON_PARAM: " + pathToKeep.lastKey;
 
-                    sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM_DELETE",
-                            "KEEP_ONLY", pathToKeep.lastKey);
+                        sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM_DELETE",
+                                "KEEP_ONLY", pathToKeep.lastKey);
 
-                } catch (Exception e) {
-                    // 静默错误处理
+                    } catch (Exception e) {
+                        // 静默错误处理
+                    }
                 }
             }
 
             // 3. 发送空JSON对象的请求
-            try {
-                String emptyJson = "{}";
-                HttpRequest modifiedRequest = originalRequest.withBody(emptyJson);
-                String expression = "DELETE_ALL_JSON_PARAMS";
+            if (shouldDoDeleteAll) {
+                try {
+                    String emptyJson = "{}";
+                    HttpRequest modifiedRequest = originalRequest.withBody(emptyJson);
+                    String expression = "DELETE_ALL_JSON_PARAMS";
 
-                sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM_DELETE",
-                        "DELETE_ALL", "");
+                    sendTestRequest(modifiedRequest, messageId, host, expression, "JSON_PARAM_DELETE",
+                            "DELETE_ALL", "");
 
-            } catch (Exception e) {
-                // 静默错误处理
+                } catch (Exception e) {
+                    // 静默错误处理
+                }
             }
 
         } catch (Exception e) {
@@ -554,6 +593,16 @@ public class ParamDeleter {
      * 提取JSON路径用于删除测试（只处理二层对象）
      */
     private List<JsonPath> extractJsonPaths(JsonNode node, String currentPath) {
+        return extractJsonPaths(node, currentPath, 0);
+    }
+
+    /**
+     * 提取JSON路径用于删除测试（只处理二层对象）
+     * @param node 当前JSON节点
+     * @param currentPath 当前路径
+     * @param depth 当前深度，0表示根级别
+     */
+    private List<JsonPath> extractJsonPaths(JsonNode node, String currentPath, int depth) {
         List<JsonPath> paths = new ArrayList<>();
 
         if (node.isObject()) {
@@ -565,17 +614,28 @@ public class ParamDeleter {
                 String newPath = currentPath.isEmpty() ? fieldName : currentPath + "." + fieldName;
 
                 if (fieldValue.isObject()) {
-                    // 递归进入对象，但只处理二层
-                    paths.addAll(extractJsonPaths(fieldValue, newPath));
+                    // 首先添加整个对象的删除路径（这样可以删除整个对象）
+                    paths.add(new JsonPath(newPath, fieldValue, fieldName));
+
+                    // 只有在深度小于2时才递归进入对象内部（最多深入2层）
+                    if (depth < 2) {
+                        paths.addAll(extractJsonPaths(fieldValue, newPath, depth + 1));
+                    }
                 } else if (fieldValue.isArray()) {
-                    // 根据需求只测试数组中的第一个项目
-                    if (fieldValue.size() > 0) {
+                    // 首先添加整个数组的删除路径
+                    paths.add(new JsonPath(newPath, fieldValue, fieldName));
+
+                    // 只有在深度小于2时才处理数组内容
+                    if (depth < 2 && fieldValue.size() > 0) {
                         JsonNode firstItem = fieldValue.get(0);
                         String arrayPath = newPath + "[0]";
                         if (!firstItem.isObject()) {
-                            paths.add(new JsonPath(arrayPath, firstItem, fieldName));
+                            paths.add(new JsonPath(arrayPath, firstItem, fieldName + "[0]"));
                         } else {
-                            paths.addAll(extractJsonPaths(firstItem, arrayPath));
+                            // 添加数组中对象的删除路径
+                            paths.add(new JsonPath(arrayPath, firstItem, fieldName + "[0]"));
+                            // 递归处理数组中的对象
+                            paths.addAll(extractJsonPaths(firstItem, arrayPath, depth + 1));
                         }
                     }
                 } else {
