@@ -17,13 +17,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import pzfzr.core.CookieChanger;
 import pzfzr.core.RateLimiter;
-import pzfzr.core.OkHttpManager;
+import pzfzr.core.NettyManager;
+import pzfzr.core.NettyHelper;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
-import okhttp3.*;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,7 +30,8 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
 /**
- * JsonLister类用于对HTTP请求中的参数进行替换和污染测试
+ * JsonLister类 - 使用新NettyManager的版本
+ * 对HTTP请求中的参数进行替换和污染测试
  * 主要处理邮箱和ID类型的参数替换
  */
 public class JsonLister {
@@ -47,17 +47,17 @@ public class JsonLister {
     private final CookieChanger cookieChanger;
     private final AtomicInteger nextModifiedId;
     private volatile boolean isShuttingDown = false;
-    private final OkHttpManager okHttpManager;
 
-    // 用于跟踪正在进行的请求
-    private final Set<Call> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    // 使用新的NettyManager
+    private final NettyManager nettyManager;
+    private final NettyHelper nettyHelper;
 
     // Hash 生成相关常量
     private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final int HASH_LENGTH = 5;
     private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
 
-    // 邮箱匹配正则表达式 - 修改为匹配新的邮箱格式
+    // 邮箱匹配正则表达式
     private static final Pattern EMAIL_REGEX = Pattern.compile(
             "(zycc[+-][a-zA-Z0-9]+@intigriti\\.me|zcyy[+-][a-zA-Z0-9]+@(bugcrowdninja|wearehackerone)\\.com)"
     );
@@ -76,10 +76,11 @@ public class JsonLister {
         this.cookieChanger = CookieChanger.getInstance();
         this.nextModifiedId = nextModifiedId;
 
-        // 获取已初始化的OkHttpManager实例
-        this.okHttpManager = OkHttpManager.getInstance();
+        // 获取已初始化的NettyManager实例
+        this.nettyManager = NettyManager.getInstance();
+        this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[JsonLister] 初始化完成，使用OkHttp客户端");
+        logging.logToOutput("[JsonLister] 初始化完成，使用新NettyManager客户端");
     }
 
     /**
@@ -327,6 +328,7 @@ public class JsonLister {
     }
 
     /**
+     * 处理JSON格式的邮箱替换
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
      * @param host 主机名
@@ -481,6 +483,7 @@ public class JsonLister {
     }
 
     /**
+     * 处理Query参数中的ID替换
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
      * @param host 主机名
@@ -867,7 +870,7 @@ public class JsonLister {
     }
 
     /**
-     * 发送修改后的请求并保存响应 - 使用OkHttp（与RouteFuzzer完全相同的逻辑）
+     * 发送修改后的请求并保存响应 - 使用新NettyManager
      * @param modifiedRequest 修改后的请求
      * @param messageId 消息ID
      * @param host 主机名
@@ -911,76 +914,34 @@ public class JsonLister {
             // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
 
-            // 使用OkHttp发送请求
-            sendTestRequestAsync(modifiedRequest, tempID, modifiedPair);
+            // 使用新NettyManager发送请求
+            nettyManager.sendRequest(modifiedRequest, new NettyManager.ResponseCallback() {
+                @Override
+                public void onResponse(HttpResponse response, long responseTimeMs) {
+                    try {
+                        // 处理响应（解压等）
+                        HttpResponse processedResponse = nettyHelper.processResponse(response);
+
+                        // 调用RequestResponseSaver处理响应
+                        requestResponseSaver.handleNettyResponse(processedResponse, tempID, responseTimeMs, modifiedPair);
+
+                    } catch (Exception e) {
+                        logging.logToError("[JsonLister] Error processing response for ID " + tempID + ": " + e.getMessage());
+                    }
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    logging.logToError("[JsonLister] Request failed for ID " + tempID + ": " + error.getMessage());
+                }
+            });
 
         } catch (Exception e) {
             // 静默处理异常
         }
     }
 
-    /**
-     * 异步发送测试请求 - 使用OkHttp（与RouteFuzzer完全相同的逻辑）
-     */
-    private void sendTestRequestAsync(HttpRequest modifiedRequest, int tempID, ModifiedRequestResponse modifiedPair) {
-        if (isShuttingDown) {
-            return;
-        }
-
-        try {
-            // 转换为OkHttp请求并异步发送
-            Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
-            Call call = okHttpManager.newCall(okHttpRequest);
-
-            // 跟踪活动请求
-            activeRequests.add(call);
-
-            // 异步执行请求
-            call.enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    activeRequests.remove(call);
-                    logging.logToError("[JsonLister] Request failed for ID " + tempID + ": " + e.getMessage());
-
-                    // 更新表格模型中的错误状态
-//                    ModifiedRequestResponse entry = tableModel.getModifiedEntryById(tempID);
-//                    if (entry != null) {
-////                        entry.setError("Request failed: " + e.getMessage());
-//                    }
-                }
-
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    activeRequests.remove(call);
-
-                    try {
-                        // 使用OkHttpManager的extractResponseTime方法获取精确的响应时间
-                        long responseTime = okHttpManager.extractResponseTime(response);
-
-                        // 如果无法获取精确时间（返回-1），使用备用计算方法
-                        if (responseTime == -1) {
-                            responseTime = 0; // 或者设置为一个默认值
-                            logging.logToOutput("[JsonLister] 无法获取精确响应时间，使用默认值: " + responseTime + "ms");
-                        }
-
-                        // 转换响应为Burp格式
-                        HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
-
-                        // 处理响应，使用从OkHttpManager获取的精确响应时间
-                        requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
-
-                    } catch (Exception e) {
-                        logging.logToError("[JsonLister] Error processing response for ID " + tempID + ": " + e.getMessage());
-                    } finally {
-                        response.close();
-                    }
-                }
-            });
-
-        } catch (Exception e) {
-            logging.logToError("[JsonLister] sendTestRequestAsync error: " + e.getMessage());
-        }
-    }
+    // =============== 以下是辅助方法，保持不变 ===============
 
     /**
      * 查找JSON中的邮箱字段
@@ -994,7 +955,7 @@ public class JsonLister {
     }
 
     /**
-     * 递归查找邮箱字段 - 修改版本，支持数组中对象的email字段
+     * 递归查找邮箱字段 - 支持数组中对象的email字段
      * @param node 当前JSON节点
      * @param currentPath 当前路径
      * @param emailFields 结果映射
@@ -1049,7 +1010,7 @@ public class JsonLister {
     }
 
     /**
-     * 递归查找ID字段 - 修改版本，支持数组中对象的ID字段
+     * 递归查找ID字段 - 支持数组中对象的ID字段
      * @param node 当前JSON节点
      * @param currentPath 当前路径
      * @param idFields 结果映射
@@ -1104,7 +1065,7 @@ public class JsonLister {
     }
 
     /**
-     * 检查是否为ID参数 - 修复版本，只匹配以id/ids结尾的字段名
+     * 检查是否为ID参数 - 只匹配以id/ids结尾的字段名
      * @param paramName 参数名
      * @return 是否为ID参数
      */
@@ -1114,7 +1075,7 @@ public class JsonLister {
     }
 
     /**
-     * 检查是否为数字ID - 修复版本，支持长整数
+     * 检查是否为数字ID - 支持长整数
      * @param value 值
      * @return 是否为数字ID
      */
@@ -1129,7 +1090,7 @@ public class JsonLister {
     }
 
     /**
-     * 检查数组是否包含数字ID - 修复版本，支持长整数
+     * 检查数组是否包含数字ID - 支持长整数
      * @param arrayNode 数组节点
      * @return 是否包含数字ID
      */
@@ -1194,28 +1155,10 @@ public class JsonLister {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[JsonLister] 开始关闭，取消所有活动请求...");
+            logging.logToOutput("[JsonLister] 开始关闭...");
 
-            // 取消所有活动的请求
-            for (Call call : activeRequests) {
-                call.cancel();
-            }
-
-            // 等待所有请求完成（最多等待10秒）
-            long startTime = System.currentTimeMillis();
-            while (!activeRequests.isEmpty() && (System.currentTimeMillis() - startTime) < 10000) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-
-            if (!activeRequests.isEmpty()) {
-                logging.logToOutput("[JsonLister] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
-                activeRequests.clear();
-            }
+            // NettyManager会自动处理连接关闭
+            // 不需要额外的清理工作
 
             logging.logToOutput("[JsonLister] 关闭完成");
         }

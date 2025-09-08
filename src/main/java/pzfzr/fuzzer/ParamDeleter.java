@@ -3,10 +3,8 @@ package pzfzr.fuzzer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.io.IOException;
 
 import burp.api.montoya.http.message.responses.HttpResponse;
-import okhttp3.*;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.params.HttpParameter;
 import burp.api.montoya.http.message.params.HttpParameterType;
@@ -19,12 +17,17 @@ import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.CookieChanger;
-import pzfzr.core.OkHttpManager;
+import pzfzr.core.NettyManager;
+import pzfzr.core.NettyHelper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.*;
 
+/**
+ * ParamDeleter - 使用新NettyManager的版本
+ * 参数删除测试器，测试删除参数后的应用行为
+ */
 public class ParamDeleter {
     private final AtomicInteger nextModifiedId;
     private final MontoyaApi api;
@@ -34,10 +37,10 @@ public class ParamDeleter {
     private final Logging logging;
     private final CookieChanger cookieChanger;
     private volatile boolean isShuttingDown = false;
-    private final OkHttpManager okHttpManager;
 
-    // 用于跟踪正在进行的请求
-    private final Set<Call> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    // 使用新的NettyManager
+    private final NettyManager nettyManager;
+    private final NettyHelper nettyHelper;
 
     // 可动态修改的参数数量限制
     private volatile int maxParameterCount = 30;
@@ -54,10 +57,11 @@ public class ParamDeleter {
         this.nextModifiedId = nextModifiedId;
         this.cookieChanger = CookieChanger.getInstance();
 
-        // 获取已初始化的OkHttpManager实例
-        this.okHttpManager = OkHttpManager.getInstance();
+        // 获取已初始化的NettyManager实例
+        this.nettyManager = NettyManager.getInstance();
+        this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[ParamDeleter] 初始化完成，使用OkHttp客户端");
+        logging.logToOutput("[ParamDeleter] 初始化完成，使用新NettyManager客户端");
     }
 
     /**
@@ -649,7 +653,7 @@ public class ParamDeleter {
     }
 
     /**
-     * 发送测试请求 - 使用OkHttp
+     * 发送测试请求 - 使用新NettyManager
      */
     private void sendTestRequest(HttpRequest modifiedRequest, int messageId, String host,
                                  String expression, String testType, String payloadAlias, String parameterName) {
@@ -688,68 +692,30 @@ public class ParamDeleter {
             // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
 
-            // 使用OkHttp发送请求
-            sendTestRequestAsync(modifiedRequest, tempID, modifiedPair);
-
-        } catch (Exception e) {
-            // 静默错误处理
-        }
-    }
-
-    /**
-     * 异步发送测试请求 - 使用OkHttp
-     */
-    private void sendTestRequestAsync(HttpRequest modifiedRequest, int tempID, ModifiedRequestResponse modifiedPair) {
-        if (isShuttingDown) {
-            return;
-        }
-
-        try {
-            // 转换为OkHttp请求并异步发送
-            Request okHttpRequest = okHttpManager.convertToOkHttpRequest(modifiedRequest);
-            Call call = okHttpManager.newCall(okHttpRequest);
-
-            // 跟踪活动请求
-            activeRequests.add(call);
-
-            // 异步执行请求
-            call.enqueue(new Callback() {
+            // 使用新NettyManager发送请求
+            nettyManager.sendRequest(modifiedRequest, new NettyManager.ResponseCallback() {
                 @Override
-                public void onFailure(Call call, IOException e) {
-                    activeRequests.remove(call);
-                    logging.logToError("[ParamDeleter] Request failed for ID " + tempID + ": " + e.getMessage());
-                }
-
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    activeRequests.remove(call);
-
+                public void onResponse(HttpResponse response, long responseTimeMs) {
                     try {
-                        // 使用OkHttpManager的extractResponseTime方法获取精确的响应时间
-                        long responseTime = okHttpManager.extractResponseTime(response);
+                        // 处理响应（解压等）
+                        HttpResponse processedResponse = nettyHelper.processResponse(response);
 
-                        // 如果无法获取精确时间（返回-1），使用备用计算方法
-                        if (responseTime == -1) {
-                            responseTime = 0; // 或者设置为一个默认值
-                            logging.logToOutput("[ParamDeleter] 无法获取精确响应时间，使用默认值: " + responseTime + "ms");
-                        }
-
-                        // 转换响应为Burp格式
-                        HttpResponse burpResponse = okHttpManager.convertToBurpResponse(response);
-
-                        // 处理响应，使用从OkHttpManager获取的精确响应时间
-                        requestResponseSaver.handleOkHttpResponse(burpResponse, tempID, responseTime, modifiedPair);
+                        // 调用RequestResponseSaver处理响应
+                        requestResponseSaver.handleNettyResponse(processedResponse, tempID, responseTimeMs, modifiedPair);
 
                     } catch (Exception e) {
                         logging.logToError("[ParamDeleter] Error processing response for ID " + tempID + ": " + e.getMessage());
-                    } finally {
-                        response.close();
                     }
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    logging.logToError("[ParamDeleter] Request failed for ID " + tempID + ": " + error.getMessage());
                 }
             });
 
         } catch (Exception e) {
-            logging.logToError("[ParamDeleter] sendTestRequestAsync error: " + e.getMessage());
+            // 静默错误处理
         }
     }
 
@@ -760,28 +726,10 @@ public class ParamDeleter {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[ParamDeleter] 开始关闭，取消所有活动请求...");
+            logging.logToOutput("[ParamDeleter] 开始关闭...");
 
-            // 取消所有活动的请求
-            for (Call call : activeRequests) {
-                call.cancel();
-            }
-
-            // 等待所有请求完成（最多等待10秒）
-            long startTime = System.currentTimeMillis();
-            while (!activeRequests.isEmpty() && (System.currentTimeMillis() - startTime) < 10000) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-
-            if (!activeRequests.isEmpty()) {
-                logging.logToOutput("[ParamDeleter] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
-                activeRequests.clear();
-            }
+            // NettyManager会自动处理连接关闭
+            // 不需要额外的清理工作
 
             logging.logToOutput("[ParamDeleter] 关闭完成");
         }

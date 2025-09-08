@@ -100,7 +100,7 @@ public class NettyManager {
 
         // 创建业务线程池
         this.businessExecutor = new ThreadPoolExecutor(
-                10, 50,
+                40, 50,
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(1000),
                 r -> {

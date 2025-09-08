@@ -10,13 +10,18 @@ import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
 import pzfzr.core.CookieChanger;
-import pzfzr.core.OldNettyManager;
+import pzfzr.core.NettyManager;
+import pzfzr.core.NettyHelper;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
+/**
+ * RouteFuzzer - 使用新NettyManager的版本
+ * 路径模糊测试器，支持高并发请求
+ */
 public class RouteFuzzer {
     private final AtomicInteger nextModifiedId;
     private final MontoyaApi api;
@@ -28,11 +33,10 @@ public class RouteFuzzer {
     private final CookieChanger cookieChanger;
     private final RequestDeduplicator requestDeduplicator;
     private final PayloadManager payloadManager;
-    private final OldNettyManager oldNettyManager;
 
-    // 用于跟踪正在进行的请求
-    private final Set<CompletableFuture<?>> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private final CountDownLatch shutdownLatch = new CountDownLatch(1);
+    // 使用新的NettyManager
+    private final NettyManager nettyManager;
+    private final NettyHelper nettyHelper;
 
     // 定义ROUTE1类型的payload alias数组
     private static final Set<String> ROUTE1_ALIASES = new HashSet<>(Arrays.asList(
@@ -65,10 +69,11 @@ public class RouteFuzzer {
         this.nextModifiedId = nextModifiedId;
         this.payloadManager = PayloadManager.getInstance();
 
-        // 使用NettyManager替代OkHttpManager
-        this.oldNettyManager = OldNettyManager.getInstance();
+        // 使用新的NettyManager
+        this.nettyManager = NettyManager.getInstance();
+        this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[RouteFuzzer] 初始化完成，使用Netty客户端和Burp解压缩工具");
+        logging.logToOutput("[RouteFuzzer] 初始化完成，使用新NettyManager客户端");
     }
 
     /**
@@ -224,7 +229,7 @@ public class RouteFuzzer {
     }
 
     /**
-     * 异步发送测试请求 - 使用Netty
+     * 异步发送测试请求 - 使用新NettyManager
      */
     private void sendTestRequestAsync(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
                                       String payloadAlias, String currentTestParam) {
@@ -272,32 +277,25 @@ public class RouteFuzzer {
             // 添加到表格模型
             tableModel.addModifiedEntry(modifiedPair);
 
-            // 使用Netty发送请求
-            CompletableFuture<OldNettyManager.NettyResponse> future = oldNettyManager.sendRequest(modifiedRequest);
-
-            // 跟踪活动请求
-            activeRequests.add(future);
-
-            // 处理响应
-            future.whenComplete((nettyResponse, throwable) -> {
-                activeRequests.remove(future);
-
-                if (throwable != null) {
-                    logging.logToError("[RouteFuzzer] Request failed for ID " + tempID + ": " + throwable.getMessage());
-                } else {
+            // 使用新NettyManager发送请求
+            nettyManager.sendRequest(modifiedRequest, new NettyManager.ResponseCallback() {
+                @Override
+                public void onResponse(HttpResponse response, long responseTimeMs) {
                     try {
-                        // 转换响应为Burp格式
-                        HttpResponse burpResponse = oldNettyManager.convertToBurpResponse(nettyResponse);
+                        // 处理响应（解压等）
+                        HttpResponse processedResponse = nettyHelper.processResponse(response);
 
-                        // 获取响应时间
-                        long responseTime = nettyResponse.getResponseTimeMs();
-
-                        // 处理响应
-                        requestResponseSaver.handleNettyResponse(burpResponse, tempID, responseTime, modifiedPair);
+                        // 调用RequestResponseSaver处理响应
+                        requestResponseSaver.handleNettyResponse(processedResponse, tempID, responseTimeMs, modifiedPair);
 
                     } catch (Exception e) {
                         logging.logToError("[RouteFuzzer] Error processing response for ID " + tempID + ": " + e.getMessage());
                     }
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    logging.logToError("[RouteFuzzer] Request failed for ID " + tempID + ": " + error.getMessage());
                 }
             });
 
@@ -450,34 +448,16 @@ public class RouteFuzzer {
     }
 
     /**
-     * 设置关闭标志并等待所有请求完成
+     * 设置关闭标志
      */
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[RouteFuzzer] 开始关闭，取消所有活动请求...");
+            logging.logToOutput("[RouteFuzzer] 开始关闭...");
 
-            // 取消所有活动的请求
-            for (CompletableFuture<?> future : activeRequests) {
-                future.cancel(true);
-            }
-
-            // 等待所有请求完成（最多等待10秒）
-            long startTime = System.currentTimeMillis();
-            while (!activeRequests.isEmpty() && (System.currentTimeMillis() - startTime) < 10000) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-
-            if (!activeRequests.isEmpty()) {
-                logging.logToOutput("[RouteFuzzer] 强制关闭 " + activeRequests.size() + " 个未完成的请求");
-                activeRequests.clear();
-            }
+            // NettyManager会自动处理连接关闭
+            // 不需要额外的清理工作
 
             logging.logToOutput("[RouteFuzzer] 关闭完成");
         }
