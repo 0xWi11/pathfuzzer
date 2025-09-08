@@ -29,13 +29,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
 
-    // HTTP客户端管理器 - 根据配置选择使用哪个
-    private OldNettyManager oldNettyManager;  // 保留旧的实现
-    private OkHttpManager okHttpManager;       // 保留OkHttp实现
     private NettyManager nettyManager;         // 新的Netty实现
-
-    // 配置标志 - 可以通过配置文件或UI控制
-    private static final boolean USE_NEW_NETTY = true;  // true=使用新NettyManager, false=使用OkHttpManager
 
     public PathFuzzer() {
         // No need to instantiate TableModel here anymore
@@ -62,16 +56,9 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         this.csvExporter = new CSVExporter(api.logging(), tableModel, requestResponseSaver);
         this.rateLimiter = RateLimiter.getInstance(api.logging()); // 获取 RateLimiter 实例
 
-
         // 使用新的NettyManager
         this.nettyManager = NettyManager.getInstance(api.logging(), api.utilities().compressionUtils());
         api.logging().logToOutput("[PathFuzzer]: Using NEW NettyManager for HTTP requests");
-
-        // 使用OkHttpManager（向后兼容）
-        this.okHttpManager = OkHttpManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
-        api.logging().logToOutput("[PathFuzzer]: Using OkHttpManager for HTTP requests");
-
-        this.oldNettyManager = OldNettyManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
 
         this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter); // 传递 *同一个* TableModel 和 RequestResponseSaver 和 RateLimiter 实例
         this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver); // 传递 *同一个* TableModel 和 RequestResponseSaver 实例
@@ -121,24 +108,6 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             }
         }
 
-        if (okHttpManager != null) {
-            try {
-                okHttpManager.shutdown();
-                api.logging().logToOutput("[PathFuzzer]: OkHttpManager shutdown completed");
-            } catch (Exception e) {
-                api.logging().logToError("[PathFuzzer]: Error during OkHttpManager shutdown: " + e.getMessage());
-            }
-        }
-
-        // **优先关闭NettyManager**
-        if (oldNettyManager != null) {
-            try {
-                oldNettyManager.shutdown();
-                api.logging().logToOutput("[PathFuzzer]: OldNettyManager shutdown completed");
-            } catch (Exception e) {
-                api.logging().logToError("[PathFuzzer]: Error during OldNettyManager shutdown: " + e.getMessage());
-            }
-        }
 
         // 通知HeaderReplacer停止接受新请求
         if (rateLimiter != null) {
@@ -181,17 +150,4 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         api.logging().logToOutput("Path Fuzzer: Extension unload completed");
     }
 
-    /**
-     * 获取当前使用的HTTP客户端类型
-     */
-    public String getHttpClientType() {
-        return USE_NEW_NETTY ? "NettyManager" : "OkHttpManager";
-    }
-
-    /**
-     * 检查是否正在使用新的NettyManager
-     */
-    public boolean isUsingNewNetty() {
-        return USE_NEW_NETTY;
-    }
 }

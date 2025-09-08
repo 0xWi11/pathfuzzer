@@ -23,7 +23,6 @@ import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.logging.Logging;
 import burp.api.montoya.utilities.CompressionUtils;
-import pzfzr.model.ModifiedRequestResponse;
 
 import javax.net.ssl.SSLException;
 import java.net.InetSocketAddress;
@@ -34,8 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * NettyManager - 高性能HTTP客户端管理器
- * 使用Netty实现，支持高并发、SOCKS5代理、流控等特性
+ * NettyManager - 调试版本，增加详细日志和修复
  */
 public class NettyManager {
     private static volatile NettyManager instance;
@@ -47,11 +45,14 @@ public class NettyManager {
     private final Bootstrap bootstrap;
     private final SslContext sslContext;
 
-    // 连接池
-    private final ChannelPool channelPool;
+    // 连接池 - 改进版本
+    private final Map<String, Queue<Channel>> channelPools = new ConcurrentHashMap<>();
+    private final Map<Channel, ChannelInfo> channelInfoMap = new ConcurrentHashMap<>();
 
-    // 流控
+    // 流控 - 增加调试信息
     private final Semaphore requestSemaphore = new Semaphore(300);
+    private final AtomicInteger activeRequests = new AtomicInteger(0);
+    private final AtomicInteger acquiredPermits = new AtomicInteger(0);
 
     // 业务线程池
     private final ExecutorService businessExecutor;
@@ -67,6 +68,12 @@ public class NettyManager {
     private final AtomicLong totalRequests = new AtomicLong(0);
     private final AtomicLong successRequests = new AtomicLong(0);
     private final AtomicLong failedRequests = new AtomicLong(0);
+    private final AtomicLong connectionCreated = new AtomicLong(0);
+    private final AtomicLong connectionReused = new AtomicLong(0);
+    private final AtomicLong connectionClosed = new AtomicLong(0);
+
+    // 调试开关
+    private static final boolean DEBUG = false;
 
     private volatile boolean isShutdown = false;
 
@@ -95,12 +102,9 @@ public class NettyManager {
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.SO_REUSEADDR, true);
 
-        // 创建连接池
-        this.channelPool = new ChannelPool(100);
-
         // 创建业务线程池
         this.businessExecutor = new ThreadPoolExecutor(
-                40, 50,
+                10, 50,
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(1000),
                 r -> {
@@ -111,9 +115,50 @@ public class NettyManager {
                 new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
+        // 启动监控线程
+        startMonitorThread();
+
         logging.logToOutput("[NettyManager] 初始化完成，EventLoop线程数: " +
                 ((NioEventLoopGroup)eventLoopGroup).executorCount() +
                 "，代理: " + PROXY_HOST + ":" + PROXY_PORT);
+    }
+
+    /**
+     * 启动监控线程 - 定期输出调试信息
+     */
+    private void startMonitorThread() {
+        ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "netty-monitor");
+            t.setDaemon(true);
+            return t;
+        });
+
+        monitor.scheduleAtFixedRate(() -> {
+            if (DEBUG) {
+                logging.logToOutput(String.format(
+                        "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, " +
+                                "Connections - Created: %d, Reused: %d, Closed: %d, Pools: %d",
+                        requestSemaphore.availablePermits(), 300,
+                        activeRequests.get(),
+                        totalRequests.get(),
+                        successRequests.get(),
+                        failedRequests.get(),
+                        connectionCreated.get(),
+                        connectionReused.get(),
+                        connectionClosed.get(),
+                        getTotalPooledConnections()
+                ));
+            }
+        }, 10, 10, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 获取池中总连接数
+     */
+    private int getTotalPooledConnections() {
+        return channelPools.values().stream()
+                .mapToInt(Queue::size)
+                .sum();
     }
 
     /**
@@ -138,7 +183,7 @@ public class NettyManager {
     }
 
     /**
-     * 发送HTTP请求
+     * 发送HTTP请求 - 改进版本
      */
     public CompletableFuture<HttpResponse> sendRequest(HttpRequest burpRequest, ResponseCallback callback) {
         CompletableFuture<HttpResponse> future = new CompletableFuture<>();
@@ -148,38 +193,51 @@ public class NettyManager {
             return future;
         }
 
-        // 流控 - 异步获取许可
+        long requestId = totalRequests.incrementAndGet();
+
+        if (DEBUG) {
+            logging.logToOutput("[NettyManager] Request #" + requestId + " starting, URL: " + burpRequest.url());
+        }
+
+        // 异步处理
         CompletableFuture.runAsync(() -> {
+            final boolean[] permitAcquired = {false};
+
             try {
+                // 获取许可
                 requestSemaphore.acquire();
-                totalRequests.incrementAndGet();
+                permitAcquired[0] = true;
+                acquiredPermits.incrementAndGet();
+                activeRequests.incrementAndGet();
 
                 // 解析请求
                 RequestInfo requestInfo = parseRequest(burpRequest);
 
+                // 检查是否应该使用keep-alive
+                boolean shouldKeepAlive = shouldUseKeepAlive(burpRequest);
+
+                if (DEBUG) {
+                    logging.logToOutput("[NettyManager] Request #" + requestId +
+                            " - Host: " + requestInfo.host +
+                            ", Keep-Alive: " + shouldKeepAlive);
+                }
+
                 // 获取或创建Channel
-                channelPool.acquire(requestInfo.host, requestInfo.port, requestInfo.isHttps)
-                        .thenAccept(channel -> {
-                            // 发送请求
-                            sendRequestOnChannel(channel, requestInfo, burpRequest, future, callback);
-                        })
-                        .exceptionally(ex -> {
-                            requestSemaphore.release();
-                            failedRequests.incrementAndGet();
-                            future.completeExceptionally(ex);
-                            if (callback != null) {
-                                businessExecutor.execute(() -> callback.onError(ex));
-                            }
-                            return null;
-                        });
+                CompletableFuture<Channel> channelFuture = shouldKeepAlive
+                        ? acquirePooledChannel(requestInfo.host, requestInfo.port, requestInfo.isHttps)
+                        : createNewChannel(requestInfo.host, requestInfo.port, requestInfo.isHttps);
+
+                channelFuture.thenAccept(channel -> {
+                    // 发送请求
+                    sendRequestOnChannel(channel, requestInfo, burpRequest, future, callback,
+                            requestId, shouldKeepAlive);
+                }).exceptionally(ex -> {
+                    handleRequestError(ex, future, callback, requestId, permitAcquired[0]);
+                    return null;
+                });
 
             } catch (Exception e) {
-                requestSemaphore.release();
-                failedRequests.incrementAndGet();
-                future.completeExceptionally(e);
-                if (callback != null) {
-                    businessExecutor.execute(() -> callback.onError(e));
-                }
+                handleRequestError(e, future, callback, requestId, permitAcquired[0]);
             }
         }, businessExecutor);
 
@@ -187,74 +245,275 @@ public class NettyManager {
     }
 
     /**
-     * 在Channel上发送请求
+     * 判断是否使用keep-alive
+     */
+    private boolean shouldUseKeepAlive(HttpRequest request) {
+        String connectionHeader = request.headerValue("Connection");
+        if (connectionHeader != null) {
+            return !connectionHeader.equalsIgnoreCase("close");
+        }
+        // 默认使用keep-alive
+        return true;
+    }
+
+    /**
+     * 处理请求错误
+     */
+    private void handleRequestError(Throwable ex, CompletableFuture<HttpResponse> future,
+                                    ResponseCallback callback, long requestId, boolean permitAcquired) {
+        if (permitAcquired) {
+            requestSemaphore.release();
+            acquiredPermits.decrementAndGet();
+        }
+        activeRequests.decrementAndGet();
+        failedRequests.incrementAndGet();
+
+        logging.logToError("[NettyManager] Request #" + requestId + " failed: " + ex.getMessage());
+
+        future.completeExceptionally(ex);
+        if (callback != null) {
+            businessExecutor.execute(() -> callback.onError(ex));
+        }
+    }
+
+    /**
+     * 从池中获取Channel
+     */
+    private CompletableFuture<Channel> acquirePooledChannel(String host, int port, boolean isHttps) {
+        String key = host + ":" + port;
+        Queue<Channel> pool = channelPools.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>());
+
+        // 尝试从池中获取
+        Channel channel = null;
+        while ((channel = pool.poll()) != null) {
+            if (channel.isActive()) {
+                connectionReused.incrementAndGet();
+                if (DEBUG) {
+                    logging.logToOutput("[NettyManager] Reusing connection for " + key);
+                }
+                return CompletableFuture.completedFuture(channel);
+            } else {
+                // 清理无效连接
+                channelInfoMap.remove(channel);
+                connectionClosed.incrementAndGet();
+            }
+        }
+
+        // 创建新连接
+        return createNewChannel(host, port, isHttps);
+    }
+
+    /**
+     * 创建新连接
+     */
+    private CompletableFuture<Channel> createNewChannel(String host, int port, boolean isHttps) {
+        CompletableFuture<Channel> future = new CompletableFuture<>();
+
+        Bootstrap b = bootstrap.clone();
+        b.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel ch) {
+                ChannelPipeline p = ch.pipeline();
+
+                // SOCKS5代理
+                p.addLast("socks5", new Socks5ProxyHandler(
+                        new InetSocketAddress(PROXY_HOST, PROXY_PORT)));
+
+                // SSL处理
+                if (isHttps) {
+                    p.addLast("ssl", sslContext.newHandler(ch.alloc(), host, port));
+                }
+
+                // 超时处理
+                p.addLast("readTimeout", new ReadTimeoutHandler(READ_TIMEOUT_SEC));
+                p.addLast("writeTimeout", new WriteTimeoutHandler(WRITE_TIMEOUT_SEC));
+
+                // HTTP编解码
+                p.addLast("codec", new HttpClientCodec());
+                p.addLast("aggregator", new HttpObjectAggregator(10 * 1024 * 1024));
+
+                // 响应处理
+                p.addLast("handler", new ResponseChannelHandler());
+            }
+        });
+
+        // 连接
+        b.connect(host, port).addListener((ChannelFutureListener) f -> {
+            if (f.isSuccess()) {
+                Channel channel = f.channel();
+                channelInfoMap.put(channel, new ChannelInfo(host, port, isHttps));
+                connectionCreated.incrementAndGet();
+
+                if (DEBUG) {
+                    logging.logToOutput("[NettyManager] Created new connection to " + host + ":" + port);
+                }
+
+                future.complete(channel);
+            } else {
+                future.completeExceptionally(f.cause());
+            }
+        });
+
+        return future;
+    }
+
+    /**
+     * 在Channel上发送请求 - 改进版本
      */
     private void sendRequestOnChannel(Channel channel, RequestInfo requestInfo,
                                       HttpRequest burpRequest, CompletableFuture<HttpResponse> future,
-                                      ResponseCallback callback) {
+                                      ResponseCallback callback, long requestId, boolean keepAlive) {
         try {
             // 转换为Netty请求
-            FullHttpRequest nettyRequest = convertToNettyRequest(burpRequest, requestInfo);
+            FullHttpRequest nettyRequest = convertToNettyRequest(burpRequest, requestInfo, keepAlive);
 
             // 记录开始时间
             long startTime = System.nanoTime();
 
             // 设置响应处理器
-            channel.attr(AttributeKey.<ResponseHandler>valueOf("handler")).set(new ResponseHandler() {
-                @Override
-                public void onResponse(FullHttpResponse response) {
-                    try {
-                        long responseTime = (System.nanoTime() - startTime) / 1_000_000;
-
-                        // 转换响应
-                        HttpResponse burpResponse = convertToBurpResponse(response, requestInfo.isHttps);
-
-                        // 释放资源
-                        requestSemaphore.release();
-                        successRequests.incrementAndGet();
-
-                        // 返回连接到池
-                        channelPool.release(channel, requestInfo.host, requestInfo.port);
-
-                        // 完成Future
-                        future.complete(burpResponse);
-
-                        // 调用回调
-                        if (callback != null) {
-                            businessExecutor.execute(() -> callback.onResponse(burpResponse, responseTime));
-                        }
-                    } finally {
-                        ReferenceCountUtil.release(response);
-                    }
-                }
-
-                @Override
-                public void onError(Throwable cause) {
-                    requestSemaphore.release();
-                    failedRequests.incrementAndGet();
-                    channelPool.invalidate(channel);
-                    future.completeExceptionally(cause);
-                    if (callback != null) {
-                        businessExecutor.execute(() -> callback.onError(cause));
-                    }
-                }
-            });
+            ResponseContext context = new ResponseContext(future, callback, startTime, requestId, keepAlive);
+            channel.attr(AttributeKey.<ResponseContext>valueOf("context")).set(context);
 
             // 发送请求
             channel.writeAndFlush(nettyRequest).addListener((ChannelFutureListener) f -> {
                 if (!f.isSuccess()) {
-                    channel.attr(AttributeKey.<ResponseHandler>valueOf("handler")).get()
-                            .onError(f.cause());
+                    handleChannelError(channel, f.cause(), context);
+                } else if (DEBUG) {
+                    logging.logToOutput("[NettyManager] Request #" + requestId + " sent successfully");
                 }
             });
 
         } catch (Exception e) {
-            requestSemaphore.release();
-            failedRequests.incrementAndGet();
-            channelPool.invalidate(channel);
-            future.completeExceptionally(e);
-            if (callback != null) {
-                businessExecutor.execute(() -> callback.onError(e));
+            handleChannelError(channel, e,
+                    new ResponseContext(future, callback, 0, requestId, keepAlive));
+        }
+    }
+
+    /**
+     * 处理Channel错误
+     */
+    private void handleChannelError(Channel channel, Throwable cause, ResponseContext context) {
+        requestSemaphore.release();
+        acquiredPermits.decrementAndGet();
+        activeRequests.decrementAndGet();
+        failedRequests.incrementAndGet();
+
+        // 关闭并移除失败的连接
+        channel.close();
+        channelInfoMap.remove(channel);
+        connectionClosed.incrementAndGet();
+
+        logging.logToError("[NettyManager] Request #" + context.requestId + " channel error: " +
+                (cause != null ? cause.getMessage() : "unknown error"));
+
+        context.future.completeExceptionally(cause != null ? cause : new RuntimeException("Channel error"));
+        if (context.callback != null) {
+            final Throwable error = cause != null ? cause : new RuntimeException("Channel error");
+            businessExecutor.execute(() -> context.callback.onError(error));
+        }
+    }
+
+    /**
+     * 响应处理器
+     */
+    private class ResponseChannelHandler extends SimpleChannelInboundHandler<FullHttpResponse> {
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
+            ResponseContext context = ctx.channel().attr(AttributeKey.<ResponseContext>valueOf("context")).get();
+
+            if (context == null) {
+                logging.logToError("[NettyManager] No context found for response");
+                ReferenceCountUtil.release(msg);
+                return;
+            }
+
+            try {
+                long responseTime = (System.nanoTime() - context.startTime) / 1_000_000;
+
+                // 保留消息
+                msg.retain();
+
+                // 从channelInfoMap获取isHttps信息
+                ChannelInfo channelInfo = channelInfoMap.get(ctx.channel());
+                boolean isHttps = channelInfo != null ? channelInfo.isHttps : false;
+
+                // 转换响应
+                HttpResponse burpResponse = convertToBurpResponse(msg, isHttps);
+
+                // 释放资源
+                requestSemaphore.release();
+                acquiredPermits.decrementAndGet();
+                activeRequests.decrementAndGet();
+                successRequests.incrementAndGet();
+
+                if (DEBUG) {
+                    logging.logToOutput("[NettyManager] Request #" + context.requestId +
+                            " completed in " + responseTime + "ms");
+                }
+
+                // 处理连接
+                if (context.keepAlive && !isConnectionClose(msg)) {
+                    // 返回连接池
+                    returnToPool(ctx.channel());
+                } else {
+                    // 关闭连接
+                    ctx.close();
+                    channelInfoMap.remove(ctx.channel());
+                    connectionClosed.incrementAndGet();
+                }
+
+                // 完成Future
+                context.future.complete(burpResponse);
+
+                // 调用回调
+                if (context.callback != null) {
+                    businessExecutor.execute(() -> context.callback.onResponse(burpResponse, responseTime));
+                }
+
+            } finally {
+                ReferenceCountUtil.release(msg);
+            }
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            ResponseContext context = ctx.channel().attr(AttributeKey.<ResponseContext>valueOf("context")).get();
+
+            if (context != null) {
+                handleChannelError(ctx.channel(), cause, context);
+            } else {
+                ctx.close();
+            }
+        }
+    }
+
+    /**
+     * 检查响应是否要求关闭连接
+     */
+    private boolean isConnectionClose(FullHttpResponse response) {
+        String connection = response.headers().get(HttpHeaderNames.CONNECTION);
+        return connection != null && connection.equalsIgnoreCase("close");
+    }
+
+    /**
+     * 返回连接到池
+     */
+    private void returnToPool(Channel channel) {
+        ChannelInfo info = channelInfoMap.get(channel);
+        if (info != null && channel.isActive()) {
+            String key = info.host + ":" + info.port;
+            Queue<Channel> pool = channelPools.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>());
+
+            // 限制池大小
+            if (pool.size() < 300) {
+                pool.offer(channel);
+                if (DEBUG) {
+                    logging.logToOutput("[NettyManager] Returned connection to pool: " + key);
+                }
+            } else {
+                channel.close();
+                channelInfoMap.remove(channel);
+                connectionClosed.incrementAndGet();
             }
         }
     }
@@ -293,9 +552,9 @@ public class NettyManager {
     }
 
     /**
-     * 转换为Netty请求
+     * 转换为Netty请求 - 修复Connection头部处理
      */
-    private FullHttpRequest convertToNettyRequest(HttpRequest burpRequest, RequestInfo info) {
+    private FullHttpRequest convertToNettyRequest(HttpRequest burpRequest, RequestInfo info, boolean keepAlive) {
         // 构建请求体
         ByteBuf content = burpRequest.body().length() > 0
                 ? Unpooled.wrappedBuffer(burpRequest.body().getBytes())
@@ -311,8 +570,15 @@ public class NettyManager {
 
         // 添加headers
         for (HttpHeader header : burpRequest.headers()) {
-            if (!shouldSkipHeader(header.name())) {
-                request.headers().add(header.name(), header.value());
+            String name = header.name();
+            if (!shouldSkipHeader(name)) {
+                // 特殊处理Connection头部
+                if (name.equalsIgnoreCase("Connection")) {
+                    request.headers().set(HttpHeaderNames.CONNECTION,
+                            keepAlive ? HttpHeaderValues.KEEP_ALIVE : HttpHeaderValues.CLOSE);
+                } else {
+                    request.headers().add(name, header.value());
+                }
             }
         }
 
@@ -321,7 +587,12 @@ public class NettyManager {
         if (content.readableBytes() > 0) {
             request.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
         }
-        request.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+
+        // 如果没有Connection头部，根据keepAlive设置
+        if (!request.headers().contains(HttpHeaderNames.CONNECTION)) {
+            request.headers().set(HttpHeaderNames.CONNECTION,
+                    keepAlive ? HttpHeaderValues.KEEP_ALIVE : HttpHeaderValues.CLOSE);
+        }
 
         return request;
     }
@@ -367,8 +638,7 @@ public class NettyManager {
     private boolean shouldSkipHeader(String headerName) {
         String lower = headerName.toLowerCase();
         return lower.equals("content-length") ||
-                lower.equals("host") ||
-                lower.equals("connection");
+                lower.equals("host");
     }
 
     /**
@@ -382,8 +652,15 @@ public class NettyManager {
         isShutdown = true;
         logging.logToOutput("[NettyManager] 开始关闭...");
 
-        // 关闭连接池
-        channelPool.shutdown();
+        // 关闭所有池中的连接
+        for (Queue<Channel> pool : channelPools.values()) {
+            Channel ch;
+            while ((ch = pool.poll()) != null) {
+                ch.close();
+            }
+        }
+        channelPools.clear();
+        channelInfoMap.clear();
 
         // 关闭EventLoopGroup
         eventLoopGroup.shutdownGracefully(1, 5, TimeUnit.SECONDS);
@@ -403,128 +680,6 @@ public class NettyManager {
     }
 
     /**
-     * 连接池实现
-     */
-    private class ChannelPool {
-        private final Map<String, Queue<Channel>> poolMap = new ConcurrentHashMap<>();
-        private final int maxPerHost;
-        private final Map<String, AtomicInteger> connectionCounts = new ConcurrentHashMap<>();
-
-        public ChannelPool(int maxPerHost) {
-            this.maxPerHost = maxPerHost;
-        }
-
-        public CompletableFuture<Channel> acquire(String host, int port, boolean isHttps) {
-            String key = host + ":" + port;
-            Queue<Channel> queue = poolMap.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>());
-
-            // 尝试从池中获取
-            Channel channel = queue.poll();
-            if (channel != null && channel.isActive()) {
-                return CompletableFuture.completedFuture(channel);
-            }
-
-            // 创建新连接
-            return createConnection(host, port, isHttps);
-        }
-
-        public void release(Channel channel, String host, int port) {
-            if (!channel.isActive()) {
-                return;
-            }
-
-            String key = host + ":" + port;
-            Queue<Channel> queue = poolMap.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>());
-
-            if (queue.size() < maxPerHost) {
-                queue.offer(channel);
-            } else {
-                channel.close();
-            }
-        }
-
-        public void invalidate(Channel channel) {
-            if (channel != null) {
-                channel.close();
-            }
-        }
-
-        private CompletableFuture<Channel> createConnection(String host, int port, boolean isHttps) {
-            CompletableFuture<Channel> future = new CompletableFuture<>();
-
-            Bootstrap b = bootstrap.clone();
-            b.handler(new ChannelInitializer<SocketChannel>() {
-                @Override
-                protected void initChannel(SocketChannel ch) {
-                    ChannelPipeline p = ch.pipeline();
-
-                    // SOCKS5代理
-                    p.addLast(new Socks5ProxyHandler(
-                            new InetSocketAddress(PROXY_HOST, PROXY_PORT)));
-
-                    // SSL处理
-                    if (isHttps) {
-                        p.addLast(sslContext.newHandler(ch.alloc(), host, port));
-                    }
-
-                    // 超时处理
-                    p.addLast(new ReadTimeoutHandler(READ_TIMEOUT_SEC));
-                    p.addLast(new WriteTimeoutHandler(WRITE_TIMEOUT_SEC));
-
-                    // HTTP编解码
-                    p.addLast(new HttpClientCodec());
-                    p.addLast(new HttpObjectAggregator(10 * 1024 * 1024));
-
-                    // 响应处理
-                    p.addLast(new SimpleChannelInboundHandler<FullHttpResponse>() {
-                        @Override
-                        protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
-                            ResponseHandler handler = ctx.channel()
-                                    .attr(AttributeKey.<ResponseHandler>valueOf("handler")).get();
-                            if (handler != null) {
-                                // 保留消息引用计数
-                                msg.retain();
-                                handler.onResponse(msg);
-                            }
-                        }
-
-                        @Override
-                        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                            ResponseHandler handler = ctx.channel()
-                                    .attr(AttributeKey.<ResponseHandler>valueOf("handler")).get();
-                            if (handler != null) {
-                                handler.onError(cause);
-                            }
-                            ctx.close();
-                        }
-                    });
-                }
-            });
-
-            // 连接
-            b.connect(host, port).addListener((ChannelFutureListener) f -> {
-                if (f.isSuccess()) {
-                    future.complete(f.channel());
-                } else {
-                    future.completeExceptionally(f.cause());
-                }
-            });
-
-            return future;
-        }
-
-        public void shutdown() {
-            poolMap.values().forEach(queue -> {
-                Channel ch;
-                while ((ch = queue.poll()) != null) {
-                    ch.close();
-                }
-            });
-            poolMap.clear();
-        }
-    }
-
-    /**
      * 请求信息
      */
     private static class RequestInfo {
@@ -535,11 +690,38 @@ public class NettyManager {
     }
 
     /**
-     * 响应处理器接口
+     * Channel信息
      */
-    private interface ResponseHandler {
-        void onResponse(FullHttpResponse response);
-        void onError(Throwable cause);
+    private static class ChannelInfo {
+        final String host;
+        final int port;
+        final boolean isHttps;
+
+        ChannelInfo(String host, int port, boolean isHttps) {
+            this.host = host;
+            this.port = port;
+            this.isHttps = isHttps;
+        }
+    }
+
+    /**
+     * 响应上下文
+     */
+    private static class ResponseContext {
+        final CompletableFuture<HttpResponse> future;
+        final ResponseCallback callback;
+        final long startTime;
+        final long requestId;
+        final boolean keepAlive;
+
+        ResponseContext(CompletableFuture<HttpResponse> future, ResponseCallback callback,
+                        long startTime, long requestId, boolean keepAlive) {
+            this.future = future;
+            this.callback = callback;
+            this.startTime = startTime;
+            this.requestId = requestId;
+            this.keepAlive = keepAlive;
+        }
     }
 
     /**
