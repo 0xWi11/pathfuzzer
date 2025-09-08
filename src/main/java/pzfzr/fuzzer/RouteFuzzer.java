@@ -4,17 +4,15 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
-import burp.api.montoya.core.ByteArray;
 import pzfzr.core.CookieChanger;
+import pzfzr.core.OldNettyManager;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
-import pzfzr.core.NettyManager;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -30,7 +28,7 @@ public class RouteFuzzer {
     private final CookieChanger cookieChanger;
     private final RequestDeduplicator requestDeduplicator;
     private final PayloadManager payloadManager;
-    private final NettyManager nettyManager;
+    private final OldNettyManager oldNettyManager;
 
     // 用于跟踪正在进行的请求
     private final Set<CompletableFuture<?>> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -68,7 +66,7 @@ public class RouteFuzzer {
         this.payloadManager = PayloadManager.getInstance();
 
         // 使用NettyManager替代OkHttpManager
-        this.nettyManager = NettyManager.getInstance();
+        this.oldNettyManager = OldNettyManager.getInstance();
 
         logging.logToOutput("[RouteFuzzer] 初始化完成，使用Netty客户端和Burp解压缩工具");
     }
@@ -275,7 +273,7 @@ public class RouteFuzzer {
             tableModel.addModifiedEntry(modifiedPair);
 
             // 使用Netty发送请求
-            CompletableFuture<NettyManager.NettyResponse> future = nettyManager.sendRequest(modifiedRequest);
+            CompletableFuture<OldNettyManager.NettyResponse> future = oldNettyManager.sendRequest(modifiedRequest);
 
             // 跟踪活动请求
             activeRequests.add(future);
@@ -289,7 +287,7 @@ public class RouteFuzzer {
                 } else {
                     try {
                         // 转换响应为Burp格式
-                        HttpResponse burpResponse = nettyManager.convertToBurpResponse(nettyResponse);
+                        HttpResponse burpResponse = oldNettyManager.convertToBurpResponse(nettyResponse);
 
                         // 获取响应时间
                         long responseTime = nettyResponse.getResponseTimeMs();

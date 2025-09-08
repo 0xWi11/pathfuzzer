@@ -28,7 +28,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private CSVExporter csvExporter;
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
-    private NettyManager nettyManager; // 改为NettyManager
+    private OldNettyManager oldNettyManager; // 改为NettyManager
     private OkHttpManager okHttpManager; // 添加OkHttpManager引用
 
     public PathFuzzer() {
@@ -57,8 +57,8 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         this.rateLimiter = RateLimiter.getInstance(api.logging()); // 获取 RateLimiter 实例
 
         // **使用NettyManager替代OkHttpManager**
-        this.nettyManager = NettyManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
-        api.logging().logToOutput("[PathFuzzer]: NettyManager initialized");
+        this.oldNettyManager = OldNettyManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
+        api.logging().logToOutput("[PathFuzzer]: OldNettyManager initialized");
 
         // **新增: 在此处初始化OkHttpManager**
         this.okHttpManager = OkHttpManager.getInstance(api.logging(), rateLimiter, api.utilities().compressionUtils());
@@ -113,12 +113,12 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         }
 
         // **优先关闭NettyManager**
-        if (nettyManager != null) {
+        if (oldNettyManager != null) {
             try {
-                nettyManager.shutdown();
-                api.logging().logToOutput("[PathFuzzer]: NettyManager shutdown completed");
+                oldNettyManager.shutdown();
+                api.logging().logToOutput("[PathFuzzer]: OldNettyManager shutdown completed");
             } catch (Exception e) {
-                api.logging().logToError("[PathFuzzer]: Error during NettyManager shutdown: " + e.getMessage());
+                api.logging().logToError("[PathFuzzer]: Error during OldNettyManager shutdown: " + e.getMessage());
             }
         }
 

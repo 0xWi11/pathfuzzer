@@ -28,15 +28,14 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Netty客户端管理器 - 替代OkHttpManager
  * 保持原始请求格式，避免URL规范化，支持非规范化URL
  */
-public class NettyManager {
-    private static volatile NettyManager instance;
+public class OldNettyManager {
+    private static volatile OldNettyManager instance;
     private final Logging logging;
     private final RateLimiter rateLimiter;
     private final CompressionUtils compressionUtils;
@@ -65,7 +64,7 @@ public class NettyManager {
     private static final AttributeKey<RequestContext> REQUEST_CONTEXT_KEY =
             AttributeKey.valueOf("requestContext");
 
-    private NettyManager(Logging logging, RateLimiter rateLimiter, CompressionUtils compressionUtils) {
+    private OldNettyManager(Logging logging, RateLimiter rateLimiter, CompressionUtils compressionUtils) {
         this.logging = logging;
         this.rateLimiter = rateLimiter;
         this.compressionUtils = compressionUtils;
@@ -80,7 +79,7 @@ public class NettyManager {
         }
 
         // 创建EventLoopGroup - 100个线程
-        this.workerGroup = new NioEventLoopGroup(100);
+        this.workerGroup = new NioEventLoopGroup(30);
 
         // 创建Bootstrap
         this.bootstrap = new Bootstrap()
@@ -94,20 +93,20 @@ public class NettyManager {
         this.cleanupExecutor = Executors.newScheduledThreadPool(1);
         this.cleanupExecutor.scheduleAtFixedRate(this::cleanupIdleConnections, 30, 30, TimeUnit.SECONDS);
 
-        logging.logToOutput("[NettyManager] 初始化完成，工作线程: 100，代理: " + PROXY_HOST + ":" + PROXY_PORT);
+        logging.logToOutput("[OldNettyManager] 初始化完成，工作线程: 100，代理: " + PROXY_HOST + ":" + PROXY_PORT);
     }
 
     /**
      * 获取单例实例 - 带参数版本（用于首次初始化）
      */
-    public static NettyManager getInstance(Logging logging, RateLimiter rateLimiter, CompressionUtils compressionUtils) {
+    public static OldNettyManager getInstance(Logging logging, RateLimiter rateLimiter, CompressionUtils compressionUtils) {
         if (instance == null) {
-            synchronized (NettyManager.class) {
+            synchronized (OldNettyManager.class) {
                 if (instance == null) {
                     if (logging == null || rateLimiter == null || compressionUtils == null) {
                         throw new IllegalArgumentException("NettyManager首次初始化时，所有参数都不能为null");
                     }
-                    instance = new NettyManager(logging, rateLimiter, compressionUtils);
+                    instance = new OldNettyManager(logging, rateLimiter, compressionUtils);
                 }
             }
         }
@@ -117,7 +116,7 @@ public class NettyManager {
     /**
      * 获取单例实例 - 无参数版本（用于后续调用）
      */
-    public static NettyManager getInstance() {
+    public static OldNettyManager getInstance() {
         if (instance == null) {
             throw new IllegalStateException("NettyManager尚未初始化，请先调用getInstance(logging, rateLimiter, compressionUtils)进行初始化");
         }
@@ -282,7 +281,7 @@ public class NettyManager {
 
         } catch (Exception e) {
             future.completeExceptionally(e);
-            logging.logToError("[NettyManager] 发送请求失败: " + e.getMessage());
+            logging.logToError("[OldNettyManager] 发送请求失败: " + e.getMessage());
         }
 
         return future;
@@ -361,7 +360,7 @@ public class NettyManager {
                     decompressedBody = decompressResponseBody(bodyBytes, contentEncoding);
                     wasDecompressed = true;
                 } catch (Exception e) {
-                    logging.logToError("[NettyManager] 解压缩失败: " + e.getMessage());
+                    logging.logToError("[OldNettyManager] 解压缩失败: " + e.getMessage());
                     decompressedBody = bodyBytes;
                 }
             }
@@ -404,7 +403,7 @@ public class NettyManager {
             return HttpResponse.httpResponse(ByteArray.byteArray(fullResponse));
 
         } catch (Exception e) {
-            logging.logToError("[NettyManager] 转换响应失败: " + e.getMessage());
+            logging.logToError("[OldNettyManager] 转换响应失败: " + e.getMessage());
             throw new RuntimeException("Failed to convert response", e);
         }
     }
@@ -436,7 +435,7 @@ public class NettyManager {
             return decompressedByteArray.getBytes();
 
         } catch (Exception e) {
-            logging.logToError("[NettyManager] 使用Burp解压缩工具失败: " + e.getMessage());
+            logging.logToError("[OldNettyManager] 使用Burp解压缩工具失败: " + e.getMessage());
             return compressedData;
         }
     }
@@ -479,9 +478,9 @@ public class NettyManager {
             // 关闭EventLoopGroup
             workerGroup.shutdownGracefully(1, 5, TimeUnit.SECONDS).sync();
 
-            logging.logToOutput("[NettyManager] 已关闭");
+            logging.logToOutput("[OldNettyManager] 已关闭");
         } catch (Exception e) {
-            logging.logToError("[NettyManager] 关闭时出错: " + e.getMessage());
+            logging.logToError("[OldNettyManager] 关闭时出错: " + e.getMessage());
         }
     }
 
