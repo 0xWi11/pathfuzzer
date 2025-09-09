@@ -16,6 +16,7 @@ import pzfzr.model.TableModel;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.*;
 
 public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private MontoyaApi api;
@@ -98,56 +99,136 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     public void extensionUnloaded() {
         api.logging().logToOutput("[PathFuzzer]: Starting extension unload process...");
 
-        // 关闭HTTP客户端 - 根据实际使用的客户端进行关闭
-        if (nettyManager != null) {
-            try {
-                nettyManager.shutdown();
-                api.logging().logToOutput("[PathFuzzer]: NettyManager shutdown completed");
-            } catch (Exception e) {
-                api.logging().logToError("[PathFuzzer]: Error during NettyManager shutdown: " + e.getMessage());
-            }
+        // 创建关闭任务执行器，避免关闭过程中的死锁
+        ExecutorService shutdownExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "pathfuzzer-shutdown");
+            t.setDaemon(true);
+            return t;
+        });
+
+        try {
+            // 使用Future来控制关闭超时
+            Future<?> shutdownFuture = shutdownExecutor.submit(() -> {
+                performShutdown();
+            });
+
+            // 等待关闭完成，最多30秒
+            shutdownFuture.get(30, TimeUnit.SECONDS);
+
+        } catch (TimeoutException e) {
+            api.logging().logToError("[PathFuzzer]: Shutdown timeout, forcing immediate shutdown");
+            forceShutdown();
+        } catch (Exception e) {
+            api.logging().logToError("[PathFuzzer]: Error during shutdown: " + e.getMessage());
+            forceShutdown();
+        } finally {
+            shutdownExecutor.shutdownNow();
         }
 
+        api.logging().logToOutput("[PathFuzzer]: Extension unload completed");
+    }
 
-        // 通知HeaderReplacer停止接受新请求
-        if (rateLimiter != null) {
-            rateLimiter.shutdown();
+    private void performShutdown() {
+        // 第一阶段：停止接收新请求
+        if (trafficHandler != null) {
+            trafficHandler.setShuttingDown(true);  // 需要添加这个方法
         }
+
         if (valueReplacer != null) {
             valueReplacer.setShuttingDown(true);
         }
-        // 关闭流量处理器
-        if (trafficHandler != null) {
-            trafficHandler.shutdown();
+
+        // 等待当前请求处理完成
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
         }
-        // 关闭上下文菜单
-        if (contextMenuProvider != null) {
-            contextMenuProvider.shutdown();
-        }
-        // 关闭持久化管理器
-        if (persistenceManager != null) {
-            try {
-                persistenceManager.shutdown();
-                api.logging().logToOutput("[PathFuzzer]: Persistence manager shutdown completed");
-            } catch (Exception e) {
-                api.logging().logToError("[PathFuzzer]: Error during persistence manager shutdown: " + e.getMessage());
+
+        // 第二阶段：关闭流量处理器（停止生成新任务）
+        shutdownComponent("TrafficHandler", () -> {
+            if (trafficHandler != null) {
+                trafficHandler.shutdown();
             }
-        }
-        // 关闭CSV导出器
-        if (csvExporter != null) {
-            csvExporter.shutdown();
-        }
-        if (requestResponseSaver != null) {
-            requestResponseSaver.cleanupStorage();
-        }
-        if(tableModel != null) {
-            tableModel.cleanup(); // 清理 TableModel 资源，会级联清理 ModifiedRequestResponse 资源
-        }
+        });
 
-        // CookieChanger 不需要特别的清理操作，但出于完整性在此添加记录
+        // 第三阶段：关闭ValueReplacer（停止处理任务）
+        shutdownComponent("ValueReplacer", () -> {
+            if (valueReplacer != null) {
+                // ValueReplacer内部已经有关闭逻辑，这里只需要等待
+                try {
+                    Thread.sleep(2000); // 给足够时间让ValueReplacer完成关闭
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+
+        // 第四阶段：关闭网络客户端
+        shutdownComponent("NettyManager", () -> {
+            if (nettyManager != null) {
+                nettyManager.shutdown();
+            }
+        });
+
+        // 第五阶段：关闭其他组件
+        shutdownComponent("RateLimiter", () -> {
+            if (rateLimiter != null) {
+                rateLimiter.shutdown();
+            }
+        });
+
+        shutdownComponent("ContextMenuProvider", () -> {
+            if (contextMenuProvider != null) {
+                contextMenuProvider.shutdown();
+            }
+        });
+
+        shutdownComponent("PersistenceManager", () -> {
+            if (persistenceManager != null) {
+                persistenceManager.shutdown();
+            }
+        });
+
+        shutdownComponent("CSVExporter", () -> {
+            if (csvExporter != null) {
+                csvExporter.shutdown();
+            }
+        });
+
+        shutdownComponent("RequestResponseSaver", () -> {
+            if (requestResponseSaver != null) {
+                requestResponseSaver.cleanupStorage();
+            }
+        });
+
+        shutdownComponent("TableModel", () -> {
+            if (tableModel != null) {
+                tableModel.cleanup();
+            }
+        });
+
         api.logging().logToOutput("[PathFuzzer]: CookieChanger resources released");
-
-        api.logging().logToOutput("Path Fuzzer: Extension unload completed");
     }
 
+    private void shutdownComponent(String componentName, Runnable shutdownAction) {
+        try {
+            shutdownAction.run();
+            api.logging().logToOutput("[PathFuzzer]: " + componentName + " shutdown completed");
+        } catch (Exception e) {
+            api.logging().logToError("[PathFuzzer]: Error during " + componentName + " shutdown: " + e.getMessage());
+        }
+    }
+
+    private void forceShutdown() {
+        // 强制关闭所有组件
+        try {
+            if (nettyManager != null) nettyManager.shutdown();
+            if (trafficHandler != null) trafficHandler.forceShutdown(); // 需要添加这个方法
+            if (valueReplacer != null) valueReplacer.forceShutdown(); // 需要添加这个方法
+        } catch (Exception e) {
+            api.logging().logToError("[PathFuzzer]: Error during force shutdown: " + e.getMessage());
+        }
+    }
 }

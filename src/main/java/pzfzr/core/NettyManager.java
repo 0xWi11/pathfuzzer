@@ -76,6 +76,8 @@ public class NettyManager {
     private static final boolean DEBUG = false;
 
     private volatile boolean isShutdown = false;
+    private final CountDownLatch shutdownLatch = new CountDownLatch(1);
+
 
     private NettyManager(Logging logging, CompressionUtils compressionUtils) {
         this.logging = logging;
@@ -652,31 +654,98 @@ public class NettyManager {
         isShutdown = true;
         logging.logToOutput("[NettyManager] 开始关闭...");
 
-        // 关闭所有池中的连接
-        for (Queue<Channel> pool : channelPools.values()) {
-            Channel ch;
-            while ((ch = pool.poll()) != null) {
-                ch.close();
-            }
-        }
-        channelPools.clear();
-        channelInfoMap.clear();
+        // 异步执行关闭过程，避免阻塞
+        CompletableFuture.runAsync(this::performShutdown);
+    }
 
-        // 关闭EventLoopGroup
-        eventLoopGroup.shutdownGracefully(1, 5, TimeUnit.SECONDS);
-
-        // 关闭业务线程池
-        businessExecutor.shutdown();
+    private void performShutdown() {
         try {
+            // 第一步：关闭所有池中的连接
+            closeAllPooledConnections();
+
+            // 第二步：关闭EventLoopGroup
+            shutdownEventLoopGroup();
+
+            // 第三步：关闭业务线程池
+            shutdownBusinessExecutor();
+
+            logging.logToOutput(String.format("[NettyManager] 关闭完成. 总请求: %d, 成功: %d, 失败: %d",
+                    totalRequests.get(), successRequests.get(), failedRequests.get()));
+
+        } catch (Exception e) {
+            logging.logToError("[NettyManager] 关闭过程中出错: " + e.getMessage());
+        } finally {
+            shutdownLatch.countDown();
+        }
+    }
+
+    private void closeAllPooledConnections() {
+        try {
+            List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
+
+            for (Map.Entry<String, Queue<Channel>> entry : channelPools.entrySet()) {
+                Queue<Channel> pool = entry.getValue();
+
+                closeFutures.add(CompletableFuture.runAsync(() -> {
+                    Channel ch;
+                    while ((ch = pool.poll()) != null) {
+                        try {
+                            if (ch.isActive()) {
+                                ch.close().sync();
+                            }
+                        } catch (Exception e) {
+                            // 忽略关闭错误
+                        }
+                    }
+                }));
+            }
+
+            // 等待所有连接关闭，最多等待5秒
+            CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]))
+                    .get(5, TimeUnit.SECONDS);
+
+        } catch (Exception e) {
+            logging.logToError("[NettyManager] 关闭连接池时出错: " + e.getMessage());
+        } finally {
+            channelPools.clear();
+            channelInfoMap.clear();
+        }
+    }
+
+    private void shutdownEventLoopGroup() {
+        try {
+            Future<?> shutdownFuture = eventLoopGroup.shutdownGracefully(1, 5, TimeUnit.SECONDS);
+            shutdownFuture.get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            logging.logToError("[NettyManager] EventLoopGroup关闭出错: " + e.getMessage());
+        }
+    }
+
+    private void shutdownBusinessExecutor() {
+        try {
+            businessExecutor.shutdown();
+
             if (!businessExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 businessExecutor.shutdownNow();
+
+                if (!businessExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
+                    logging.logToError("[NettyManager] 业务线程池强制关闭失败");
+                }
             }
         } catch (InterruptedException e) {
             businessExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
+    }
 
-        logging.logToOutput(String.format("[NettyManager] 关闭完成. 总请求: %d, 成功: %d, 失败: %d",
-                totalRequests.get(), successRequests.get(), failedRequests.get()));
+    // 等待关闭完成
+    public boolean awaitShutdown(long timeout, TimeUnit unit) {
+        try {
+            return shutdownLatch.await(timeout, unit);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     /**

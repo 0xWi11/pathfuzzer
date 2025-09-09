@@ -30,6 +30,7 @@ public class TrafficHandler implements HttpHandler {
     private final ScheduledExecutorService executorService;
 //    private final Map<Integer, DelayedResponse> pendingResponses = new ConcurrentHashMap<>();
     private volatile boolean isShuttingDown = false;
+    private final CountDownLatch shutdownLatch = new CountDownLatch(1);
     private final RequestDeduplicator requestDeduplicator; // 请求去重器实例
     private final ThreadPoolMonitor threadPoolMonitor;
 
@@ -92,6 +93,7 @@ public class TrafficHandler implements HttpHandler {
         if (!requestToBeSent.toolSource().isFromTool(ToolType.PROXY)) {
             return RequestToBeSentAction.continueWith(requestToBeSent);
         }
+
         if (isShuttingDown) {
             return RequestToBeSentAction.continueWith(requestToBeSent);
         }
@@ -241,30 +243,85 @@ public class TrafficHandler implements HttpHandler {
     }
 
     // 在插件卸载时调用此方法
+    public void setShuttingDown(boolean shuttingDown) {
+        this.isShuttingDown = shuttingDown;
+    }
+
     public void shutdown() {
         isShuttingDown = true;
         api.logging().logToOutput("[TrafficHandler] Traffic Handler starting shutdown process...");
-        clearAllTasks();
-        // 关闭监控器
-        if (threadPoolMonitor != null) {
-            threadPoolMonitor.shutdown();
-        }
-        // 关闭线程池
-        executorService.shutdownNow(); //  更改为 shutdownNow 立即关闭
+
+        // 异步执行关闭过程
+        CompletableFuture.runAsync(this::performShutdown);
+    }
+
+    private void performShutdown() {
         try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) { //  等待一段时间，以便记录错误信息 (可选)
-                api.logging().logToError("[TrafficHandler] Traffic Handler pool did not terminate in 5 seconds after shutdownNow.");
+            // 清空待处理任务
+            clearAllTasks();
+
+            // 关闭监控器
+            if (threadPoolMonitor != null) {
+                threadPoolMonitor.shutdown();
             }
+
+            // 优雅关闭线程池
+            executorService.shutdown();
+
+            // 等待正在执行的任务完成
+            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                api.logging().logToOutput("[TrafficHandler] 正常关闭超时，开始强制关闭");
+
+                // 中断活跃线程
+                cancelActiveThreads();
+
+                // 强制关闭
+                executorService.shutdownNow();
+
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    api.logging().logToError("[TrafficHandler] 强制关闭失败，部分线程可能仍在运行");
+                }
+            }
+
+            // 清理剩余资源
+            if (requestDeduplicator != null) {
+                requestDeduplicator.shutdown();
+            }
+
+            api.logging().logToOutput("[TrafficHandler] Traffic Handler shutdown completed");
+
         } catch (InterruptedException e) {
             api.logging().logToError("[TrafficHandler] Traffic Handler shutdown interrupted: " + e.getMessage());
             Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            api.logging().logToError("[TrafficHandler] Error during Traffic Handler shutdown: " + e.getMessage());
+        } finally {
+            shutdownLatch.countDown();
+        }
+    }
+
+    // 强制关闭方法
+    public void forceShutdown() {
+        isShuttingDown = true;
+
+        if (executorService != null) {
+            executorService.shutdownNow();
         }
 
-        // 清理剩余资源
-//        pendingResponses.clear();
-        if (requestDeduplicator != null) { // 关闭请求去重器
-            requestDeduplicator.shutdown();
+        if (threadPoolMonitor != null) {
+            threadPoolMonitor.shutdown();
         }
 
+        shutdownLatch.countDown();
+    }
+
+    // 等待关闭完成
+    public boolean awaitShutdown(long timeout, TimeUnit unit) {
+        try {
+            return shutdownLatch.await(timeout, unit);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 }

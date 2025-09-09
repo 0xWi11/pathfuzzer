@@ -1,9 +1,7 @@
 package pzfzr.core;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -28,15 +26,10 @@ public class ValueReplacer {
     private final TableModel tableModel;
     private final ConfigManager configManager;
     private volatile boolean isShuttingDown = false;
+    // 添加关闭状态跟踪
+    private final CountDownLatch shutdownLatch = new CountDownLatch(1);
+    private volatile boolean forceShutdownRequested = false;
 
-    private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
-    private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
-    private static final int HASH_LENGTH = 5;
-    private static final Set<String> VALUE_EXTRACT_HEADERS = new HashSet<>(Arrays.asList(
-            "vary",
-            "access-control-allow-headers",
-            "access-control-expose-headers"
-    ));
 
     private final RequestResponseSaver requestResponseSaver;
     private final Logging logging;
@@ -237,67 +230,6 @@ public class ValueReplacer {
         }
     }
 
-    /**
-     * 异步版本的单独测试方法 - 新增
-     */
-    public CompletableFuture<Void> JsonListerTestAsync(HttpRequest originalRequest, int messageId, String host) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                jsonLister.processRequest(originalRequest, messageId, host);
-            } catch (Exception e) {
-                api.logging().logToError("Error in JsonListerTestAsync: " + e.getMessage());
-            }
-        }, asyncExecutor);
-    }
-
-    public CompletableFuture<Void> RouteFuzzerTestAsync(HttpRequest originalRequest, int messageId, String host) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                routeFuzzer.processRequestWithoutDeduplication(originalRequest, messageId, host);
-            } catch (Exception e) {
-                api.logging().logToError("Error in RouteFuzzerTestAsync: " + e.getMessage());
-            }
-        }, asyncExecutor);
-    }
-
-    public CompletableFuture<Void> ParamFuzzerTestAsync(HttpRequest originalRequest, int messageId, String host) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                paramFuzzer.processRequest(originalRequest, messageId, host);
-            } catch (Exception e) {
-                api.logging().logToError("Error in ParamFuzzerTestAsync: " + e.getMessage());
-            }
-        }, asyncExecutor);
-    }
-
-    // 新增ParamDeleter异步测试方法
-    public CompletableFuture<Void> ParamDeleterTestAsync(HttpRequest originalRequest, int messageId, String host) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                paramDeleter.processRequest(originalRequest, messageId, host);
-            } catch (Exception e) {
-                api.logging().logToError("Error in ParamDeleterTestAsync: " + e.getMessage());
-            }
-        }, asyncExecutor);
-    }
-
-    // 保持原有的同步版本的单独测试方法
-    public void JsonListerTest(HttpRequest originalRequest, int messageId, String host) {
-        jsonLister.processRequest(originalRequest, messageId, host);
-    }
-
-    public void RouteFuzzerTest(HttpRequest originalRequest, int messageId, String host) {
-        routeFuzzer.processRequestWithoutDeduplication(originalRequest, messageId, host);
-    }
-
-    public void ParamFuzzerTest(HttpRequest originalRequest, int messageId, String host) {
-        paramFuzzer.processRequest(originalRequest, messageId, host);
-    }
-
-    // 新增ParamDeleter同步测试方法
-    public void ParamDeleterTest(HttpRequest originalRequest, int messageId, String host) {
-        paramDeleter.processRequest(originalRequest, messageId, host);
-    }
 
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
@@ -305,7 +237,37 @@ public class ValueReplacer {
         if (shuttingDown) {
             logging.logToOutput("[ValueReplacer] 开始关闭所有组件...");
 
-            // 首先设置所有子组件的关闭状态
+            // 异步执行关闭过程，避免阻塞调用线程
+            CompletableFuture.runAsync(this::performShutdown);
+        }
+    }
+
+    private void performShutdown() {
+        try {
+            // 设置所有子组件的关闭状态
+            shutdownSubComponents();
+
+            // 等待异步任务完成或超时
+            if (!forceShutdownRequested) {
+                waitForTasksCompletion();
+            }
+
+            // 关闭线程池
+            shutdownExecutors();
+
+        } catch (Exception e) {
+            logging.logToError("[ValueReplacer] 关闭过程中出错: " + e.getMessage());
+        } finally {
+            shutdownLatch.countDown();
+            logging.logToOutput("[ValueReplacer] 所有组件关闭完成");
+        }
+    }
+
+    private void shutdownSubComponents() {
+        // 并行关闭子组件，提高效率
+        List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();
+
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
             try {
                 if (jsonLister != null) {
                     jsonLister.setShuttingDown(true);
@@ -313,7 +275,9 @@ public class ValueReplacer {
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] 关闭JsonLister时出错: " + e.getMessage());
             }
+        }));
 
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
             try {
                 if (routeFuzzer != null) {
                     routeFuzzer.setShuttingDown(true);
@@ -321,7 +285,9 @@ public class ValueReplacer {
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] 关闭RouteFuzzer时出错: " + e.getMessage());
             }
+        }));
 
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
             try {
                 if (paramFuzzer != null) {
                     paramFuzzer.setShuttingDown(true);
@@ -329,8 +295,9 @@ public class ValueReplacer {
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] 关闭ParamFuzzer时出错: " + e.getMessage());
             }
+        }));
 
-            // 新增ParamDeleter关闭逻辑
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
             try {
                 if (paramDeleter != null) {
                     paramDeleter.setShuttingDown(true);
@@ -338,32 +305,86 @@ public class ValueReplacer {
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] 关闭ParamDeleter时出错: " + e.getMessage());
             }
+        }));
 
-            // 等待一段时间让子组件完成关闭
-            try {
-                Thread.sleep(2000); // 等待2秒，让子组件有时间完成关闭
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+        // 等待所有子组件关闭完成，最多等待5秒
+        try {
+            CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
+                    .get(5, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            logging.logToOutput("[ValueReplacer] 子组件关闭超时，继续执行后续关闭流程");
+        } catch (Exception e) {
+            logging.logToError("[ValueReplacer] 等待子组件关闭时出错: " + e.getMessage());
+        }
+    }
 
-            // 关闭异步执行器
-            try {
-                asyncExecutor.shutdown();
+    private void waitForTasksCompletion() {
+        try {
+            // 检查是否还有正在执行的任务
+            if (asyncExecutor instanceof ThreadPoolExecutor) {
+                ThreadPoolExecutor executor = (ThreadPoolExecutor) asyncExecutor;
+                int maxWaitSeconds = 10;
 
-                // 等待执行器关闭（最多等待5秒）
-                if (!asyncExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                    logging.logToOutput("[ValueReplacer] 强制关闭异步执行器");
-                    asyncExecutor.shutdownNow();
+                for (int i = 0; i < maxWaitSeconds; i++) {
+                    if (executor.getActiveCount() == 0 && executor.getQueue().isEmpty()) {
+                        logging.logToOutput("[ValueReplacer] 所有异步任务已完成");
+                        break;
+                    }
+
+                    if (forceShutdownRequested) {
+                        logging.logToOutput("[ValueReplacer] 收到强制关闭请求，停止等待");
+                        break;
+                    }
+
+                    Thread.sleep(1000);
                 }
-            } catch (InterruptedException e) {
-                logging.logToError("[ValueReplacer] 关闭异步执行器时被中断");
-                asyncExecutor.shutdownNow();
-                Thread.currentThread().interrupt();
-            } catch (Exception e) {
-                logging.logToError("[ValueReplacer] 关闭异步执行器时出错: " + e.getMessage());
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logging.logToOutput("[ValueReplacer] 等待任务完成时被中断");
+        }
+    }
 
-            logging.logToOutput("[ValueReplacer] 所有组件关闭完成");
+    private void shutdownExecutors() {
+        try {
+            asyncExecutor.shutdown();
+
+            if (!asyncExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                logging.logToOutput("[ValueReplacer] 正常关闭超时，强制关闭异步执行器");
+                asyncExecutor.shutdownNow();
+
+                if (!asyncExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
+                    logging.logToError("[ValueReplacer] 强制关闭异步执行器失败");
+                }
+            }
+        } catch (InterruptedException e) {
+            logging.logToError("[ValueReplacer] 关闭异步执行器时被中断");
+            asyncExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            logging.logToError("[ValueReplacer] 关闭异步执行器时出错: " + e.getMessage());
+        }
+    }
+
+    // 强制关闭方法
+    public void forceShutdown() {
+        forceShutdownRequested = true;
+
+        if (asyncExecutor != null) {
+            asyncExecutor.shutdownNow();
+        }
+
+        // 强制完成关闭过程
+        shutdownLatch.countDown();
+    }
+
+    // 等待关闭完成
+    public boolean awaitShutdown(long timeout, TimeUnit unit) {
+        try {
+            return shutdownLatch.await(timeout, unit);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 }
