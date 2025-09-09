@@ -17,6 +17,7 @@ import pzfzr.model.TableModel;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private MontoyaApi api;
@@ -29,8 +30,10 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private CSVExporter csvExporter;
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
+    private NettyManager nettyManager;
 
-    private NettyManager nettyManager;         // 新的Netty实现
+    // 关闭控制
+    private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 
     public PathFuzzer() {
         // No need to instantiate TableModel here anymore
@@ -69,7 +72,8 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         ParamDeleter paramDeleter = valueReplacer.getParamDeleter(); // 新增
 
         // 注册UI - 修改：传入ParamFuzzer和ParamDeleter引用
-        MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter, trafficHandler, cookieChanger, paramFuzzer, paramDeleter); // 传递必要组件、RateLimiter 实例、CookieChanger、ParamFuzzer 和 ParamDeleter
+        MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
+                trafficHandler, cookieChanger, paramFuzzer, paramDeleter); // 传递必要组件、RateLimiter 实例、CookieChanger、ParamFuzzer 和 ParamDeleter
 
         api.userInterface().registerSuiteTab("Path Fuzzer", mainPanel);
 
@@ -97,6 +101,12 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
 
     @Override
     public void extensionUnloaded() {
+        // 防止重复关闭
+        if (!isShuttingDown.compareAndSet(false, true)) {
+            api.logging().logToOutput("[PathFuzzer]: Shutdown already in progress");
+            return;
+        }
+
         api.logging().logToOutput("[PathFuzzer]: Starting extension unload process...");
 
         // 创建关闭任务执行器，避免关闭过程中的死锁
@@ -130,8 +140,9 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
 
     private void performShutdown() {
         // 第一阶段：停止接收新请求
+        api.logging().logToOutput("[PathFuzzer]: Phase 1 - Stopping new request processing...");
         if (trafficHandler != null) {
-            trafficHandler.setShuttingDown(true);  // 需要添加这个方法
+            trafficHandler.setShuttingDown(true);
         }
 
         if (valueReplacer != null) {
@@ -139,6 +150,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         }
 
         // 等待当前请求处理完成
+        api.logging().logToOutput("[PathFuzzer]: Phase 2 - Waiting for pending requests...");
         try {
             Thread.sleep(3000);
         } catch (InterruptedException e) {
@@ -158,21 +170,31 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             if (valueReplacer != null) {
                 // ValueReplacer内部已经有关闭逻辑，这里只需要等待
                 try {
-                    Thread.sleep(2000); // 给足够时间让ValueReplacer完成关闭
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
         });
 
-        // 第四阶段：关闭网络客户端
+        // 第四阶段：关闭网络客户端并等待完成
+        api.logging().logToOutput("[PathFuzzer]: Phase 3 - Shutting down NettyManager...");
         shutdownComponent("NettyManager", () -> {
             if (nettyManager != null) {
                 nettyManager.shutdown();
+                // 等待NettyManager完全关闭
+                boolean shutdownCompleted = nettyManager.awaitShutdown(10, TimeUnit.SECONDS);
+                if (!shutdownCompleted) {
+                    api.logging().logToError("[PathFuzzer]: NettyManager shutdown timeout");
+                } else {
+                    api.logging().logToOutput("[PathFuzzer]: NettyManager shutdown completed successfully");
+                }
             }
         });
 
         // 第五阶段：关闭其他组件
+        api.logging().logToOutput("[PathFuzzer]: Phase 4 - Shutting down remaining components...");
+
         shutdownComponent("RateLimiter", () -> {
             if (rateLimiter != null) {
                 rateLimiter.shutdown();
@@ -210,6 +232,22 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         });
 
         api.logging().logToOutput("[PathFuzzer]: CookieChanger resources released");
+        String shutdownMessage = String.format(
+                "\n" +
+                        "############################################\n" +
+                        "       PATH FUZZER 插件关闭完成!\n" +
+                        "############################################\n" +
+                        "  关闭时间: %s\n" +
+                        "  所有组件已安全关闭\n" +
+                        "  网络连接已清理完毕\n" +
+                        "  线程池已完全停止\n" +
+                        "  资源释放完成\n" +
+                        "############################################\n" +
+                        "       感谢使用 PATH FUZZER!\n" +
+                        "############################################\n",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        );
+        api.logging().logToOutput(shutdownMessage);
     }
 
     private void shutdownComponent(String componentName, Runnable shutdownAction) {
@@ -222,11 +260,21 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     }
 
     private void forceShutdown() {
+        api.logging().logToOutput("[PathFuzzer]: Performing force shutdown...");
+
         // 强制关闭所有组件
         try {
-            if (nettyManager != null) nettyManager.shutdown();
-            if (trafficHandler != null) trafficHandler.forceShutdown(); // 需要添加这个方法
-            if (valueReplacer != null) valueReplacer.forceShutdown(); // 需要添加这个方法
+            if (nettyManager != null) {
+                nettyManager.shutdown();
+                // 给予短暂时间让NettyManager开始关闭
+                nettyManager.awaitShutdown(3, TimeUnit.SECONDS);
+            }
+            if (trafficHandler != null) {
+                trafficHandler.forceShutdown();
+            }
+            if (valueReplacer != null) {
+                valueReplacer.forceShutdown();
+            }
         } catch (Exception e) {
             api.logging().logToError("[PathFuzzer]: Error during force shutdown: " + e.getMessage());
         }

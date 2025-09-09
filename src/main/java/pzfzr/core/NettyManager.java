@@ -29,11 +29,12 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * NettyManager - 调试版本，增加详细日志和修复
+ * NettyManager - 修复版本，完善关闭机制
  */
 public class NettyManager {
     private static volatile NettyManager instance;
@@ -45,17 +46,20 @@ public class NettyManager {
     private final Bootstrap bootstrap;
     private final SslContext sslContext;
 
-    // 连接池 - 改进版本
+    // 连接池
     private final Map<String, Queue<Channel>> channelPools = new ConcurrentHashMap<>();
     private final Map<Channel, ChannelInfo> channelInfoMap = new ConcurrentHashMap<>();
 
-    // 流控 - 增加调试信息
+    // 流控
     private final Semaphore requestSemaphore = new Semaphore(300);
     private final AtomicInteger activeRequests = new AtomicInteger(0);
     private final AtomicInteger acquiredPermits = new AtomicInteger(0);
 
     // 业务线程池
     private final ExecutorService businessExecutor;
+
+    // 监控线程池 - 修复：存储为实例变量
+    private final ScheduledExecutorService monitorExecutor;
 
     // 配置
     private static final String PROXY_HOST = "127.0.0.1";
@@ -75,9 +79,10 @@ public class NettyManager {
     // 调试开关
     private static final boolean DEBUG = false;
 
-    private volatile boolean isShutdown = false;
+    // 关闭控制 - 改进版本
+    private final AtomicBoolean isShutdown = new AtomicBoolean(false);
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
-
+    private final AtomicBoolean shutdownStarted = new AtomicBoolean(false);
 
     private NettyManager(Logging logging, CompressionUtils compressionUtils) {
         this.logging = logging;
@@ -92,7 +97,7 @@ public class NettyManager {
             throw new RuntimeException("Failed to create SSL context", e);
         }
 
-        // 创建EventLoopGroup - 使用较少的线程，因为Netty是非阻塞的
+        // 创建EventLoopGroup
         this.eventLoopGroup = new NioEventLoopGroup(Math.min(Runtime.getRuntime().availableProcessors() * 2, 16));
 
         // 创建Bootstrap
@@ -117,6 +122,13 @@ public class NettyManager {
                 new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
+        // 创建监控线程池 - 修复：存储为实例变量
+        this.monitorExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "netty-monitor");
+            t.setDaemon(true);
+            return t;
+        });
+
         // 启动监控线程
         startMonitorThread();
 
@@ -126,16 +138,15 @@ public class NettyManager {
     }
 
     /**
-     * 启动监控线程 - 定期输出调试信息
+     * 启动监控线程 - 修复版本
      */
     private void startMonitorThread() {
-        ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "netty-monitor");
-            t.setDaemon(true);
-            return t;
-        });
+        monitorExecutor.scheduleAtFixedRate(() -> {
+            // 检查是否已关闭
+            if (isShutdown.get()) {
+                return;
+            }
 
-        monitor.scheduleAtFixedRate(() -> {
             if (DEBUG) {
                 logging.logToOutput(String.format(
                         "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, " +
@@ -167,9 +178,12 @@ public class NettyManager {
      * 获取单例实例
      */
     public static NettyManager getInstance(Logging logging, CompressionUtils compressionUtils) {
-        if (instance == null) {
+        if (instance == null || instance.isShutdown.get()) {
             synchronized (NettyManager.class) {
-                if (instance == null) {
+                if (instance == null || instance.isShutdown.get()) {
+                    if (instance != null && instance.isShutdown.get()) {
+                        logging.logToOutput("[NettyManager] 检测到已关闭的实例，创建新实例");
+                    }
                     instance = new NettyManager(logging, compressionUtils);
                 }
             }
@@ -185,12 +199,12 @@ public class NettyManager {
     }
 
     /**
-     * 发送HTTP请求 - 改进版本
+     * 发送HTTP请求
      */
     public CompletableFuture<HttpResponse> sendRequest(HttpRequest burpRequest, ResponseCallback callback) {
         CompletableFuture<HttpResponse> future = new CompletableFuture<>();
 
-        if (isShutdown) {
+        if (isShutdown.get()) {
             future.completeExceptionally(new IllegalStateException("NettyManager is shutdown"));
             return future;
         }
@@ -206,6 +220,11 @@ public class NettyManager {
             final boolean[] permitAcquired = {false};
 
             try {
+                // 再次检查关闭状态
+                if (isShutdown.get()) {
+                    throw new IllegalStateException("NettyManager is shutdown");
+                }
+
                 // 获取许可
                 requestSemaphore.acquire();
                 permitAcquired[0] = true;
@@ -274,7 +293,11 @@ public class NettyManager {
 
         future.completeExceptionally(ex);
         if (callback != null) {
-            businessExecutor.execute(() -> callback.onError(ex));
+            try {
+                businessExecutor.execute(() -> callback.onError(ex));
+            } catch (RejectedExecutionException e) {
+                // 线程池已关闭，忽略
+            }
         }
     }
 
@@ -360,7 +383,7 @@ public class NettyManager {
     }
 
     /**
-     * 在Channel上发送请求 - 改进版本
+     * 在Channel上发送请求
      */
     private void sendRequestOnChannel(Channel channel, RequestInfo requestInfo,
                                       HttpRequest burpRequest, CompletableFuture<HttpResponse> future,
@@ -411,7 +434,11 @@ public class NettyManager {
         context.future.completeExceptionally(cause != null ? cause : new RuntimeException("Channel error"));
         if (context.callback != null) {
             final Throwable error = cause != null ? cause : new RuntimeException("Channel error");
-            businessExecutor.execute(() -> context.callback.onError(error));
+            try {
+                businessExecutor.execute(() -> context.callback.onError(error));
+            } catch (RejectedExecutionException e) {
+                // 线程池已关闭，忽略
+            }
         }
     }
 
@@ -469,7 +496,11 @@ public class NettyManager {
 
                 // 调用回调
                 if (context.callback != null) {
-                    businessExecutor.execute(() -> context.callback.onResponse(burpResponse, responseTime));
+                    try {
+                        businessExecutor.execute(() -> context.callback.onResponse(burpResponse, responseTime));
+                    } catch (RejectedExecutionException e) {
+                        // 线程池已关闭，忽略
+                    }
                 }
 
             } finally {
@@ -501,6 +532,14 @@ public class NettyManager {
      * 返回连接到池
      */
     private void returnToPool(Channel channel) {
+        if (isShutdown.get()) {
+            // 如果正在关闭，直接关闭连接
+            channel.close();
+            channelInfoMap.remove(channel);
+            connectionClosed.incrementAndGet();
+            return;
+        }
+
         ChannelInfo info = channelInfoMap.get(channel);
         if (info != null && channel.isActive()) {
             String key = info.host + ":" + info.port;
@@ -527,7 +566,7 @@ public class NettyManager {
         String url = request.url();
         RequestInfo info = new RequestInfo();
 
-        // 手动解析URL，不使用Java URL类
+        // 手动解析URL
         if (url.startsWith("https://")) {
             info.isHttps = true;
             url = url.substring(8);
@@ -554,7 +593,7 @@ public class NettyManager {
     }
 
     /**
-     * 转换为Netty请求 - 修复Connection头部处理
+     * 转换为Netty请求
      */
     private FullHttpRequest convertToNettyRequest(HttpRequest burpRequest, RequestInfo info, boolean keepAlive) {
         // 构建请求体
@@ -644,15 +683,24 @@ public class NettyManager {
     }
 
     /**
-     * 关闭管理器
+     * 关闭管理器 - 改进版本
      */
     public void shutdown() {
-        if (isShutdown) {
+        // 使用CAS确保只执行一次
+        if (!shutdownStarted.compareAndSet(false, true)) {
+            // 如果已经开始关闭，等待完成
+            try {
+                shutdownLatch.await(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
-        isShutdown = true;
         logging.logToOutput("[NettyManager] 开始关闭...");
+
+        // 标记为关闭状态
+        isShutdown.set(true);
 
         // 异步执行关闭过程，避免阻塞
         CompletableFuture.runAsync(this::performShutdown);
@@ -660,13 +708,19 @@ public class NettyManager {
 
     private void performShutdown() {
         try {
-            // 第一步：关闭所有池中的连接
+            // 第一步：停止监控线程
+            shutdownMonitorExecutor();
+
+            // 第二步：等待当前请求完成
+            waitForPendingRequests();
+
+            // 第三步：关闭所有池中的连接
             closeAllPooledConnections();
 
-            // 第二步：关闭EventLoopGroup
+            // 第四步：关闭EventLoopGroup
             shutdownEventLoopGroup();
 
-            // 第三步：关闭业务线程池
+            // 第五步：关闭业务线程池
             shutdownBusinessExecutor();
 
             logging.logToOutput(String.format("[NettyManager] 关闭完成. 总请求: %d, 成功: %d, 失败: %d",
@@ -679,8 +733,50 @@ public class NettyManager {
         }
     }
 
+    /**
+     * 关闭监控线程池
+     */
+    private void shutdownMonitorExecutor() {
+        try {
+            logging.logToOutput("[NettyManager] 关闭监控线程...");
+            monitorExecutor.shutdown();
+
+            if (!monitorExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
+                monitorExecutor.shutdownNow();
+
+                if (!monitorExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                    logging.logToError("[NettyManager] 监控线程池强制关闭失败");
+                }
+            }
+            logging.logToOutput("[NettyManager] 监控线程关闭完成");
+        } catch (InterruptedException e) {
+            monitorExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * 等待pending请求完成
+     */
+    private void waitForPendingRequests() {
+        try {
+            int waitTime = 0;
+            while (activeRequests.get() > 0 && waitTime < 5000) {
+                Thread.sleep(100);
+                waitTime += 100;
+            }
+
+            if (activeRequests.get() > 0) {
+                logging.logToOutput("[NettyManager] 仍有 " + activeRequests.get() + " 个请求未完成，强制继续关闭");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private void closeAllPooledConnections() {
         try {
+            logging.logToOutput("[NettyManager] 关闭连接池...");
             List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
 
             for (Map.Entry<String, Queue<Channel>> entry : channelPools.entrySet()) {
@@ -704,6 +800,7 @@ public class NettyManager {
             CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]))
                     .get(5, TimeUnit.SECONDS);
 
+            logging.logToOutput("[NettyManager] 连接池关闭完成");
         } catch (Exception e) {
             logging.logToError("[NettyManager] 关闭连接池时出错: " + e.getMessage());
         } finally {
@@ -714,8 +811,10 @@ public class NettyManager {
 
     private void shutdownEventLoopGroup() {
         try {
+            logging.logToOutput("[NettyManager] 关闭EventLoopGroup...");
             Future<?> shutdownFuture = eventLoopGroup.shutdownGracefully(1, 5, TimeUnit.SECONDS);
             shutdownFuture.get(10, TimeUnit.SECONDS);
+            logging.logToOutput("[NettyManager] EventLoopGroup关闭完成");
         } catch (Exception e) {
             logging.logToError("[NettyManager] EventLoopGroup关闭出错: " + e.getMessage());
         }
@@ -723,6 +822,7 @@ public class NettyManager {
 
     private void shutdownBusinessExecutor() {
         try {
+            logging.logToOutput("[NettyManager] 关闭业务线程池...");
             businessExecutor.shutdown();
 
             if (!businessExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -732,6 +832,7 @@ public class NettyManager {
                     logging.logToError("[NettyManager] 业务线程池强制关闭失败");
                 }
             }
+            logging.logToOutput("[NettyManager] 业务线程池关闭完成");
         } catch (InterruptedException e) {
             businessExecutor.shutdownNow();
             Thread.currentThread().interrupt();
