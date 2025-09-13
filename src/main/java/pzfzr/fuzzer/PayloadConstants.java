@@ -33,6 +33,7 @@ public class PayloadConstants {
      */
     public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("null", "null"),
             new PayloadInfo("%", "%"),
             new PayloadInfo("%00", "%00"),
             new PayloadInfo("*", "*"),
@@ -91,6 +92,7 @@ public class PayloadConstants {
      */
     public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),                              // ROUTE12
+            new PayloadInfo("null", "null"),                              // ROUTE12
             // 其他ROUTE类型payload
 //            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
             new PayloadInfo("{path}&chaxx=cha", "{param}&chaxx=cha"),
