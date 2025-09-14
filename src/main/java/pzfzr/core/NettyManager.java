@@ -355,7 +355,7 @@ public class NettyManager {
 
                 // HTTP编解码
                 p.addLast("codec", new HttpClientCodec());
-                p.addLast("aggregator", new HttpObjectAggregator(10 * 1024 * 1024));
+                p.addLast("aggregator", new HttpObjectAggregator(30 * 1024 * 1024));// 30MB
 
                 // 响应处理
                 p.addLast("handler", new ResponseChannelHandler());
