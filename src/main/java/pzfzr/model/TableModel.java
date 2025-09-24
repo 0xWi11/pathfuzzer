@@ -75,14 +75,14 @@ public class TableModel extends AbstractTableModel {
                     shouldGray = true;
                 }
 
-                // 检查是否为特殊alias且testtype是route2或route3
+                // 检查是否为特殊alias且testtype是route1、route2或route3
                 if (!shouldGray && payloadValue != null) {
                     String payload = payloadValue.toString();
                     Object testTypeValue = table.getValueAt(row, 3); // Test Type列索引为3
 
                     if (testTypeValue != null) {
                         String testType = testTypeValue.toString().toLowerCase();
-                        if ((testType.equals("route2") || testType.equals("route3")) &&
+                        if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")) &&
                                 SPECIAL_ALIASES.contains(payload)) {
                             shouldGray = true;
                         }
