@@ -352,7 +352,7 @@ public class RateLimiter {
                 int diff = currentCount - lastCount;
                 double rate = diff / 20.0; // 20秒内的请求速率
 
-                logging.logToOutput(String.format("[RateLimiter] Current rate: %.2f requests/sec, Total requests: %d, Tokens: %d/%d, URL rate limit: %d requests/sec, URL map size: %d, Token refill interval: %d ms",
+                logging.logToOutput(String.format("[RateLimiter]        Current rate: %.2f requests/sec, Total requests: %d, Tokens: %d/%d, URL rate limit: %d requests/sec, URL map size: %d, Token refill interval: %d ms",
                         rate, currentCount, tokens.get(), capacity, urlRateLimit, urlThrottleMap.size(), refillIntervalMillis));
 
                 lastCount = currentCount;
