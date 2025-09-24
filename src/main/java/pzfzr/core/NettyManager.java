@@ -57,6 +57,7 @@ public class NettyManager {
 
     // 业务线程池
     private final ExecutorService businessExecutor;
+    private static final AtomicInteger BUSINESS_THREAD_COUNTER = new AtomicInteger(1);
 
     // 监控线程池 - 修复：存储为实例变量
     private final ScheduledExecutorService monitorExecutor;
@@ -115,7 +116,7 @@ public class NettyManager {
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(1000),
                 r -> {
-                    Thread t = new Thread(r, "netty-business-" + Thread.currentThread().getId());
+                    Thread t = new Thread(r, "netty-business-" + BUSINESS_THREAD_COUNTER.getAndIncrement() );
                     t.setDaemon(true);
                     return t;
                 },
@@ -826,16 +827,25 @@ public class NettyManager {
             businessExecutor.shutdown();
 
             if (!businessExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                // 如果优雅关闭失败，强制关闭
+                logging.logToOutput("[NettyManager] Business executor graceful shutdown timeout, forcing shutdown...");
                 businessExecutor.shutdownNow();
 
                 if (!businessExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
-                    logging.logToOutput("[NettyManager] Business executor shutdown complete");
+                    // 强制关闭也失败了
+                    logging.logToError("[NettyManager] Business executor forced shutdown failed");
+                } else {
+                    // 强制关闭成功
+                    logging.logToOutput("[NettyManager] Business executor forced shutdown complete");
                 }
+            } else {
+                // 优雅关闭成功
+                logging.logToOutput("[NettyManager] Business executor graceful shutdown complete");
             }
-            logging.logToError("[NettyManager] Business executor forced shutdown failed");
         } catch (InterruptedException e) {
             businessExecutor.shutdownNow();
             Thread.currentThread().interrupt();
+            logging.logToOutput("[NettyManager] Business executor shutdown interrupted, forced shutdown executed");
         }
     }
 
