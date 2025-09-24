@@ -80,8 +80,7 @@ public class JsonLister {
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[JsonLister] 初始化完成，使用新NettyManager客户端");
-    }
+        logging.logToOutput("[JsonLister] Initialization complete, using new NettyManager client");    }
 
     /**
      * 生成随机hash值
@@ -1155,12 +1154,10 @@ public class JsonLister {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[JsonLister] 开始关闭...");
-
+            logging.logToOutput("[JsonLister] Starting shutdown...");
             // NettyManager会自动处理连接关闭
             // 不需要额外的清理工作
 
-            logging.logToOutput("[JsonLister] 关闭完成");
-        }
+            logging.logToOutput("[JsonLister] Shutdown complete");        }
     }
 }

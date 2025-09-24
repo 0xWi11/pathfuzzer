@@ -74,7 +74,7 @@ public class RouteFuzzer {
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[RouteFuzzer] 初始化完成，使用新NettyManager客户端");
+        logging.logToOutput("[RouteFuzzer] Initialization completed using new NettyManager client");
     }
 
     /**
@@ -455,12 +455,12 @@ public class RouteFuzzer {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[RouteFuzzer] 开始关闭...");
+            logging.logToOutput("[RouteFuzzer] Starting shutdown...");
 
             // NettyManager会自动处理连接关闭
             // 不需要额外的清理工作
 
-            logging.logToOutput("[RouteFuzzer] 关闭完成");
+            logging.logToOutput("[RouteFuzzer] Shutdown completed");
         }
     }
 }

@@ -118,9 +118,10 @@ public class RateLimiter {
         urlThrottleThread.setName("url-throttle-reset");
         urlThrottleThread.start();
 
-        logging.logToOutput("[RateLimiter] 初始化完成，容量: " + capacity + ", 速率: " + refillRate +
-                " 请求/秒, URL限流: " + urlRateLimit + " 请求/秒, URL过期时间: " + (urlExpireTime/1000) + " 秒" +
-                ", 令牌添加间隔: " + refillIntervalMillis + " 毫秒");
+        logging.logToOutput("[RateLimiter] Initialized. Capacity: " + capacity + ", Rate: " + refillRate +
+                " requests/sec, URL rate limit: " + urlRateLimit + " requests/sec, URL expiry: " + (urlExpireTime/1000) + " sec" +
+                ", Token refill interval: " + refillIntervalMillis + " ms");
+
     }
 
     /**
@@ -180,7 +181,7 @@ public class RateLimiter {
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    logging.logToError("[RateLimiter] 等待令牌被中断");
+                    logging.logToError("[RateLimiter] Waiting for token was interrupted");
                     return;
                 }
             }
@@ -214,7 +215,7 @@ public class RateLimiter {
                     Thread.sleep(50); // 稍等片刻再次尝试
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    logging.logToError("[RateLimiter] 等待URL限流被中断");
+                    logging.logToError("[RateLimiter] Waiting for token was interrupted");
                     return;
                 }
             }
@@ -231,7 +232,7 @@ public class RateLimiter {
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    logging.logToError("[RateLimiter] 等待令牌被中断");
+                    logging.logToError("[RateLimiter] Waiting for token was interrupted");
                     return;
                 }
             }
@@ -351,7 +352,7 @@ public class RateLimiter {
                 int diff = currentCount - lastCount;
                 double rate = diff / 20.0; // 20秒内的请求速率
 
-                logging.logToOutput(String.format("[RateLimiter] 当前速率: %.2f 请求/秒, 总请求数: %d, 当前令牌数: %d/%d, URL限流: %d 请求/秒, URL映射数量: %d, 令牌添加间隔: %d 毫秒",
+                logging.logToOutput(String.format("[RateLimiter] Current rate: %.2f requests/sec, Total requests: %d, Tokens: %d/%d, URL rate limit: %d requests/sec, URL map size: %d, Token refill interval: %d ms",
                         rate, currentCount, tokens.get(), capacity, urlRateLimit, urlThrottleMap.size(), refillIntervalMillis));
 
                 lastCount = currentCount;
@@ -395,19 +396,19 @@ public class RateLimiter {
     public void updateConfiguration(int newCapacity, int newRefillRate, int newUrlRateLimit, long newUrlExpireTime,
                                     long newRefillIntervalMillis, int maxHeadersPerBatch) {
         if (newCapacity <= 0 || newRefillRate < 0 || newUrlRateLimit < 0 || newUrlExpireTime < 0 || newRefillIntervalMillis <= 0) {
-            logging.logToError("[RateLimiter] 无效的配置值: 容量=" + newCapacity + ", 速率=" + newRefillRate +
-                    ", URL限流=" + newUrlRateLimit + ", URL过期时间=" + newUrlExpireTime +
-                    ", 令牌添加间隔=" + newRefillIntervalMillis);
+            logging.logToError("[RateLimiter] Invalid configuration: Capacity=" + newCapacity + ", Rate=" + newRefillRate +
+                    ", URL rate limit=" + newUrlRateLimit + ", URL expiry=" + newUrlExpireTime +
+                    ", Token refill interval=" + newRefillIntervalMillis);
             return;
         }
 
         lock.lock();
         try {
-            logging.logToOutput("[RateLimiter] 更新配置: 容量 " + capacity + "->" + newCapacity +
-                    ", 速率 " + refillRate + "->" + newRefillRate + " 请求/秒" +
-                    ", URL限流 " + urlRateLimit + "->" + newUrlRateLimit + " 请求/秒" +
-                    ", URL过期时间 " + (urlExpireTime/1000) + "->" + (newUrlExpireTime/1000) + " 秒" +
-                    ", 令牌添加间隔 " + refillIntervalMillis + "->" + newRefillIntervalMillis + " 毫秒");
+            logging.logToOutput("[RateLimiter] Updated configuration: Capacity " + capacity + "->" + newCapacity +
+                    ", Rate " + refillRate + "->" + newRefillRate + " requests/sec" +
+                    ", URL rate limit " + urlRateLimit + "->" + newUrlRateLimit + " requests/sec" +
+                    ", URL expiry " + (urlExpireTime/1000) + "->" + (newUrlExpireTime/1000) + " sec" +
+                    ", Token refill interval " + refillIntervalMillis + "->" + newRefillIntervalMillis + " ms");
 
             // Store previous values to check for changes
             int prevUrlRateLimit = this.urlRateLimit;
@@ -428,7 +429,7 @@ public class RateLimiter {
             if (prevUrlRateLimit != newUrlRateLimit || prevUrlExpireTime != newUrlExpireTime) {
                 // Clear all URL throttle entries to apply new settings immediately
                 urlThrottleMap.clear();
-                logging.logToOutput("[RateLimiter] URL限流配置已更改，重置所有URL计数器");
+                logging.logToOutput("[RateLimiter] URL rate limit configuration changed, reset all URL counters");
             }
 
             // 如果新容量大于当前令牌数，可以立即添加一些令牌
@@ -506,7 +507,7 @@ public class RateLimiter {
      * 关闭速率限制器
      */
     public void shutdown() {
-        logging.logToOutput("[RateLimiter] 正在关闭速率限制器");
+        logging.logToOutput("[RateLimiter] Shutting down rate limiter");
         isShutdown = true;
 
         lock.lock();

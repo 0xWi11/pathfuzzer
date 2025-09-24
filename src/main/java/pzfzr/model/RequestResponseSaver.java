@@ -99,7 +99,7 @@ public class RequestResponseSaver {
         // 启动批处理写入线程
         startBatchWriter();
 
-        logging.logToOutput("[RequestResponseSaver] 初始化完成，存储目录: " + STORAGE_DIR);
+        logging.logToOutput("[RequestResponseSaver] Initialization complete, storage directory: " + STORAGE_DIR);
     }
 
     /**
@@ -410,7 +410,7 @@ public class RequestResponseSaver {
      * 获取统计信息
      */
     public String getStats() {
-        return String.format("存储统计 - 总写入: %d, 总读取: %d, 写入错误: %d, 待处理: %d",
+        return String.format("Storage Stats - Total Writes: %d, Total Reads: %d, Write Errors: %d, Pending: %d",
                 totalWrites.get(), totalReads.get(), writeErrors.get(), writeQueue.size());
     }
 
@@ -418,7 +418,7 @@ public class RequestResponseSaver {
      * 清理存储
      */
     public void cleanupStorage() {
-        logging.logToOutput("[RequestResponseSaver] 开始清理...");
+        logging.logToOutput("[RequestResponseSaver] Starting cleanup...");
         isShutdown = true;
 
         // 等待所有待处理的写入完成
@@ -455,14 +455,14 @@ public class RequestResponseSaver {
             try {
                 if (Files.list(STORAGE_DIR).findAny().isEmpty()) {
                     Files.delete(STORAGE_DIR);
-                    logging.logToOutput("[RequestResponseSaver] 删除空目录: " + STORAGE_DIR);
+                    logging.logToOutput("[RequestResponseSaver] Deleted empty directory: " + STORAGE_DIR);
                 }
             } catch (IOException e) {
-                logging.logToError("[RequestResponseSaver] 清理目录失败: " + e.getMessage());
+                logging.logToError("[RequestResponseSaver] Failed to clean directory: " + e.getMessage());
             }
         }
 
-        logging.logToOutput("[RequestResponseSaver] 清理完成. " + getStats());
+        logging.logToOutput("[RequestResponseSaver] Cleanup complete. " + getStats());
     }
 
     public Path getDailyStorageDir() {

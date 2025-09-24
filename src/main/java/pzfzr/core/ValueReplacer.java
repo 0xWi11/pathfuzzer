@@ -235,8 +235,7 @@ public class ValueReplacer {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[ValueReplacer] 开始关闭所有组件...");
-
+            logging.logToOutput("[ValueReplacer] Starting to shut down all components...");
             // 异步执行关闭过程，避免阻塞调用线程
             CompletableFuture.runAsync(this::performShutdown);
         }
@@ -256,11 +255,10 @@ public class ValueReplacer {
             shutdownExecutors();
 
         } catch (Exception e) {
-            logging.logToError("[ValueReplacer] 关闭过程中出错: " + e.getMessage());
+            logging.logToError("[ValueReplacer] Error during shutdown: " + e.getMessage());
         } finally {
             shutdownLatch.countDown();
-            logging.logToOutput("[ValueReplacer] 所有组件关闭完成");
-        }
+            logging.logToOutput("[ValueReplacer] All components shut down completely");        }
     }
 
     private void shutdownSubComponents() {
@@ -273,7 +271,7 @@ public class ValueReplacer {
                     jsonLister.setShuttingDown(true);
                 }
             } catch (Exception e) {
-                logging.logToError("[ValueReplacer] 关闭JsonLister时出错: " + e.getMessage());
+                logging.logToError("[ValueReplacer] Error shutting down JsonLister: " + e.getMessage());
             }
         }));
 
@@ -283,7 +281,7 @@ public class ValueReplacer {
                     routeFuzzer.setShuttingDown(true);
                 }
             } catch (Exception e) {
-                logging.logToError("[ValueReplacer] 关闭RouteFuzzer时出错: " + e.getMessage());
+                logging.logToError("[ValueReplacer] Error shutting down RouteFuzzer: " + e.getMessage());
             }
         }));
 
@@ -293,7 +291,7 @@ public class ValueReplacer {
                     paramFuzzer.setShuttingDown(true);
                 }
             } catch (Exception e) {
-                logging.logToError("[ValueReplacer] 关闭ParamFuzzer时出错: " + e.getMessage());
+                logging.logToError("[ValueReplacer] Error shutting down ParamFuzzer: " + e.getMessage());
             }
         }));
 
@@ -303,7 +301,7 @@ public class ValueReplacer {
                     paramDeleter.setShuttingDown(true);
                 }
             } catch (Exception e) {
-                logging.logToError("[ValueReplacer] 关闭ParamDeleter时出错: " + e.getMessage());
+                logging.logToError("[ValueReplacer] Error shutting down ParamDeleter: " + e.getMessage());
             }
         }));
 
@@ -312,9 +310,9 @@ public class ValueReplacer {
             CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
                     .get(5, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
-            logging.logToOutput("[ValueReplacer] 子组件关闭超时，继续执行后续关闭流程");
+            logging.logToOutput("[ValueReplacer] Sub-component shutdown timed out, proceeding with the rest of the shutdown process");
         } catch (Exception e) {
-            logging.logToError("[ValueReplacer] 等待子组件关闭时出错: " + e.getMessage());
+            logging.logToError("[ValueReplacer] Error while waiting for sub-components to shut down: " + e.getMessage());
         }
     }
 
@@ -327,12 +325,12 @@ public class ValueReplacer {
 
                 for (int i = 0; i < maxWaitSeconds; i++) {
                     if (executor.getActiveCount() == 0 && executor.getQueue().isEmpty()) {
-                        logging.logToOutput("[ValueReplacer] 所有异步任务已完成");
+                        logging.logToOutput("[ValueReplacer] All asynchronous tasks completed");
                         break;
                     }
 
                     if (forceShutdownRequested) {
-                        logging.logToOutput("[ValueReplacer] 收到强制关闭请求，停止等待");
+                        logging.logToOutput("[ValueReplacer] Received force shutdown request, stopping wait");
                         break;
                     }
 
@@ -341,7 +339,7 @@ public class ValueReplacer {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logging.logToOutput("[ValueReplacer] 等待任务完成时被中断");
+            logging.logToOutput("[ValueReplacer] Waiting for tasks to complete was interrupted");
         }
     }
 
@@ -350,19 +348,19 @@ public class ValueReplacer {
             asyncExecutor.shutdown();
 
             if (!asyncExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                logging.logToOutput("[ValueReplacer] 正常关闭超时，强制关闭异步执行器");
+                logging.logToOutput("[ValueReplacer] Graceful shutdown timed out, force shutting down async executor");
                 asyncExecutor.shutdownNow();
 
                 if (!asyncExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
-                    logging.logToError("[ValueReplacer] 强制关闭异步执行器失败");
+                    logging.logToError("[ValueReplacer] Force shutdown of async executor failed");
                 }
             }
         } catch (InterruptedException e) {
-            logging.logToError("[ValueReplacer] 关闭异步执行器时被中断");
+            logging.logToError("[ValueReplacer] Shutdown of async executor was interrupted");
             asyncExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            logging.logToError("[ValueReplacer] 关闭异步执行器时出错: " + e.getMessage());
+            logging.logToError("[ValueReplacer] Error while shutting down async executor: " + e.getMessage());
         }
     }
 

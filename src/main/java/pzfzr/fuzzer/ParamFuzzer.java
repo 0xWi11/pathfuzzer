@@ -68,7 +68,7 @@ public class ParamFuzzer {
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[ParamFuzzer] 初始化完成，使用NettyManager客户端");
+        logging.logToOutput("[ParamFuzzer] Initialization completed using NettyManager client");
     }
 
     /**
@@ -443,12 +443,12 @@ public class ParamFuzzer {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[ParamFuzzer] 开始关闭...");
+            logging.logToOutput("[ParamFuzzer] Starting shutdown...");
 
             // NettyManager会自动处理连接关闭
             // 不需要额外的清理工作，因为NettyManager内部管理了所有连接
 
-            logging.logToOutput("[ParamFuzzer] 关闭完成");
+            logging.logToOutput("[ParamFuzzer] Shutdown completed");
         }
     }
 

@@ -132,9 +132,9 @@ public class NettyManager {
         // 启动监控线程
         startMonitorThread();
 
-        logging.logToOutput("[NettyManager] 初始化完成，EventLoop线程数: " +
+        logging.logToOutput("[NettyManager] Initialization complete, EventLoop threads: " +
                 ((NioEventLoopGroup)eventLoopGroup).executorCount() +
-                "，代理: " + PROXY_HOST + ":" + PROXY_PORT);
+                ", Proxy: " + PROXY_HOST + ":" + PROXY_PORT);
     }
 
     /**
@@ -182,7 +182,7 @@ public class NettyManager {
             synchronized (NettyManager.class) {
                 if (instance == null || instance.isShutdown.get()) {
                     if (instance != null && instance.isShutdown.get()) {
-                        logging.logToOutput("[NettyManager] 检测到已关闭的实例，创建新实例");
+                        logging.logToOutput("[NettyManager] Detected closed instance, creating new instance");
                     }
                     instance = new NettyManager(logging, compressionUtils);
                 }
@@ -697,7 +697,7 @@ public class NettyManager {
             return;
         }
 
-        logging.logToOutput("[NettyManager] 开始关闭...");
+        logging.logToOutput("[NettyManager] Starting shutdown...");
 
         // 标记为关闭状态
         isShutdown.set(true);
@@ -723,11 +723,11 @@ public class NettyManager {
             // 第五步：关闭业务线程池
             shutdownBusinessExecutor();
 
-            logging.logToOutput(String.format("[NettyManager] 关闭完成. 总请求: %d, 成功: %d, 失败: %d",
+            logging.logToOutput(String.format("[NettyManager] Shutdown complete. Total requests: %d, Success: %d, Failed: %d",
                     totalRequests.get(), successRequests.get(), failedRequests.get()));
 
         } catch (Exception e) {
-            logging.logToError("[NettyManager] 关闭过程中出错: " + e.getMessage());
+            logging.logToError("[NettyManager] Error occurred during shutdown: " + e.getMessage());
         } finally {
             shutdownLatch.countDown();
         }
@@ -738,17 +738,17 @@ public class NettyManager {
      */
     private void shutdownMonitorExecutor() {
         try {
-            logging.logToOutput("[NettyManager] 关闭监控线程...");
+            logging.logToOutput("[NettyManager] Shutting down monitor thread...");
             monitorExecutor.shutdown();
 
             if (!monitorExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
                 monitorExecutor.shutdownNow();
 
                 if (!monitorExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
-                    logging.logToError("[NettyManager] 监控线程池强制关闭失败");
+                    logging.logToError("[NettyManager] Monitor thread pool forced shutdown failed");
                 }
             }
-            logging.logToOutput("[NettyManager] 监控线程关闭完成");
+            logging.logToOutput("[NettyManager] Monitor thread shutdown complete");
         } catch (InterruptedException e) {
             monitorExecutor.shutdownNow();
             Thread.currentThread().interrupt();
@@ -767,7 +767,7 @@ public class NettyManager {
             }
 
             if (activeRequests.get() > 0) {
-                logging.logToOutput("[NettyManager] 仍有 " + activeRequests.get() + " 个请求未完成，强制继续关闭");
+                logging.logToOutput("[NettyManager] There are still " + activeRequests.get() + " pending requests, forcing shutdown");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -776,7 +776,7 @@ public class NettyManager {
 
     private void closeAllPooledConnections() {
         try {
-            logging.logToOutput("[NettyManager] 关闭连接池...");
+            logging.logToOutput("[NettyManager] Closing connection pools...");
             List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
 
             for (Map.Entry<String, Queue<Channel>> entry : channelPools.entrySet()) {
@@ -800,9 +800,9 @@ public class NettyManager {
             CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]))
                     .get(5, TimeUnit.SECONDS);
 
-            logging.logToOutput("[NettyManager] 连接池关闭完成");
+            logging.logToOutput("[NettyManager] Connection pools shutdown complete");
         } catch (Exception e) {
-            logging.logToError("[NettyManager] 关闭连接池时出错: " + e.getMessage());
+            logging.logToError("[NettyManager] Error closing connection pools: " + e.getMessage());
         } finally {
             channelPools.clear();
             channelInfoMap.clear();
@@ -811,28 +811,28 @@ public class NettyManager {
 
     private void shutdownEventLoopGroup() {
         try {
-            logging.logToOutput("[NettyManager] 关闭EventLoopGroup...");
+            logging.logToOutput("[NettyManager] Shutting down EventLoopGroup...");
             Future<?> shutdownFuture = eventLoopGroup.shutdownGracefully(1, 5, TimeUnit.SECONDS);
             shutdownFuture.get(10, TimeUnit.SECONDS);
-            logging.logToOutput("[NettyManager] EventLoopGroup关闭完成");
+            logging.logToOutput("[NettyManager] EventLoopGroup shutdown complete");
         } catch (Exception e) {
-            logging.logToError("[NettyManager] EventLoopGroup关闭出错: " + e.getMessage());
+            logging.logToError("[NettyManager] EventLoopGroup shutdown error: " + e.getMessage());
         }
     }
 
     private void shutdownBusinessExecutor() {
         try {
-            logging.logToOutput("[NettyManager] 关闭业务线程池...");
+            logging.logToOutput("[NettyManager] Shutting down business executor...");
             businessExecutor.shutdown();
 
             if (!businessExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 businessExecutor.shutdownNow();
 
                 if (!businessExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
-                    logging.logToError("[NettyManager] 业务线程池强制关闭失败");
+                    logging.logToOutput("[NettyManager] Business executor shutdown complete");
                 }
             }
-            logging.logToOutput("[NettyManager] 业务线程池关闭完成");
+            logging.logToError("[NettyManager] Business executor forced shutdown failed");
         } catch (InterruptedException e) {
             businessExecutor.shutdownNow();
             Thread.currentThread().interrupt();

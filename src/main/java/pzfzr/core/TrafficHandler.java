@@ -270,7 +270,7 @@ public class TrafficHandler implements HttpHandler {
 
             // 等待正在执行的任务完成
             if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
-                api.logging().logToOutput("[TrafficHandler] 正常关闭超时，开始强制关闭");
+                api.logging().logToOutput("[TrafficHandler] Graceful shutdown timed out, starting force shutdown");
 
                 // 中断活跃线程
                 cancelActiveThreads();
@@ -279,7 +279,7 @@ public class TrafficHandler implements HttpHandler {
                 executorService.shutdownNow();
 
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    api.logging().logToError("[TrafficHandler] 强制关闭失败，部分线程可能仍在运行");
+                    api.logging().logToError("[TrafficHandler] Force shutdown failed, some threads may still be running");
                 }
             }
 

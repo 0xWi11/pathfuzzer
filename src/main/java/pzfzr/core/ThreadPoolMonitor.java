@@ -123,12 +123,11 @@ public class ThreadPoolMonitor {
 
                 StringBuilder status = new StringBuilder();
                 status.append("[Thread Pool Status] ").append(currentTime).append(" - ");
-                status.append("线程池大小: ").append(executor.getPoolSize()).append(", ");
-                status.append("活跃线程数: ").append(executor.getActiveCount()).append(", ");
-                status.append("等待队列中的任务数: ").append(executor.getQueue().size()).append(" - ");
-                status.append("总任务数: ").append(totalTasks);
-                // 添加进度条和百分比信息
-                status.append(", 已完成: ").append(completedTasks).append("/").append(totalTasks);
+                status.append("Pool size: ").append(executor.getPoolSize()).append(", ");
+                status.append("Active threads: ").append(executor.getActiveCount()).append(", ");
+                status.append("Tasks in queue: ").append(executor.getQueue().size()).append(" - ");
+                status.append("Total tasks: ").append(totalTasks);
+                status.append(", Completed: ").append(completedTasks).append("/").append(totalTasks);
                 status.append(" ").append(progressBar.toString()); // 添加进度条
                 status.append(" (").append(progressPercentage).append(")"); // 添加百分比
 

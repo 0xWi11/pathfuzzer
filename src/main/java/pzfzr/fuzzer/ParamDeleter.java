@@ -61,8 +61,7 @@ public class ParamDeleter {
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[ParamDeleter] 初始化完成，使用新NettyManager客户端");
-    }
+        logging.logToOutput("[ParamDeleter] Initialization complete, using new NettyManager client");    }
 
     /**
      * 设置最大参数数量限制
@@ -726,13 +725,11 @@ public class ParamDeleter {
         this.isShuttingDown = shuttingDown;
 
         if (shuttingDown) {
-            logging.logToOutput("[ParamDeleter] 开始关闭...");
-
+            logging.logToOutput("[ParamDeleter] Starting shutdown...");
             // NettyManager会自动处理连接关闭
             // 不需要额外的清理工作
 
-            logging.logToOutput("[ParamDeleter] 关闭完成");
-        }
+            logging.logToOutput("[ParamDeleter] Shutdown complete");        }
     }
 
     /**
