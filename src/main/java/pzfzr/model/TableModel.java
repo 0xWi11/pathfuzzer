@@ -37,9 +37,23 @@ public class TableModel extends AbstractTableModel {
             "Reflect"
     };
 
-    // 为"Len Diff"列创建自定义单元格渲染器，当同一行Payload包含"chaxx"时显示灰色背景
-    public static class LenDiffCellRenderer extends DefaultTableCellRenderer {
-        // 定义当Payload包含"chaxx"时使用的灰色背景
+    // 定义需要染成灰色的特殊alias列表
+    private static final Set<String> SPECIAL_ALIASES = new HashSet<>(Arrays.asList(
+            "{path}\\..X8",
+            "{path}%5c..X8",
+            "{path}%2f..X8",
+            "{path}/..X8",
+            "{path}%252f..X8",
+            "{path}/%2E%2EX8",
+            "{path}%2F%2E%2EX8",
+            "{path}//..X8",
+            "{path}%2f%2f..X8",
+            "{path}/..;X8"
+    ));
+
+    // 通用的自定义单元格渲染器，用于Payload、Modif len和Len Diff列
+    public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
+        // 定义当Payload包含"chaxx"或符合特殊条件时使用的灰色背景
         private static final Color CHAXX_BACKGROUND_COLOR = new Color(230, 230, 230);
 
         @Override
@@ -53,9 +67,29 @@ public class TableModel extends AbstractTableModel {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
+                boolean shouldGray = false;
+
                 // 检查同一行的Payload列（索引5）是否包含"chaxx"
                 Object payloadValue = table.getValueAt(row, 5);
                 if (payloadValue != null && payloadValue.toString().equals("chaxx")) {
+                    shouldGray = true;
+                }
+
+                // 检查是否为特殊alias且testtype是route2或route3
+                if (!shouldGray && payloadValue != null) {
+                    String payload = payloadValue.toString();
+                    Object testTypeValue = table.getValueAt(row, 3); // Test Type列索引为3
+
+                    if (testTypeValue != null) {
+                        String testType = testTypeValue.toString().toLowerCase();
+                        if ((testType.equals("route2") || testType.equals("route3")) &&
+                                SPECIAL_ALIASES.contains(payload)) {
+                            shouldGray = true;
+                        }
+                    }
+                }
+
+                if (shouldGray) {
                     // 设置为灰色背景
                     c.setBackground(CHAXX_BACKGROUND_COLOR);
                 } else {
@@ -72,6 +106,8 @@ public class TableModel extends AbstractTableModel {
             return c;
         }
     }
+
+
 
     // 为Reflect字段创建自定义单元格渲染器
     public static class ReflectCellRenderer extends DefaultTableCellRenderer {
@@ -460,7 +496,7 @@ public class TableModel extends AbstractTableModel {
         table.setRowSorter(sorter);
     }
 
-    // 更新setupTableRenderers方法，为"Len Diff"列设置LenDiffCellRenderer
+    // 更新setupTableRenderers方法，为Payload、modif len和Len Diff列设置统一的灰色背景渲染器
     public void setupTableRenderers(JTable table) {
         // 为"Reflect"列（索引12）设置ReflectCellRenderer
         table.getColumnModel().getColumn(12).setCellRenderer(new ReflectCellRenderer());
@@ -471,8 +507,14 @@ public class TableModel extends AbstractTableModel {
         // 为"Modif. Time"列（索引11）设置TimeCellRenderer
         table.getColumnModel().getColumn(11).setCellRenderer(new TimeCellRenderer());
 
-        // 为"Len Diff"列（索引7）设置LenDiffCellRenderer - 新位置
-        table.getColumnModel().getColumn(7).setCellRenderer(new LenDiffCellRenderer());
+        // 为"Payload"列（索引5）设置GrayBackgroundCellRenderer
+        table.getColumnModel().getColumn(5).setCellRenderer(new GrayBackgroundCellRenderer());
+
+        // 为"Len Diff"列（索引7）设置GrayBackgroundCellRenderer（统一逻辑）
+        table.getColumnModel().getColumn(7).setCellRenderer(new GrayBackgroundCellRenderer());
+
+        // 为"Modif. len"列（索引8）设置GrayBackgroundCellRenderer
+        table.getColumnModel().getColumn(8).setCellRenderer(new GrayBackgroundCellRenderer());
     }
 
     public ModifiedRequestResponse getModifiedEntry(int row) {
