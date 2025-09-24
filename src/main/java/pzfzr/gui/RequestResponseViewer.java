@@ -325,7 +325,7 @@ public class RequestResponseViewer extends JPanel {
         private JPanel titlePanel;
         private JButton collapseButton;
         private int preferredWidth = 300; // 默认宽度
-        private int collapsedWidth = 150;  // 折叠宽度
+        private int collapsedWidth = 30;  // 折叠宽度
 
         public ResizablePanel(String title, Component content) {
             super();
@@ -342,21 +342,21 @@ public class RequestResponseViewer extends JPanel {
             // 创建标题栏
             titlePanel = new JPanel(new BorderLayout());
             titlePanel.setBackground(new Color(248, 249, 250));
-            titlePanel.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 8));
+            titlePanel.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4)); // 修改：减小左右边距以适应30px宽度
             titlePanel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
 
             JLabel titleLabel = new JLabel(title);
-            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 11f));
+            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 9f)); // 修改：减小字体大小
             titleLabel.setForeground(new Color(52, 58, 64));
 
             // 创建按钮面板
-            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 1, 0)); // 修改：进一步减小间距
             buttonPanel.setOpaque(false);
 
             // 折叠按钮
             collapseButton = new JButton("−");
-            collapseButton.setFont(new Font(Font.MONOSPACED, Font.BOLD, 12));
-            collapseButton.setPreferredSize(new Dimension(18, 18));
+            collapseButton.setFont(new Font(Font.MONOSPACED, Font.BOLD, 10)); // 修改：减小字体大小
+            collapseButton.setPreferredSize(new Dimension(15, 15)); // 修改：减小按钮大小
             collapseButton.setFocusPainted(false);
             collapseButton.setBorderPainted(false);
             collapseButton.setContentAreaFilled(false);
@@ -382,13 +382,8 @@ public class RequestResponseViewer extends JPanel {
 
             collapseButton.addActionListener(e -> toggleCollapse());
 
-            // 拖拽图标
-            JLabel dragIcon = new JLabel("⋮⋮");
-            dragIcon.setForeground(new Color(134, 142, 150));
-            dragIcon.setFont(dragIcon.getFont().deriveFont(Font.BOLD, 10f));
-
+            // 折叠状态下不显示拖拽图标和标题，只显示按钮
             buttonPanel.add(collapseButton);
-            buttonPanel.add(dragIcon);
 
             titlePanel.add(titleLabel, BorderLayout.CENTER);
             titlePanel.add(buttonPanel, BorderLayout.EAST);
@@ -409,11 +404,35 @@ public class RequestResponseViewer extends JPanel {
                 collapseButton.setText("+");
                 collapseButton.setToolTipText("展开面板");
                 content.setVisible(false);
+                // 折叠状态下隐藏标题文字，只保留按钮
+                titlePanel.removeAll();
+                JPanel buttonOnlyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+                buttonOnlyPanel.setOpaque(false);
+                buttonOnlyPanel.add(collapseButton);
+                titlePanel.add(buttonOnlyPanel, BorderLayout.CENTER);
+                titlePanel.setBorder(BorderFactory.createEmptyBorder(1, 2, 1, 2));
             } else {
                 collapseButton.setText("−");
                 collapseButton.setToolTipText("折叠面板");
                 content.setVisible(true);
+                // 展开状态下恢复原有布局
+                titlePanel.removeAll();
+
+                JLabel titleLabel = new JLabel(title);
+                titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 9f));
+                titleLabel.setForeground(new Color(52, 58, 64));
+
+                JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 1, 0));
+                buttonPanel.setOpaque(false);
+                buttonPanel.add(collapseButton);
+
+                titlePanel.add(titleLabel, BorderLayout.CENTER);
+                titlePanel.add(buttonPanel, BorderLayout.EAST);
+                titlePanel.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4));
             }
+
+            titlePanel.revalidate();
+            titlePanel.repaint();
 
             // 通知父容器重新布局
             if (parentContainer != null) {
@@ -427,7 +446,7 @@ public class RequestResponseViewer extends JPanel {
 
             // 手动布局子组件
             if (titlePanel != null && content != null) {
-                int titleHeight = 35;
+                int titleHeight = 15; // 修改：将标题高度设置为15像素
                 titlePanel.setBounds(0, 0, width, titleHeight);
 
                 if (isCollapsed) {
@@ -441,7 +460,7 @@ public class RequestResponseViewer extends JPanel {
         @Override
         public Dimension getPreferredSize() {
             if (isCollapsed) {
-                return new Dimension(collapsedWidth, 35);
+                return new Dimension(30, 15); // 修改：折叠时宽度为30像素
             } else {
                 return new Dimension(preferredWidth, 400);
             }
@@ -450,7 +469,7 @@ public class RequestResponseViewer extends JPanel {
         @Override
         public Dimension getMinimumSize() {
             if (isCollapsed) {
-                return new Dimension(collapsedWidth, 35);
+                return new Dimension(30, 15); // 修改：最小宽度也设置为30像素
             } else {
                 return new Dimension(200, 150);
             }

@@ -5,6 +5,7 @@ import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.TableModel;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.function.BiConsumer;
 import javax.swing.table.TableRowSorter;
@@ -93,6 +94,10 @@ public class HistoryPanel extends JPanel {
                 return false;
             }
         };
+
+        // 将表格行高从20像素减少到16像素（4/5）
+        table.setRowHeight(16);
+
         // 创建一个TableRowSorter并设置给表格
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(tableModel);
         table.setRowSorter(sorter);
