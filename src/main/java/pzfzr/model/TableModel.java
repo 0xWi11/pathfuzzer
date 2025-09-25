@@ -51,6 +51,27 @@ public class TableModel extends AbstractTableModel {
             "{path}/..;X8"
     ));
 
+    // 定义param类型需要染成灰色的特殊alias列表
+    private static final Set<String> PARAM_SPECIAL_ALIASES = new HashSet<>(Arrays.asList(
+            "{param}\\..X8",
+            "{param}%5c..X8",
+            "{param}%2f..X8",
+            "{param}/..X8",
+            "{param}%252f..X8",
+            "{param}/%2E%2EX8",
+            "{param}%2F%2E%2EX8",
+            "{param}//..X8",
+            "{param}%2f%2f..X8",
+            "{param}/..;X8"
+    ));
+
+    // 定义route1类型需要染成灰色的特殊alias列表
+    private static final Set<String> ROUTE1_SPECIAL_ALIASES = new HashSet<>(Arrays.asList(
+            "ng crlf",
+            "ng crlf2",
+            "ng crlf3"
+    ));
+
     // 通用的自定义单元格渲染器，用于Payload、Modif len和Len Diff列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
         // 定义当Payload包含"chaxx"或符合特殊条件时使用的灰色背景
@@ -69,23 +90,28 @@ public class TableModel extends AbstractTableModel {
             } else {
                 boolean shouldGray = false;
 
-                // 检查同一行的Payload列（索引5）是否包含"chaxx"
+                // 获取当前行的payload和test type值
                 Object payloadValue = table.getValueAt(row, 5);
-                if (payloadValue != null && payloadValue.toString().equals("chaxx")) {
-                    shouldGray = true;
-                }
+                Object testTypeValue = table.getValueAt(row, 3); // Test Type列索引为3
 
-                // 检查是否为特殊alias且testtype是route1、route2或route3
-                if (!shouldGray && payloadValue != null) {
+                if (payloadValue != null && testTypeValue != null) {
                     String payload = payloadValue.toString();
-                    Object testTypeValue = table.getValueAt(row, 3); // Test Type列索引为3
+                    String testType = testTypeValue.toString().toLowerCase();
 
-                    if (testTypeValue != null) {
-                        String testType = testTypeValue.toString().toLowerCase();
-                        if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")|| testType.equals("param")) &&
-                                SPECIAL_ALIASES.contains(payload)) {
-                            shouldGray = true;
-                        }
+                    // 检查是否为特殊alias且testtype是route1、route2或route3
+                    if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")) &&
+                            SPECIAL_ALIASES.contains(payload)) {
+                        shouldGray = true;
+                    }
+
+                    // 检查test type为param且alias为指定列表的情况
+                    if (!shouldGray && testType.equals("param") && PARAM_SPECIAL_ALIASES.contains(payload)) {
+                        shouldGray = true;
+                    }
+
+                    // 检查test type为route1且alias为指定列表的情况
+                    if (!shouldGray && testType.equals("route1") && ROUTE1_SPECIAL_ALIASES.contains(payload)) {
+                        shouldGray = true;
                     }
                 }
 
