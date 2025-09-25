@@ -98,6 +98,9 @@ public class HistoryPanel extends JPanel {
         // 将表格行高从20像素减少到16像素（4/5）
         table.setRowHeight(16);
 
+        // 设置表头高度为18像素
+        table.getTableHeader().setPreferredSize(new Dimension(0, 18));
+
         // 创建一个TableRowSorter并设置给表格
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(tableModel);
         table.setRowSorter(sorter);
