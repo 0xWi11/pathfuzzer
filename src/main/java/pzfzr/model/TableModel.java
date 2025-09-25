@@ -82,7 +82,7 @@ public class TableModel extends AbstractTableModel {
 
                     if (testTypeValue != null) {
                         String testType = testTypeValue.toString().toLowerCase();
-                        if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")) &&
+                        if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")|| testType.equals("param")) &&
                                 SPECIAL_ALIASES.contains(payload)) {
                             shouldGray = true;
                         }
