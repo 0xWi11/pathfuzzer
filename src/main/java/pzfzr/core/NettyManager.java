@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * NettyManager - 修复版本，完善关闭机制
+ * NettyManager - 修复版本，完善关闭机制，新增重试机制
  */
 public class NettyManager {
     private static volatile NettyManager instance;
@@ -69,10 +69,15 @@ public class NettyManager {
     private static final int READ_TIMEOUT_SEC = 120;
     private static final int WRITE_TIMEOUT_SEC = 60;
 
+    // 重试配置
+    private static final int MAX_RETRY_COUNT = 2; // 最大重试次数
+    private static final long RETRY_DELAY_MS = 500; // 重试延迟时间(毫秒)
+
     // 统计
     private final AtomicLong totalRequests = new AtomicLong(0);
     private final AtomicLong successRequests = new AtomicLong(0);
     private final AtomicLong failedRequests = new AtomicLong(0);
+    private final AtomicLong retryRequests = new AtomicLong(0); // 重试请求统计
     private final AtomicLong connectionCreated = new AtomicLong(0);
     private final AtomicLong connectionReused = new AtomicLong(0);
     private final AtomicLong connectionClosed = new AtomicLong(0);
@@ -150,13 +155,14 @@ public class NettyManager {
 
             if (DEBUG) {
                 logging.logToOutput(String.format(
-                        "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, " +
+                        "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, Retry: %d, " +
                                 "Connections - Created: %d, Reused: %d, Closed: %d, Pools: %d",
                         requestSemaphore.availablePermits(), 300,
                         activeRequests.get(),
                         totalRequests.get(),
                         successRequests.get(),
                         failedRequests.get(),
+                        retryRequests.get(),
                         connectionCreated.get(),
                         connectionReused.get(),
                         connectionClosed.get(),
@@ -200,9 +206,16 @@ public class NettyManager {
     }
 
     /**
-     * 发送HTTP请求
+     * 发送HTTP请求 - 新增重试功能
      */
     public CompletableFuture<HttpResponse> sendRequest(HttpRequest burpRequest, ResponseCallback callback) {
+        return sendRequestWithRetry(burpRequest, callback, 0);
+    }
+
+    /**
+     * 带重试的发送请求方法
+     */
+    private CompletableFuture<HttpResponse> sendRequestWithRetry(HttpRequest burpRequest, ResponseCallback callback, int retryCount) {
         CompletableFuture<HttpResponse> future = new CompletableFuture<>();
 
         if (isShutdown.get()) {
@@ -212,8 +225,9 @@ public class NettyManager {
 
         long requestId = totalRequests.incrementAndGet();
 
-        if (DEBUG) {
-            logging.logToOutput("[NettyManager] Request #" + requestId + " starting, URL: " + burpRequest.url());
+        if (DEBUG || retryCount > 0) {
+            logging.logToError("[NettyManager] Request #" + requestId + " starting" +
+                    (retryCount > 0 ? " (retry " + retryCount + ")" : "") + ", URL: " + burpRequest.url());
         }
 
         // 异步处理
@@ -252,14 +266,14 @@ public class NettyManager {
                 channelFuture.thenAccept(channel -> {
                     // 发送请求
                     sendRequestOnChannel(channel, requestInfo, burpRequest, future, callback,
-                            requestId, shouldKeepAlive);
+                            requestId, shouldKeepAlive, retryCount);
                 }).exceptionally(ex -> {
-                    handleRequestError(ex, future, callback, requestId, permitAcquired[0]);
+                    handleRequestError(ex, future, callback, requestId, permitAcquired[0], burpRequest, retryCount);
                     return null;
                 });
 
             } catch (Exception e) {
-                handleRequestError(e, future, callback, requestId, permitAcquired[0]);
+                handleRequestError(e, future, callback, requestId, permitAcquired[0], burpRequest, retryCount);
             }
         }, businessExecutor);
 
@@ -279,10 +293,70 @@ public class NettyManager {
     }
 
     /**
-     * 处理请求错误
+     * 判断是否为可重试的错误
+     */
+    private boolean isRetryableError(Throwable ex) {
+        if (ex == null) return false;
+
+        String message = ex.getMessage();
+        if (message == null) return false;
+
+        message = message.toLowerCase();
+
+        // 检查是否为握手超时错误
+        return message.contains("handshake timed out") ||
+                message.contains("connection timeout") ||
+                message.contains("connect timeout") ||
+                message.contains("connection reset") ||
+                message.contains("connection refused");
+    }
+
+    /**
+     * 处理请求错误 - 新增重试逻辑
      */
     private void handleRequestError(Throwable ex, CompletableFuture<HttpResponse> future,
-                                    ResponseCallback callback, long requestId, boolean permitAcquired) {
+                                    ResponseCallback callback, long requestId, boolean permitAcquired,
+                                    HttpRequest burpRequest, int retryCount) {
+
+        // 检查是否可以重试
+        if (retryCount < MAX_RETRY_COUNT && isRetryableError(ex) && !isShutdown.get()) {
+            // 释放当前请求的资源
+            if (permitAcquired) {
+                requestSemaphore.release();
+                acquiredPermits.decrementAndGet();
+            }
+            activeRequests.decrementAndGet();
+            retryRequests.incrementAndGet();
+
+            logging.logToError("[NettyManager] Request #" + requestId + " failed with retryable error: " +
+                    ex.getMessage() + ", will retry after " + RETRY_DELAY_MS + "ms");
+
+            // 延迟后重试
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(RETRY_DELAY_MS);
+                    // 递归调用重试
+                    CompletableFuture<HttpResponse> retryFuture = sendRequestWithRetry(burpRequest, callback, retryCount + 1);
+
+                    // 将重试结果转发到原来的future
+                    retryFuture.whenComplete((response, throwable) -> {
+                        if (throwable != null) {
+                            future.completeExceptionally(throwable);
+                        } else {
+                            future.complete(response);
+                        }
+                    });
+
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    future.completeExceptionally(ie);
+                }
+            }, businessExecutor);
+
+            return; // 不执行下面的失败处理逻辑
+        }
+
+        // 不可重试或重试次数已达上限，执行原来的错误处理逻辑
         if (permitAcquired) {
             requestSemaphore.release();
             acquiredPermits.decrementAndGet();
@@ -290,7 +364,9 @@ public class NettyManager {
         activeRequests.decrementAndGet();
         failedRequests.incrementAndGet();
 
-        logging.logToError("[NettyManager] Request #" + requestId + " failed: " + ex.getMessage());
+        String errorMsg = "[NettyManager] Request #" + requestId + " failed" +
+                (retryCount > 0 ? " after " + retryCount + " retries" : "") + ": " + ex.getMessage();
+        logging.logToError(errorMsg);
 
         future.completeExceptionally(ex);
         if (callback != null) {
@@ -384,11 +460,11 @@ public class NettyManager {
     }
 
     /**
-     * 在Channel上发送请求
+     * 在Channel上发送请求 - 修改增加重试计数参数
      */
     private void sendRequestOnChannel(Channel channel, RequestInfo requestInfo,
                                       HttpRequest burpRequest, CompletableFuture<HttpResponse> future,
-                                      ResponseCallback callback, long requestId, boolean keepAlive) {
+                                      ResponseCallback callback, long requestId, boolean keepAlive, int retryCount) {
         try {
             // 转换为Netty请求
             FullHttpRequest nettyRequest = convertToNettyRequest(burpRequest, requestInfo, keepAlive);
@@ -397,7 +473,7 @@ public class NettyManager {
             long startTime = System.nanoTime();
 
             // 设置响应处理器
-            ResponseContext context = new ResponseContext(future, callback, startTime, requestId, keepAlive);
+            ResponseContext context = new ResponseContext(future, callback, startTime, requestId, keepAlive, burpRequest, retryCount);
             channel.attr(AttributeKey.<ResponseContext>valueOf("context")).set(context);
 
             // 发送请求
@@ -411,19 +487,14 @@ public class NettyManager {
 
         } catch (Exception e) {
             handleChannelError(channel, e,
-                    new ResponseContext(future, callback, 0, requestId, keepAlive));
+                    new ResponseContext(future, callback, 0, requestId, keepAlive, burpRequest, retryCount));
         }
     }
 
     /**
-     * 处理Channel错误
+     * 处理Channel错误 - 修改增加重试逻辑
      */
     private void handleChannelError(Channel channel, Throwable cause, ResponseContext context) {
-        requestSemaphore.release();
-        acquiredPermits.decrementAndGet();
-        activeRequests.decrementAndGet();
-        failedRequests.incrementAndGet();
-
         // 关闭并移除失败的连接
         channel.close();
         channelInfoMap.remove(channel);
@@ -431,6 +502,47 @@ public class NettyManager {
 
         logging.logToError("[NettyManager] Request #" + context.requestId + " channel error: " +
                 (cause != null ? cause.getMessage() : "unknown error"));
+
+        // 检查是否可以重试
+        if (context.retryCount < MAX_RETRY_COUNT && isRetryableError(cause) && !isShutdown.get()) {
+            // 释放当前请求的资源
+            requestSemaphore.release();
+            acquiredPermits.decrementAndGet();
+            activeRequests.decrementAndGet();
+            retryRequests.incrementAndGet();
+
+            logging.logToError("[NettyManager] Request #" + context.requestId + " will retry due to channel error");
+
+            // 延迟后重试
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Thread.sleep(RETRY_DELAY_MS);
+                    // 递归调用重试
+                    CompletableFuture<HttpResponse> retryFuture = sendRequestWithRetry(context.originalRequest, context.callback, context.retryCount + 1);
+
+                    // 将重试结果转发到原来的future
+                    retryFuture.whenComplete((response, throwable) -> {
+                        if (throwable != null) {
+                            context.future.completeExceptionally(throwable);
+                        } else {
+                            context.future.complete(response);
+                        }
+                    });
+
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    context.future.completeExceptionally(ie);
+                }
+            }, businessExecutor);
+
+            return; // 不执行下面的失败处理逻辑
+        }
+
+        // 不可重试或重试次数已达上限
+        requestSemaphore.release();
+        acquiredPermits.decrementAndGet();
+        activeRequests.decrementAndGet();
+        failedRequests.incrementAndGet();
 
         context.future.completeExceptionally(cause != null ? cause : new RuntimeException("Channel error"));
         if (context.callback != null) {
@@ -724,8 +836,8 @@ public class NettyManager {
             // 第五步：关闭业务线程池
             shutdownBusinessExecutor();
 
-            logging.logToOutput(String.format("[NettyManager] Shutdown complete. Total requests: %d, Success: %d, Failed: %d",
-                    totalRequests.get(), successRequests.get(), failedRequests.get()));
+            logging.logToOutput(String.format("[NettyManager] Shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d",
+                    totalRequests.get(), successRequests.get(), failedRequests.get(), retryRequests.get()));
 
         } catch (Exception e) {
             logging.logToError("[NettyManager] Error occurred during shutdown: " + e.getMessage());
@@ -885,7 +997,7 @@ public class NettyManager {
     }
 
     /**
-     * 响应上下文
+     * 响应上下文 - 修改增加重试相关字段
      */
     private static class ResponseContext {
         final CompletableFuture<HttpResponse> future;
@@ -893,14 +1005,19 @@ public class NettyManager {
         final long startTime;
         final long requestId;
         final boolean keepAlive;
+        final HttpRequest originalRequest; // 新增：保存原始请求用于重试
+        final int retryCount; // 新增：当前重试次数
 
         ResponseContext(CompletableFuture<HttpResponse> future, ResponseCallback callback,
-                        long startTime, long requestId, boolean keepAlive) {
+                        long startTime, long requestId, boolean keepAlive,
+                        HttpRequest originalRequest, int retryCount) {
             this.future = future;
             this.callback = callback;
             this.startTime = startTime;
             this.requestId = requestId;
             this.keepAlive = keepAlive;
+            this.originalRequest = originalRequest;
+            this.retryCount = retryCount;
         }
     }
 
