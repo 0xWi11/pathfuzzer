@@ -277,7 +277,7 @@ public class JsonLister {
                     HttpRequest modifiedRequest = originalRequest.withPath(variant.getNewPath());
 
                     // 发送修改后的请求
-                    sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), variant.getAlias(), "path-id");
+                    sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), variant.getAlias(), pathId.getId());
                 }
             }
 
