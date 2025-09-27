@@ -72,10 +72,40 @@ public class TableModel extends AbstractTableModel {
             "ng crlf3"
     ));
 
+    // 新增：定义param类型的新特殊alias列表（用户需求）
+    private static final Set<String> PARAM_NEW_SPECIAL_ALIASES = new HashSet<>(Arrays.asList(
+            "{param}%2f..",
+            "{param}/..",
+            "{param}%252f..",
+            "{param}/%2E%2E",
+            "{param}%2F%2E%2E",
+            "{param}//..",
+            "{param}%2f%2f..",
+            "{param}/..;",
+            "{param}%5c..",
+            "{param}\\.."
+    ));
+
+    // 新增：定义route2类型的新特殊alias列表（用户需求）
+    private static final Set<String> ROUTE2_NEW_SPECIAL_ALIASES = new HashSet<>(Arrays.asList(
+            "{path}%2f..",
+            "{path}/..",
+            "{path}%252f..",
+            "{path}/%2E%2E",
+            "{path}%2F%2E%2E",
+            "{path}//..",
+            "{path}%2f%2f..",
+            "{path}/..;",
+            "{path}%5c..",
+            "{path}\\.."
+    ));
+
     // 通用的自定义单元格渲染器，用于Payload、Modif len和Len Diff列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
         // 定义当Payload包含"chaxx"或符合特殊条件时使用的灰色背景
-        private static final Color CHAXX_BACKGROUND_COLOR = new Color(230, 230, 230);
+        private static final Color CHAXX_BACKGROUND_COLOR = new Color(217, 217, 217);// 原本是230 230 230
+        // 新增：定义用户需求的灰色背景 RGB 230 230 230
+        private static final Color NEW_GRAY_BACKGROUND_COLOR = new Color(230, 230, 230);
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
@@ -89,6 +119,7 @@ public class TableModel extends AbstractTableModel {
                 c.setForeground(table.getSelectionForeground());
             } else {
                 boolean shouldGray = false;
+                boolean shouldNewGray = false; // 新增：用于判断是否使用新的灰色
 
                 // 获取当前行的payload和test type值
                 Object payloadValue = table.getValueAt(row, 5);
@@ -113,10 +144,23 @@ public class TableModel extends AbstractTableModel {
                     if (!shouldGray && testType.equals("route1") && ROUTE1_SPECIAL_ALIASES.contains(payload)) {
                         shouldGray = true;
                     }
+
+                    // 新增：检查param类型的新特殊alias列表（用户需求）
+                    if (!shouldGray && !shouldNewGray && testType.equals("param") && PARAM_NEW_SPECIAL_ALIASES.contains(payload)) {
+                        shouldNewGray = true;
+                    }
+
+                    // 新增：检查route2类型的新特殊alias列表（用户需求）
+                    if (!shouldGray && !shouldNewGray && testType.equals("route2") && ROUTE2_NEW_SPECIAL_ALIASES.contains(payload)) {
+                        shouldNewGray = true;
+                    }
                 }
 
-                if (shouldGray) {
-                    // 设置为灰色背景
+                if (shouldNewGray) {
+                    // 设置为新的灰色背景 RGB 230 230 230
+                    c.setBackground(NEW_GRAY_BACKGROUND_COLOR);
+                } else if (shouldGray) {
+                    // 设置为原来的灰色背景
                     c.setBackground(CHAXX_BACKGROUND_COLOR);
                 } else {
                     // 使用默认的交替行背景色
