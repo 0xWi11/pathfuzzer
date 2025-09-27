@@ -101,7 +101,8 @@ public class RouteFuzzer {
                 }
                 List<String> currentSegments = pathSegments.subList(0, level);
                 boolean shouldTestTrailingSlash = hasTrailingSlash && level == pathSegments.size();
-                testPathLevelWithDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash);
+                // 传递完整的pathSegments和level用于计算批次号
+                testPathLevelWithDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash, pathSegments, level);
             }
         } catch (Exception e) {
             logging.logToError("[RouteFuzzer] processRequest error: " + e.getMessage());
@@ -132,7 +133,8 @@ public class RouteFuzzer {
                 }
                 List<String> currentSegments = pathSegments.subList(0, level);
                 boolean shouldTestTrailingSlash = hasTrailingSlash && level == pathSegments.size();
-                testPathLevelWithoutDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash);
+                // 传递完整的pathSegments和level用于计算批次号
+                testPathLevelWithoutDeduplication(originalRequest, messageId, host, currentSegments, shouldTestTrailingSlash, pathSegments, level);
             }
         } catch (Exception e) {
             logging.logToError("[RouteFuzzer] processRequestWithoutDeduplication error: " + e.getMessage());
@@ -157,7 +159,11 @@ public class RouteFuzzer {
      * 测试指定路径级别（使用去重）
      */
     private void testPathLevelWithDeduplication(HttpRequest originalRequest, int messageId, String host,
-                                                List<String> pathSegments, boolean testTrailingSlash) {
+                                                List<String> pathSegments, boolean testTrailingSlash,
+                                                List<String> originalPathSegments, int level) {
+        // 计算批次号：原始路径段数 - 当前level + 1
+        int batchNumber = originalPathSegments.size() - level + 1;
+
         for (int segmentIndex = pathSegments.size() - 1; segmentIndex >= 0; segmentIndex--) {
             if (isShuttingDown) {
                 return;
@@ -167,7 +173,8 @@ public class RouteFuzzer {
                     return;
                 }
                 try {
-                    String currentTestParam = pathSegments.get(segmentIndex);
+                    String originalTestParam = pathSegments.get(segmentIndex);
+                    String currentTestParam = originalTestParam + "-" + batchNumber; // 添加批次后缀
                     testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payloadInfo.payload,
                             payloadInfo.alias, currentTestParam, false, true);
                     if (testTrailingSlash && segmentIndex == pathSegments.size() - 1) {
@@ -185,7 +192,11 @@ public class RouteFuzzer {
      * 测试指定路径级别（不使用去重）
      */
     private void testPathLevelWithoutDeduplication(HttpRequest originalRequest, int messageId, String host,
-                                                   List<String> pathSegments, boolean testTrailingSlash) {
+                                                   List<String> pathSegments, boolean testTrailingSlash,
+                                                   List<String> originalPathSegments, int level) {
+        // 计算批次号：原始路径段数 - 当前level + 1
+        int batchNumber = originalPathSegments.size() - level + 1;
+
         for (int segmentIndex = pathSegments.size() - 1; segmentIndex >= 0; segmentIndex--) {
             if (isShuttingDown) {
                 return;
@@ -195,7 +206,8 @@ public class RouteFuzzer {
                     return;
                 }
                 try {
-                    String currentTestParam = pathSegments.get(segmentIndex);
+                    String originalTestParam = pathSegments.get(segmentIndex);
+                    String currentTestParam = originalTestParam + "-" + batchNumber; // 添加批次后缀
                     testSinglePayload(originalRequest, messageId, host, pathSegments, segmentIndex, payloadInfo.payload,
                             payloadInfo.alias, currentTestParam, false, false);
                     if (testTrailingSlash && segmentIndex == pathSegments.size() - 1) {

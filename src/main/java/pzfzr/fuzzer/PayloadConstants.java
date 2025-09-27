@@ -34,6 +34,7 @@ public class PayloadConstants {
     public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
             new PayloadInfo("null", "null"),
+            new PayloadInfo("null", "\"null\""),
             new PayloadInfo("%", "%"),
             new PayloadInfo("%00", "%00"),
             new PayloadInfo("*", "*"),
