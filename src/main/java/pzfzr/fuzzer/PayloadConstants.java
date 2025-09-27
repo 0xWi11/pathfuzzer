@@ -35,6 +35,7 @@ public class PayloadConstants {
             new PayloadInfo("chaxx123", "chaxx"),
             new PayloadInfo("null", "null"),
             new PayloadInfo("null", "\"null\""),
+            new PayloadInfo("", "empty"),
             new PayloadInfo("%", "%"),
             new PayloadInfo("%00", "%00"),
             new PayloadInfo("*", "*"),

@@ -231,8 +231,8 @@ public class ParamFuzzer {
             for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
 
-                // URL参数跳过random_8000，参数污染，和URL编码
-                if ("{random_8000}".equals(payloadInfo.alias)||"{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)) {
+                // URL参数跳过random_8000，参数污染，URL编码，以及"\"null\""
+                if ("{random_8000}".equals(payloadInfo.alias)||"{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)||"\"null\"".equals(payloadInfo.alias)) {
                     continue;
                 }
 
@@ -276,8 +276,8 @@ public class ParamFuzzer {
             for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
 
-                // PostBody参数跳过参数污染和URL编码
-                if ("{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)) {
+                // PostBody参数跳过参数污染，URL编码，以及"\"null\""
+                if ("{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)||"\"null\"".equals(payloadInfo.alias)) {
                     continue;
                 }
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
@@ -329,7 +329,7 @@ public class ParamFuzzer {
                     String processedPayload = processPayload(payloadInfo.payload, originalValue);
 
                     try {
-                        JsonNode modifiedJson = modifyJsonNode(rootNode, jsonPath.path, processedPayload);
+                        JsonNode modifiedJson = modifyJsonNode(rootNode, jsonPath.path, processedPayload, payloadInfo.alias);
                         String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
 
                         // 从修改后的JSON中提取实际表达式
@@ -567,8 +567,9 @@ public class ParamFuzzer {
 
     /**
      * 在指定路径修改JSON节点
+     * 针对null payload的特殊处理
      */
-    private JsonNode modifyJsonNode(JsonNode rootNode, String path, String newValue) throws Exception {
+    private JsonNode modifyJsonNode(JsonNode rootNode, String path, String newValue, String payloadAlias) throws Exception {
         ObjectNode rootCopy = rootNode.deepCopy();
 
         String[] pathParts = path.split("\\.");
@@ -586,12 +587,28 @@ public class ParamFuzzer {
         }
 
         String lastPart = pathParts[pathParts.length - 1];
+
+        // 根据payloadAlias来区分两种null的处理方式：
+        // 1. alias为"null" -> JSON null值（不带引号）
+        // 2. alias为"\"null\"" -> 字符串"null"（带引号）
+        JsonNode valueToSet;
+        if ("null".equals(payloadAlias)) {
+            // new PayloadInfo("null", "null") 的情况，设置为JSON null
+            valueToSet = NullNode.getInstance();
+        } else if ("\"null\"".equals(payloadAlias)) {
+            // new PayloadInfo("null", "\"null\"") 的情况，设置为字符串"null"
+            valueToSet = new TextNode("null");
+        } else {
+            // 其他情况设置为字符串值
+            valueToSet = new TextNode(newValue);
+        }
+
         if (lastPart.contains("[")) {
             String arrayField = lastPart.substring(0, lastPart.indexOf("["));
             int arrayIndex = Integer.parseInt(lastPart.substring(lastPart.indexOf("[") + 1, lastPart.indexOf("]")));
-            ((ArrayNode) currentNode.get(arrayField)).set(arrayIndex, new TextNode(newValue));
+            ((ArrayNode) currentNode.get(arrayField)).set(arrayIndex, valueToSet);
         } else {
-            ((ObjectNode) currentNode).put(lastPart, newValue);
+            ((ObjectNode) currentNode).set(lastPart, valueToSet);
         }
 
         return rootCopy;
