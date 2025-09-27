@@ -19,17 +19,20 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
     private final PayloadManager payloadManager;
     private final PayloadTableModel paramTableModel;
     private final PayloadTableModel routeTableModel;
+    private final PayloadTableModel headerTableModel; // 新增：Header载荷表格模型
     private final JTable paramTable;
     private final JTable routeTable;
+    private final JTable headerTable; // 新增：Header载荷表格
 
     public PayloadManagerPanel() {
         this.payloadManager = PayloadManager.getInstance();
         this.paramTableModel = new PayloadTableModel(PayloadManager.PayloadType.PARAM);
         this.routeTableModel = new PayloadTableModel(PayloadManager.PayloadType.ROUTE);
+        this.headerTableModel = new PayloadTableModel(PayloadManager.PayloadType.HEADER); // 新增
 
         setLayout(new BorderLayout());
 
-        // 为参数和路由载荷创建选项卡面板
+        // 为参数、路由和Header载荷创建选项卡面板
         JTabbedPane tabbedPane = new JTabbedPane();
 
         // 参数载荷选项卡
@@ -41,6 +44,11 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
         routeTable = createPayloadTable(routeTableModel);
         JPanel routePanel = createPayloadPanel(routeTable, PayloadManager.PayloadType.ROUTE);
         tabbedPane.addTab("Route Payloads", routePanel);
+
+        // 新增：Header载荷选项卡
+        headerTable = createPayloadTable(headerTableModel);
+        JPanel headerPanel = createPayloadPanel(headerTable, PayloadManager.PayloadType.HEADER);
+        tabbedPane.addTab("Header Payloads", headerPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -80,18 +88,30 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
         JButton disableAllButton = new JButton("Disable All");
 
         enableAllButton.addActionListener(e -> {
-            if (type == PayloadManager.PayloadType.PARAM) {
-                payloadManager.setAllParamPayloadsEnabled(true);
-            } else {
-                payloadManager.setAllRoutePayloadsEnabled(true);
+            switch (type) {
+                case PARAM:
+                    payloadManager.setAllParamPayloadsEnabled(true);
+                    break;
+                case ROUTE:
+                    payloadManager.setAllRoutePayloadsEnabled(true);
+                    break;
+                case HEADER: // 新增：Header类型处理
+                    payloadManager.setAllHeaderPayloadsEnabled(true);
+                    break;
             }
         });
 
         disableAllButton.addActionListener(e -> {
-            if (type == PayloadManager.PayloadType.PARAM) {
-                payloadManager.setAllParamPayloadsEnabled(false);
-            } else {
-                payloadManager.setAllRoutePayloadsEnabled(false);
+            switch (type) {
+                case PARAM:
+                    payloadManager.setAllParamPayloadsEnabled(false);
+                    break;
+                case ROUTE:
+                    payloadManager.setAllRoutePayloadsEnabled(false);
+                    break;
+                case HEADER: // 新增：Header类型处理
+                    payloadManager.setAllHeaderPayloadsEnabled(false);
+                    break;
             }
         });
 
@@ -106,10 +126,16 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
     @Override
     public void onPayloadChanged(PayloadManager.PayloadType type) {
         SwingUtilities.invokeLater(() -> {
-            if (type == PayloadManager.PayloadType.PARAM) {
-                paramTableModel.fireTableDataChanged();
-            } else {
-                routeTableModel.fireTableDataChanged();
+            switch (type) {
+                case PARAM:
+                    paramTableModel.fireTableDataChanged();
+                    break;
+                case ROUTE:
+                    routeTableModel.fireTableDataChanged();
+                    break;
+                case HEADER: // 新增：Header类型处理
+                    headerTableModel.fireTableDataChanged();
+                    break;
             }
         });
     }
@@ -125,9 +151,16 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
 
         @Override
         public int getRowCount() {
-            return type == PayloadManager.PayloadType.PARAM
-                    ? payloadManager.getParamPayloads().size()
-                    : payloadManager.getRoutePayloads().size();
+            switch (type) {
+                case PARAM:
+                    return payloadManager.getParamPayloads().size();
+                case ROUTE:
+                    return payloadManager.getRoutePayloads().size();
+                case HEADER: // 新增：Header类型处理
+                    return payloadManager.getHeaderPayloads().size();
+                default:
+                    return 0;
+            }
         }
 
         @Override
@@ -155,9 +188,20 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
 
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
-            List<PayloadInfo> payloads = type == PayloadManager.PayloadType.PARAM
-                    ? payloadManager.getParamPayloads()
-                    : payloadManager.getRoutePayloads();
+            List<PayloadInfo> payloads;
+            switch (type) {
+                case PARAM:
+                    payloads = payloadManager.getParamPayloads();
+                    break;
+                case ROUTE:
+                    payloads = payloadManager.getRoutePayloads();
+                    break;
+                case HEADER: // 新增：Header类型处理
+                    payloads = payloadManager.getHeaderPayloads();
+                    break;
+                default:
+                    return null;
+            }
 
             if (rowIndex >= payloads.size()) return null;
 
@@ -175,10 +219,16 @@ public class PayloadManagerPanel extends JPanel implements PayloadManager.Payloa
         public void setValueAt(Object value, int rowIndex, int columnIndex) {
             if (columnIndex == 0 && value instanceof Boolean) {
                 boolean enabled = (Boolean) value;
-                if (type == PayloadManager.PayloadType.PARAM) {
-                    payloadManager.setParamPayloadEnabled(rowIndex, enabled);
-                } else {
-                    payloadManager.setRoutePayloadEnabled(rowIndex, enabled);
+                switch (type) {
+                    case PARAM:
+                        payloadManager.setParamPayloadEnabled(rowIndex, enabled);
+                        break;
+                    case ROUTE:
+                        payloadManager.setRoutePayloadEnabled(rowIndex, enabled);
+                        break;
+                    case HEADER: // 新增：Header类型处理
+                        payloadManager.setHeaderPayloadEnabled(rowIndex, enabled);
+                        break;
                 }
             }
         }

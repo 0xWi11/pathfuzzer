@@ -16,6 +16,7 @@ import pzfzr.fuzzer.JsonLister;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.RouteFuzzer;
+import pzfzr.fuzzer.HeaderFuzzer; // 新增导入
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -38,7 +39,8 @@ public class ValueReplacer {
     private final JsonLister jsonLister;
     private final RouteFuzzer routeFuzzer;
     private final ParamFuzzer paramFuzzer;
-    private final ParamDeleter paramDeleter; // 新增
+    private final ParamDeleter paramDeleter;
+    private final HeaderFuzzer headerFuzzer; // 新增
 
     // 添加专门用于异步执行的线程池
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
@@ -56,16 +58,21 @@ public class ValueReplacer {
         this.jsonLister = new JsonLister(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
-        this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增
+        this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+        this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增
     }
 
     public ParamFuzzer getParamFuzzer() {
         return this.paramFuzzer;
     }
 
-    // 新增getter方法
     public ParamDeleter getParamDeleter() {
         return this.paramDeleter;
+    }
+
+    // 新增：HeaderFuzzer的getter方法
+    public HeaderFuzzer getHeaderFuzzer() {
+        return this.headerFuzzer;
     }
 
     public String extractHostFromRequest(String url) {
@@ -114,9 +121,13 @@ public class ValueReplacer {
                 paramFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            // 新增ParamDeleter支持
             if (switchState.isParamdeleterSwitch()) {
                 paramDeleter.processRequest(originalRequest, messageId, host);
+            }
+
+            // 新增：HeaderFuzzer支持
+            if (switchState.isHeaderfuzzerSwitch()) {
+                headerFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -144,9 +155,13 @@ public class ValueReplacer {
                 paramFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            // 新增ParamDeleter支持
             if (switchState.isParamdeleterSwitch()) {
                 paramDeleter.processRequest(originalRequest, messageId, host);
+            }
+
+            // 新增：HeaderFuzzer支持
+            if (switchState.isHeaderfuzzerSwitch()) {
+                headerFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -202,7 +217,6 @@ public class ValueReplacer {
                 futures.add(paramFuzzerFuture);
             }
 
-            // 新增ParamDeleter异步支持
             if (switchState.isParamdeleterSwitch()) {
                 CompletableFuture<Void> paramDeleterFuture = CompletableFuture.runAsync(() -> {
                     try {
@@ -212,6 +226,18 @@ public class ValueReplacer {
                     }
                 }, asyncExecutor);
                 futures.add(paramDeleterFuture);
+            }
+
+            // 新增：HeaderFuzzer异步支持
+            if (switchState.isHeaderfuzzerSwitch()) {
+                CompletableFuture<Void> headerFuzzerFuture = CompletableFuture.runAsync(() -> {
+                    try {
+                        headerFuzzer.processRequest(originalRequest, messageId, host);
+                    } catch (Exception e) {
+                        api.logging().logToError("Error in HeaderFuzzer async execution: " + e.getMessage());
+                    }
+                }, asyncExecutor);
+                futures.add(headerFuzzerFuture);
             }
 
             // 返回一个组合的 CompletableFuture，当所有任务完成时完成
@@ -302,6 +328,17 @@ public class ValueReplacer {
                 }
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] Error shutting down ParamDeleter: " + e.getMessage());
+            }
+        }));
+
+        // 新增：HeaderFuzzer关闭
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
+            try {
+                if (headerFuzzer != null) {
+                    headerFuzzer.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] Error shutting down HeaderFuzzer: " + e.getMessage());
             }
         }));
 

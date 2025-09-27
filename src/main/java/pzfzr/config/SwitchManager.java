@@ -5,7 +5,8 @@ public class SwitchManager {
     private boolean jsonListerSwitch;
     private boolean routefuzzerSwitch;
     private boolean paramfuzzerSwitch;
-    private boolean paramdeleterSwitch; // 新增
+    private boolean paramdeleterSwitch;
+    private boolean headerfuzzerSwitch; // 新增
 
     // 单例模式
     private static SwitchManager instance;
@@ -16,7 +17,8 @@ public class SwitchManager {
         this.jsonListerSwitch = false;
         this.routefuzzerSwitch = false;
         this.paramfuzzerSwitch = false;
-        this.paramdeleterSwitch = false; // 新增，默认关闭
+        this.paramdeleterSwitch = false;
+        this.headerfuzzerSwitch = false; // 新增，默认关闭
     }
 
     public static synchronized SwitchManager getInstance() {
@@ -59,13 +61,21 @@ public class SwitchManager {
         this.paramfuzzerSwitch = paramfuzzerSwitch;
     }
 
-    // 新增ParamDeleter相关方法
     public boolean isParamdeleterSwitch() {
         return paramdeleterSwitch;
     }
 
     public void setParamdeleterSwitch(boolean paramdeleterSwitch) {
         this.paramdeleterSwitch = paramdeleterSwitch;
+    }
+
+    // 新增：HeaderFuzzer相关方法
+    public boolean isHeaderfuzzerSwitch() {
+        return headerfuzzerSwitch;
+    }
+
+    public void setHeaderfuzzerSwitch(boolean headerfuzzerSwitch) {
+        this.headerfuzzerSwitch = headerfuzzerSwitch;
     }
 
     // 获取当前所有开关状态
@@ -75,7 +85,8 @@ public class SwitchManager {
                 jsonListerSwitch,
                 routefuzzerSwitch,
                 paramfuzzerSwitch,
-                paramdeleterSwitch // 新增
+                paramdeleterSwitch,
+                headerfuzzerSwitch // 新增
         );
     }
 }

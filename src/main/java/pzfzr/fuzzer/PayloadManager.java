@@ -4,17 +4,19 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * PayloadManager 管理 ParamFuzzer 和 RouteFuzzer 的载荷启用/禁用状态
+ * PayloadManager 管理 ParamFuzzer、RouteFuzzer 和 HeaderFuzzer 的载荷启用/禁用状态
  */
 public class PayloadManager {
     private static PayloadManager instance;
     private final List<PayloadInfo> paramPayloads;
     private final List<PayloadInfo> routePayloads;
+    private final List<PayloadInfo> headerPayloads;
     private final List<PayloadChangeListener> listeners;
 
     private PayloadManager() {
         this.paramPayloads = new CopyOnWriteArrayList<>();
         this.routePayloads = new CopyOnWriteArrayList<>();
+        this.headerPayloads = new CopyOnWriteArrayList<>();
         this.listeners = new ArrayList<>();
         initializePayloads();
     }
@@ -35,6 +37,11 @@ public class PayloadManager {
         // 从 PayloadConstants 初始化路由载荷
         for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
             routePayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
+        }
+
+        // 从 PayloadConstants 初始化头部载荷
+        for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.HEADER_PAYLOAD_INFOS) {
+            headerPayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
         }
     }
 
@@ -84,6 +91,29 @@ public class PayloadManager {
         notifyListeners(PayloadType.ROUTE);
     }
 
+    // 头部载荷相关方法
+    public List<PayloadInfo> getHeaderPayloads() {
+        return new ArrayList<>(headerPayloads);
+    }
+
+    public List<PayloadInfo> getEnabledHeaderPayloads() {
+        return headerPayloads.stream()
+                .filter(PayloadInfo::isEnabled)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+    }
+
+    public void setHeaderPayloadEnabled(int index, boolean enabled) {
+        if (index >= 0 && index < headerPayloads.size()) {
+            headerPayloads.get(index).setEnabled(enabled);
+            notifyListeners(PayloadType.HEADER);
+        }
+    }
+
+    public void setAllHeaderPayloadsEnabled(boolean enabled) {
+        headerPayloads.forEach(payload -> payload.setEnabled(enabled));
+        notifyListeners(PayloadType.HEADER);
+    }
+
     // 监听器管理
     public void addListener(PayloadChangeListener listener) {
         listeners.add(listener);
@@ -101,7 +131,7 @@ public class PayloadManager {
 
     // 枚举和接口
     public enum PayloadType {
-        PARAM, ROUTE
+        PARAM, ROUTE, HEADER
     }
 
     public interface PayloadChangeListener {

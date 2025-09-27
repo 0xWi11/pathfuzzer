@@ -106,10 +106,10 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         }
 
         // 添加各种测试选项 - 修改为带任务管理的批量处理
-        // 更新为包含ParamDeleter的全部测试
+        // 更新为包含HeaderFuzzer的全部测试
         JMenuItem allTests = createTestMenuItem("Run All Tests", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState allEnabledState = new SwitchState(true, true, true, true, true);
+                    SwitchState allEnabledState = new SwitchState(true, true, true, true, true, true); // 新增：包含HeaderFuzzer
                     return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
                 });
 
@@ -120,27 +120,33 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         // 各种测试菜单项
         JMenuItem JsonListerTest = createTestMenuItem("JsonLister Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false);
+                    SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false); // 更新：包含HeaderFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, jsonListerOnlyState, messageId);
                 });
 
         JMenuItem routeFuzzerTest = createTestMenuItem("RouteFuzzer Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false);
+                    SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false); // 更新：包含HeaderFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, routeFuzzerOnlyState, messageId);
                 });
 
         JMenuItem ParamFuzzerTest = createTestMenuItem("ParamFuzzer Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false);
+                    SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false); // 更新：包含HeaderFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
                 });
 
-        // 新增ParamDeleter测试菜单项
         JMenuItem ParamDeleterTest = createTestMenuItem("ParamDeleter Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true);
+                    SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false); // 更新：包含HeaderFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, paramDeleterOnlyState, messageId);
+                });
+
+        // 新增：HeaderFuzzer测试菜单项
+        JMenuItem HeaderFuzzerTest = createTestMenuItem("HeaderFuzzer Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, true);
+                    return valueReplacer.unifiedTestForContextAsync(request, headerFuzzerOnlyState, messageId);
                 });
 
         // 添加菜单项到子菜单
@@ -150,7 +156,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         headerIntruderMenu.add(JsonListerTest);
         headerIntruderMenu.add(routeFuzzerTest);
         headerIntruderMenu.add(ParamFuzzerTest);
-        headerIntruderMenu.add(ParamDeleterTest); // 新增
+        headerIntruderMenu.add(ParamDeleterTest);
+        headerIntruderMenu.add(HeaderFuzzerTest); // 新增
 
         // 添加子菜单到列表
         menuItems.add(headerIntruderMenu);

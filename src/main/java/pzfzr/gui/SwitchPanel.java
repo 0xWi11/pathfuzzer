@@ -5,7 +5,8 @@ import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter; // 新增导入
+import pzfzr.fuzzer.ParamDeleter;
+import pzfzr.fuzzer.HeaderFuzzer; // 新增导入
 import pzfzr.model.CSVExporter;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -21,7 +22,8 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox builtInSwitch;
     private final JCheckBox collectedSwitch;
     private final JCheckBox suspiciousSwitch;
-    private final JCheckBox paramDeleterSwitch; // 新增ParamDeleter开关
+    private final JCheckBox paramDeleterSwitch;
+    private final JCheckBox headerFuzzerSwitch; // 新增HeaderFuzzer开关
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
@@ -31,7 +33,8 @@ public class SwitchPanel extends JPanel {
     private final RequestResponseSaver requestResponseSaver;
     private final RateLimiter rateLimiter; // 添加 RateLimiter 引用
     private final ParamFuzzer paramFuzzer; // ParamFuzzer 引用
-    private final ParamDeleter paramDeleter; // 新增：ParamDeleter 引用
+    private final ParamDeleter paramDeleter; // ParamDeleter 引用
+    private final HeaderFuzzer headerFuzzer; // 新增：HeaderFuzzer 引用
     private final JTextField newCapacityTextField;
     private final JTextField newRefillRateTextField;
     private final JTextField newUrlRateLimitTextField; // 新增URL限流输入框
@@ -47,7 +50,8 @@ public class SwitchPanel extends JPanel {
     private final JButton cancelActiveTasksButton;
 
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
-                       RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter) { // 修改：添加ParamDeleter参数
+                       RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
+                       ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer) { // 修改：添加HeaderFuzzer参数
         this.switchManager = SwitchManager.getInstance();
         this.logging = logging;
         this.requestResponseSaver = requestResponseSaver;
@@ -55,7 +59,8 @@ public class SwitchPanel extends JPanel {
         this.rateLimiter = rateLimiter;
         this.trafficHandler = trafficHandler; // Store the reference
         this.paramFuzzer = paramFuzzer; // 存储ParamFuzzer引用
-        this.paramDeleter = paramDeleter; // 新增：存储ParamDeleter引用
+        this.paramDeleter = paramDeleter; // 存储ParamDeleter引用
+        this.headerFuzzer = headerFuzzer; // 新增：存储HeaderFuzzer引用
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
@@ -85,10 +90,14 @@ public class SwitchPanel extends JPanel {
                 switchManager.isParamfuzzerSwitch(),
                 selected -> switchManager.setParamfuzzerSwitch(selected));
 
-        // 新增：ParamDeleter开关
         paramDeleterSwitch = createSwitch("ParamDeleter 测试开关",
                 switchManager.isParamdeleterSwitch(),
                 selected -> switchManager.setParamdeleterSwitch(selected));
+
+        // 新增：HeaderFuzzer开关
+        headerFuzzerSwitch = createSwitch("HeaderFuzzer 测试开关",
+                switchManager.isHeaderfuzzerSwitch(),
+                selected -> switchManager.setHeaderfuzzerSwitch(selected));
 
         // 创建清除哈希按钮
         clearHashesButton = new JButton("清除URL缓存");
@@ -242,7 +251,7 @@ public class SwitchPanel extends JPanel {
         paramFuzzerLimitPanel.add(maxParameterLabel);
         paramFuzzerLimitPanel.add(maxParameterCountTextField);
 
-        // 新增：ParamDeleter参数数量限制
+        // ParamDeleter参数数量限制
         JPanel paramDeleterLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JLabel maxParameterDeleterLabel = new JLabel("ParamDeleter最大参数数量:");
         maxParameterCountDeleterTextField = new JTextField(String.valueOf(paramDeleter.getMaxParameterCount()), 5);
@@ -250,7 +259,8 @@ public class SwitchPanel extends JPanel {
         paramDeleterLimitPanel.add(maxParameterCountDeleterTextField);
 
         maxParameterPanel.add(paramFuzzerLimitPanel);
-        maxParameterPanel.add(paramDeleterLimitPanel); // 新增
+        maxParameterPanel.add(paramDeleterLimitPanel);
+        // maxParameterPanel.add(headerFuzzerLimitPanel); // 如果需要HeaderFuzzer限制则取消注释
         maxParameterPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // 创建设置按钮面板
@@ -265,11 +275,11 @@ public class SwitchPanel extends JPanel {
                 long newRefillInterval = Long.parseLong(newRefillIntervalTextField.getText());
                 int newMaxHeadersPerBatch = Integer.parseInt(maxHeadersPerBatchTextField.getText());
                 int newMaxParameterCount = Integer.parseInt(maxParameterCountTextField.getText()); // ParamFuzzer最大参数数量
-                int newMaxParameterCountDeleter = Integer.parseInt(maxParameterCountDeleterTextField.getText()); // 新增：ParamDeleter最大参数数量
+                int newMaxParameterCountDeleter = Integer.parseInt(maxParameterCountDeleterTextField.getText()); // ParamDeleter最大参数数量
 
                 if (newCapacity > 0 && newRefillRate >= 0 && newUrlRateLimit >= 0 &&
                         newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0 &&
-                        newMaxParameterCount > 0 && newMaxParameterCountDeleter > 0) { // 新增：验证ParamDeleter最大参数数量
+                        newMaxParameterCount > 0 && newMaxParameterCountDeleter > 0) { // 验证参数
                     // 使用完整的参数列表调用更新方法
                     rateLimiter.updateConfiguration(newCapacity, newRefillRate, newUrlRateLimit,
                             newUrlExpireTime, newRefillInterval, newMaxHeadersPerBatch);
@@ -277,7 +287,7 @@ public class SwitchPanel extends JPanel {
                     // 设置ParamFuzzer的最大参数数量
                     paramFuzzer.setMaxParameterCount(newMaxParameterCount);
 
-                    // 新增：设置ParamDeleter的最大参数数量
+                    // 设置ParamDeleter的最大参数数量
                     paramDeleter.setMaxParameterCount(newMaxParameterCountDeleter);
 
                     // 更新每小时请求数显示 - 使用更新后的值计算
@@ -287,14 +297,14 @@ public class SwitchPanel extends JPanel {
 
                     JOptionPane.showMessageDialog(
                             this,
-                            "速率限制和参数数量限制已更新", // 更新提示信息
+                            "速率限制和参数数量限制已更新",
                             "成功",
                             JOptionPane.INFORMATION_MESSAGE
                     );
                 } else {
                     JOptionPane.showMessageDialog(
                             this,
-                            "容量、令牌添加间隔、每批次最大Header数和最大参数数量必须大于0，其他参数不能为负数", // 更新错误信息
+                            "容量、令牌添加间隔、每批次最大Header数和最大参数数量必须大于0，其他参数不能为负数",
                             "错误",
                             JOptionPane.ERROR_MESSAGE
                     );
@@ -352,7 +362,9 @@ public class SwitchPanel extends JPanel {
         switchesPanel.add(Box.createVerticalStrut(5));
         switchesPanel.add(suspiciousSwitch);
         switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(paramDeleterSwitch); // 新增：添加ParamDeleter开关
+        switchesPanel.add(paramDeleterSwitch);
+        switchesPanel.add(Box.createVerticalStrut(5));
+        switchesPanel.add(headerFuzzerSwitch); // 新增：添加HeaderFuzzer开关
         switchesPanel.add(Box.createVerticalStrut(10));
         switchesPanel.add(buttonsContainer); // 添加新的按钮布局容器
         switchesPanel.add(Box.createVerticalStrut(10));
@@ -378,7 +390,8 @@ public class SwitchPanel extends JPanel {
         builtInSwitch.setEnabled(masterState);
         collectedSwitch.setEnabled(masterState);
         suspiciousSwitch.setEnabled(masterState);
-        paramDeleterSwitch.setEnabled(masterState); // 新增：ParamDeleter开关也受主开关控制
+        paramDeleterSwitch.setEnabled(masterState);
+        headerFuzzerSwitch.setEnabled(masterState); // 新增：HeaderFuzzer开关也受主开关控制
     }
 
     // 修正计算请求数的方法
