@@ -32,7 +32,7 @@ import java.util.regex.Matcher;
 /**
  * JsonLister类 - 使用新NettyManager的版本
  * 对HTTP请求中的参数进行替换和污染测试
- * 主要处理邮箱和ID类型的参数替换
+ * 主要处理邮箱和ID类型的参数替换，现在支持路径ID fuzz
  */
 public class JsonLister {
 
@@ -62,6 +62,9 @@ public class JsonLister {
             "(zycc[+-][a-zA-Z0-9]+@intigriti\\.me|zcyy[+-][a-zA-Z0-9]+@(bugcrowdninja|wearehackerone)\\.com)"
     );
     private static final Pattern ID_REGEX = Pattern.compile("(\"[^\"]*ids?\":|[?&][^=&]*ids?=)", Pattern.CASE_INSENSITIVE);
+
+    // 路径中数字ID的正则表达式
+    private static final Pattern PATH_NUMERIC_PATTERN = Pattern.compile("/([0-9]+)(?=/|$)");
 
     public JsonLister(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                       RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
@@ -174,6 +177,25 @@ public class JsonLister {
     }
 
     /**
+     * 路径ID变体类 - 用于路径中的ID fuzz
+     */
+    private static class PathIdVariant {
+        private final String newPath;
+        private final String expression;
+        private final String alias;
+
+        public PathIdVariant(String newPath, String expression, String alias) {
+            this.newPath = newPath;
+            this.expression = expression;
+            this.alias = alias;
+        }
+
+        public String getNewPath() { return newPath; }
+        public String getExpression() { return expression; }
+        public String getAlias() { return alias; }
+    }
+
+    /**
      * 主要处理方法，接收HttpRequest并进行参数替换
      * @param originalRequest 原始HTTP请求
      * @param messageId 消息ID
@@ -191,6 +213,8 @@ public class JsonLister {
             boolean hasEmail = emailPattern.matcher(requestString).find();
             // 检查是否包含ID模式
             boolean hasId = idPattern.matcher(requestString).find();
+            // 检查路径中是否包含数字ID
+            boolean hasPathId = hasNumericIdsInPath(originalRequest.path());
 
             if (hasEmail) {
                 processEmailReplacements(originalRequest, messageId, host);
@@ -198,11 +222,284 @@ public class JsonLister {
             if (hasId) {
                 processIdReplacements(originalRequest, messageId, host);
             }
+            // 新增：处理路径中的数字ID
+            if (hasPathId) {
+                processPathIdReplacements(originalRequest, messageId, host);
+            }
 
         } catch (Exception e) {
             logging.logToOutput("Exception in processRequest: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 检查路径中是否有数字ID
+     * @param path URL路径
+     * @return 是否包含数字ID
+     */
+    private boolean hasNumericIdsInPath(String path) {
+        return PATH_NUMERIC_PATTERN.matcher(path).find();
+    }
+
+    /**
+     * 处理路径中的数字ID替换
+     * @param originalRequest 原始HTTP请求
+     * @param messageId 消息ID
+     * @param host 主机名
+     */
+    private void processPathIdReplacements(HttpRequest originalRequest, int messageId, String host) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            String originalPath = originalRequest.path();
+
+            // 查找路径中所有的数字ID
+            List<PathIdMatch> pathIds = extractPathIds(originalPath);
+
+            // 对每个找到的数字ID进行fuzz
+            for (PathIdMatch pathId : pathIds) {
+                if (isShuttingDown) {
+                    return;
+                }
+
+                // 生成该ID的所有变体
+                List<PathIdVariant> variants = generatePathIdVariants(originalPath, pathId);
+
+                for (PathIdVariant variant : variants) {
+                    if (isShuttingDown) {
+                        return;
+                    }
+
+                    // 创建修改后的请求
+                    HttpRequest modifiedRequest = originalRequest.withPath(variant.getNewPath());
+
+                    // 发送修改后的请求
+                    sendModifiedRequest(modifiedRequest, messageId, host, variant.getExpression(), variant.getAlias(), "path-id");
+                }
+            }
+
+        } catch (Exception e) {
+            logging.logToOutput("Exception in processPathIdReplacements: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 路径ID匹配类
+     */
+    private static class PathIdMatch {
+        private final String id;
+        private final int startIndex;
+        private final int endIndex;
+
+        public PathIdMatch(String id, int startIndex, int endIndex) {
+            this.id = id;
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+        }
+
+        public String getId() { return id; }
+        public int getStartIndex() { return startIndex; }
+        public int getEndIndex() { return endIndex; }
+    }
+
+    /**
+     * 从路径中提取所有数字ID
+     * @param path URL路径
+     * @return 路径ID匹配列表
+     */
+    private List<PathIdMatch> extractPathIds(String path) {
+        List<PathIdMatch> pathIds = new ArrayList<>();
+        Matcher matcher = PATH_NUMERIC_PATTERN.matcher(path);
+
+        while (matcher.find()) {
+            String id = matcher.group(1);  // 获取数字部分（去掉前面的/）
+            int startIndex = matcher.start(1);  // 数字开始位置
+            int endIndex = matcher.end(1);      // 数字结束位置
+
+            pathIds.add(new PathIdMatch(id, startIndex, endIndex));
+        }
+
+        return pathIds;
+    }
+
+    /**
+     * 生成路径ID的变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @return 路径ID变体列表
+     */
+    private List<PathIdVariant> generatePathIdVariants(String originalPath, PathIdMatch pathId) {
+        List<PathIdVariant> variants = new ArrayList<>();
+        String idStr = pathId.getId();
+
+        // 检查是否为超长数字（超过Long范围或长度过长）
+        if (idStr.length() > 18 || isUltraLongNumber(idStr)) {
+            // 使用字符串处理超长数字
+            variants.addAll(generateStringBasedVariants(originalPath, pathId, idStr));
+        } else {
+            try {
+                long originalId = Long.parseLong(idStr);
+
+                // 生成递减变体 - 只在结果为正数时添加
+                if (originalId > 4) {
+                    variants.add(createPathVariant(originalPath, pathId, String.valueOf(originalId - 4), "-4"));
+                }
+                if (originalId > 10) {
+                    variants.add(createPathVariant(originalPath, pathId, String.valueOf(originalId - 10), "-10"));
+                }
+                if (originalId > 100) {
+                    variants.add(createPathVariant(originalPath, pathId, String.valueOf(originalId - 100), "-100"));
+                }
+
+                // 生成路径遍历变体 - 只在递减结果为正数时添加
+                if (originalId > 4) {
+                    variants.add(createPathVariant(originalPath, pathId, originalId + "/../" + (originalId - 4), "/../-4"));
+                }
+                if (originalId > 10) {
+                    variants.add(createPathVariant(originalPath, pathId, originalId + "/../" + (originalId - 10), "/../-10"));
+                }
+                if (originalId > 100) {
+                    variants.add(createPathVariant(originalPath, pathId, originalId + "/../" + (originalId - 100), "/../-100"));
+                }
+
+            } catch (NumberFormatException e) {
+                // 对于非数字或超范围数字，使用字符串处理
+                variants.addAll(generateStringBasedVariants(originalPath, pathId, idStr));
+            }
+        }
+
+        // 基本变体 - 所有情况都添加
+        variants.add(createPathVariant(originalPath, pathId, "[]", "[]"));
+        variants.add(createPathVariant(originalPath, pathId, "null", "null"));
+
+        return variants;
+    }
+
+    /**
+     * 检查是否为超长数字（可能超出Long范围）
+     * @param idStr ID字符串
+     * @return 是否为超长数字
+     */
+    private boolean isUltraLongNumber(String idStr) {
+        // 检查长度是否可能超出Long.MAX_VALUE
+        if (idStr.length() > 19) {
+            return true;
+        }
+        if (idStr.length() == 19) {
+            // 对于19位数字，需要比较是否超过Long.MAX_VALUE (9223372036854775807)
+            return idStr.compareTo("9223372036854775807") > 0;
+        }
+        return false;
+    }
+
+    /**
+     * 为超长数字或特殊情况生成基于字符串的变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @param idStr ID字符串
+     * @return 路径ID变体列表
+     */
+    private List<PathIdVariant> generateStringBasedVariants(String originalPath, PathIdMatch pathId, String idStr) {
+        List<PathIdVariant> variants = new ArrayList<>();
+
+        try {
+            // 尝试使用大数运算进行递减
+            if (idStr.length() >= 1 && idStr.matches("\\d+")) {
+                // 使用字符串运算处理超长数字的递减
+                String decremented4 = decrementStringNumber(idStr, 4);
+                String decremented10 = decrementStringNumber(idStr, 10);
+                String decremented100 = decrementStringNumber(idStr, 100);
+
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented4, "-4"));
+                    // 路径遍历变体
+                    variants.add(createPathVariant(originalPath, pathId, idStr + "/../" + decremented4, "/../-4"));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented10, "-10"));
+                    // 路径遍历变体
+                    variants.add(createPathVariant(originalPath, pathId, idStr + "/../" + decremented10, "/../-10"));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented100, "-100"));
+                    // 路径遍历变体
+                    variants.add(createPathVariant(originalPath, pathId, idStr + "/../" + decremented100, "/../-100"));
+                }
+
+                // 对于超长数字，还可以尝试修改最后几位
+                if (idStr.length() >= 3) {
+                    // 修改最后一位为0
+                    String lastDigitZero = idStr.substring(0, idStr.length() - 1) + "0";
+                    variants.add(createPathVariant(originalPath, pathId, lastDigitZero, "last→0"));
+
+                    // 修改最后一位递减1
+                    String lastDigit = idStr.substring(idStr.length() - 1);
+                    if (!lastDigit.equals("0")) {
+                        int digit = Integer.parseInt(lastDigit);
+                        String lastDigitDec = idStr.substring(0, idStr.length() - 1) + (digit - 1);
+                        variants.add(createPathVariant(originalPath, pathId, lastDigitDec, "last-1"));
+                    }
+                }
+
+                // 对于超长数字，尝试截断
+                if (idStr.length() > 10) {
+                    String truncated = idStr.substring(0, 10);
+                    variants.add(createPathVariant(originalPath, pathId, truncated, "trunc10"));
+                }
+            }
+        } catch (Exception e) {
+            // 如果字符串处理也失败，记录但不影响其他变体生成
+            logging.logToOutput("Warning: Failed to generate string-based variants for ID: " + idStr);
+        }
+
+        return variants;
+    }
+
+    /**
+     * 字符串数字递减运算
+     * @param numberStr 数字字符串
+     * @param decrement 递减值
+     * @return 递减后的结果，如果结果为负数则返回null
+     */
+    private String decrementStringNumber(String numberStr, int decrement) {
+        try {
+            // 使用BigInteger处理超长数字
+            java.math.BigInteger bigInt = new java.math.BigInteger(numberStr);
+            java.math.BigInteger result = bigInt.subtract(java.math.BigInteger.valueOf(decrement));
+
+            // 如果结果为负数，返回null
+            if (result.compareTo(java.math.BigInteger.ZERO) < 0) {
+                return null;
+            }
+
+            return result.toString();
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 创建路径变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @param newValue 新值
+     * @param alias 别名
+     * @return 路径ID变体
+     */
+    private PathIdVariant createPathVariant(String originalPath, PathIdMatch pathId, String newValue, String alias) {
+        // 替换路径中的ID
+        String newPath = originalPath.substring(0, pathId.getStartIndex()) +
+                newValue +
+                originalPath.substring(pathId.getEndIndex());
+
+        // 生成表达式，显示原始ID -> 新值的变化
+        String expression = "path: " + pathId.getId() + " -> " + newValue;
+
+        return new PathIdVariant(newPath, expression, alias);
     }
 
     /**
