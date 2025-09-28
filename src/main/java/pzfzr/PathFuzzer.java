@@ -5,12 +5,13 @@ import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.extension.ExtensionUnloadingHandler;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.PersistenceManager;
+import pzfzr.config.PluginConfigManager; // 新增
 import pzfzr.core.*;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
+import pzfzr.fuzzer.OOBParamFuzzer;
 import pzfzr.gui.MainPanel;
 import pzfzr.gui.ContextMenuProvider;
 import pzfzr.model.CSVExporter;
@@ -34,6 +35,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
     private NettyManager nettyManager;
+    private PluginConfigManager pluginConfigManager; // 新增
 
     // 关闭控制
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
@@ -45,46 +47,51 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     @Override
     public void initialize(MontoyaApi api) {
         this.api = api;
-        api.extension().setName("Path Fuzzer");
+
+        // 初始化配置管理器
+        this.pluginConfigManager = PluginConfigManager.getInstance();
+
+        // 设置插件名称 - 使用配置的名称
+        api.extension().setName(pluginConfigManager.getPluginName());
 
         ConfigManager configManager = ConfigManager.getInstance();
 
         // 初始化 CookieChanger 单例
         this.cookieChanger = CookieChanger.getInstance();
-        api.logging().logToOutput("[PathFuzzer] CookieChanger initialized");
+        api.logging().logToOutput(String.format("[%s] CookieChanger initialized", pluginConfigManager.getPluginName()));
 
         // 初始化核心组件
-        // 正确的初始化顺序：先创建 TableModel，再创建 RequestResponseSaver 并传入 TableModel
-        this.tableModel = new TableModel(null, api.logging()); // 初始化 TableModel，requestResponseSaver 暂时传入 null
-        this.requestResponseSaver = new RequestResponseSaver(api.logging(), tableModel); // 初始化 RequestResponseSaver 并传入 TableModel 实例
-        this.tableModel.setRequestResponseSaver(requestResponseSaver); // **重要**:  将 RequestResponseSaver 设置到 TableModel 中, 确保 TableModel 内部可以访问 RequestResponseSaver
+        this.tableModel = new TableModel(null, api.logging());
+        this.requestResponseSaver = new RequestResponseSaver(api.logging(), tableModel);
+        this.tableModel.setRequestResponseSaver(requestResponseSaver);
 
         // 初始化CSV导出器
         this.csvExporter = new CSVExporter(api.logging(), tableModel, requestResponseSaver);
-        this.rateLimiter = RateLimiter.getInstance(api.logging()); // 获取 RateLimiter 实例
+        this.rateLimiter = RateLimiter.getInstance(api.logging());
 
-        // 使用新的NettyManager
+        // 使用新的NettyManager（已支持配置化端口）
         this.nettyManager = NettyManager.getInstance(api.logging(), api.utilities().compressionUtils());
-        api.logging().logToOutput("[PathFuzzer] Using NEW NettyManager for HTTP requests");
+        api.logging().logToOutput(String.format("[%s] Using NEW NettyManager for HTTP requests, Port: %d",
+                pluginConfigManager.getPluginName(), pluginConfigManager.getNettyPort()));
 
-        this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter); // 传递 *同一个* TableModel 和 RequestResponseSaver 和 RateLimiter 实例
-        this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver); // 传递 *同一个* TableModel 和 RequestResponseSaver 实例
+        this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter);
+        this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver);
 
-        // 新增：从ValueReplacer获取所有Fuzzer引用（包括OOBParamFuzzer）
+        // 从ValueReplacer获取所有Fuzzer引用
         ParamFuzzer paramFuzzer = valueReplacer.getParamFuzzer();
         ParamDeleter paramDeleter = valueReplacer.getParamDeleter();
         HeaderFuzzer headerFuzzer = valueReplacer.getHeaderFuzzer();
         CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer();
-        OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer(); // 新增：获取OOBParamFuzzer引用
+        OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer();
 
-        // 注册UI - 修改：传入所有Fuzzer引用（包括OOBParamFuzzer）
+        // 注册UI - 使用配置的插件名称
         MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
-                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer); // 新增：传递OOBParamFuzzer
+                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer);
 
-        api.userInterface().registerSuiteTab("Path Fuzzer", mainPanel);
+        api.userInterface().registerSuiteTab(pluginConfigManager.getPluginName(), mainPanel);
 
-        // 注册上下文菜单
-        ContextMenuProvider contextMenuProvider = new ContextMenuProvider(api, valueReplacer, tableModel, requestResponseSaver); // 传递 *同一个* TableModel 实例
+        // 注册上下文菜单（已支持配置化名称）
+        ContextMenuProvider contextMenuProvider = new ContextMenuProvider(api, valueReplacer, tableModel, requestResponseSaver);
         api.userInterface().registerContextMenuItemsProvider(contextMenuProvider);
 
         // 注册流量处理器
@@ -97,27 +104,73 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         // 注册卸载处理器
         api.extension().registerUnloadingHandler(this);
 
-        // 记录启动日志
+        // 记录启动日志 - 包含配置信息
         api.logging().logToOutput(
-                String.format("[PathFuzzer]%s - %s",
+                String.format("[%s]%s - %s",
+                        pluginConfigManager.getPluginName(),
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        " Path Fuzzer extension loaded with Netty (including HeaderFuzzer, CookieFuzzer and OOBParamFuzzer)") // 更新启动日志
+                        generateStartupMessage())
         );
+    }
+
+    /**
+     * 生成启动消息，包含配置信息
+     */
+    private String generateStartupMessage() {
+        PluginConfigManager.SwitchConfigState configState = pluginConfigManager.getSwitchConfigState();
+        StringBuilder message = new StringBuilder();
+        message.append(String.format(" %s extension loaded with Netty (Port: %d)",
+                pluginConfigManager.getPluginName(), pluginConfigManager.getNettyPort()));
+
+        message.append(" | Enabled modules: ");
+        StringBuilder enabledModules = new StringBuilder();
+
+        if (configState.isJsonListerEnabled()) {
+            enabledModules.append("JsonLister, ");
+        }
+        if (configState.isRouteFuzzerEnabled()) {
+            enabledModules.append("RouteFuzzer, ");
+        }
+        if (configState.isParamFuzzerEnabled()) {
+            enabledModules.append("ParamFuzzer, ");
+        }
+        if (configState.isParamDeleterEnabled()) {
+            enabledModules.append("ParamDeleter, ");
+        }
+        if (configState.isHeaderFuzzerEnabled()) {
+            enabledModules.append("HeaderFuzzer, ");
+        }
+        if (configState.isCookieFuzzerEnabled()) {
+            enabledModules.append("CookieFuzzer, ");
+        }
+        if (configState.isOOBParamFuzzerEnabled()) {
+            enabledModules.append("OOBParamFuzzer, ");
+        }
+
+        if (enabledModules.length() > 0) {
+            // 移除最后的逗号和空格
+            enabledModules.setLength(enabledModules.length() - 2);
+            message.append(enabledModules);
+        } else {
+            message.append("None");
+        }
+
+        return message.toString();
     }
 
     @Override
     public void extensionUnloaded() {
         // 防止重复关闭
         if (!isShuttingDown.compareAndSet(false, true)) {
-            api.logging().logToOutput("[PathFuzzer] Shutdown already in progress");
+            api.logging().logToOutput(String.format("[%s] Shutdown already in progress", pluginConfigManager.getPluginName()));
             return;
         }
 
-        api.logging().logToOutput("[PathFuzzer] Starting extension unload process...");
+        api.logging().logToOutput(String.format("[%s] Starting extension unload process...", pluginConfigManager.getPluginName()));
 
         // 创建关闭任务执行器，避免关闭过程中的死锁
         ExecutorService shutdownExecutor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "pathfuzzer-shutdown");
+            Thread t = new Thread(r, pluginConfigManager.getPluginName().toLowerCase() + "-shutdown");
             t.setDaemon(true);
             return t;
         });
@@ -132,21 +185,21 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             shutdownFuture.get(30, TimeUnit.SECONDS);
 
         } catch (TimeoutException e) {
-            api.logging().logToError("[PathFuzzer] Shutdown timeout, forcing immediate shutdown");
+            api.logging().logToError(String.format("[%s] Shutdown timeout, forcing immediate shutdown", pluginConfigManager.getPluginName()));
             forceShutdown();
         } catch (Exception e) {
-            api.logging().logToError("[PathFuzzer] Error during shutdown: " + e.getMessage());
+            api.logging().logToError(String.format("[%s] Error during shutdown: %s", pluginConfigManager.getPluginName(), e.getMessage()));
             forceShutdown();
         } finally {
             shutdownExecutor.shutdownNow();
         }
 
-        api.logging().logToOutput("[PathFuzzer] Extension unload completed");
+        api.logging().logToOutput(String.format("[%s] Extension unload completed", pluginConfigManager.getPluginName()));
     }
 
     private void performShutdown() {
         // 第一阶段：停止接收新请求
-        api.logging().logToOutput("[PathFuzzer] Phase 1 - Stopping new request processing...");
+        api.logging().logToOutput(String.format("[%s] Phase 1 - Stopping new request processing...", pluginConfigManager.getPluginName()));
         if (trafficHandler != null) {
             trafficHandler.setShuttingDown(true);
         }
@@ -156,7 +209,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         }
 
         // 等待当前请求处理完成
-        api.logging().logToOutput("[PathFuzzer] Phase 2 - Waiting for pending requests...");
+        api.logging().logToOutput(String.format("[%s] Phase 2 - Waiting for pending requests...", pluginConfigManager.getPluginName()));
         try {
             Thread.sleep(3000);
         } catch (InterruptedException e) {
@@ -174,7 +227,6 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         // 第三阶段：关闭ValueReplacer（停止处理任务）
         shutdownComponent("ValueReplacer", () -> {
             if (valueReplacer != null) {
-                // ValueReplacer内部已经有关闭逻辑，这里只需要等待
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
@@ -184,22 +236,22 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         });
 
         // 第四阶段：关闭网络客户端并等待完成
-        api.logging().logToOutput("[PathFuzzer] Phase 3 - Shutting down NettyManager...");
+        api.logging().logToOutput(String.format("[%s] Phase 3 - Shutting down NettyManager...", pluginConfigManager.getPluginName()));
         shutdownComponent("NettyManager", () -> {
             if (nettyManager != null) {
                 nettyManager.shutdown();
                 // 等待NettyManager完全关闭
                 boolean shutdownCompleted = nettyManager.awaitShutdown(10, TimeUnit.SECONDS);
                 if (!shutdownCompleted) {
-                    api.logging().logToError("[PathFuzzer] NettyManager shutdown timeout");
+                    api.logging().logToError(String.format("[%s] NettyManager shutdown timeout", pluginConfigManager.getPluginName()));
                 } else {
-                    api.logging().logToOutput("[PathFuzzer] NettyManager shutdown completed successfully");
+                    api.logging().logToOutput(String.format("[%s] NettyManager shutdown completed successfully", pluginConfigManager.getPluginName()));
                 }
             }
         });
 
         // 第五阶段：关闭其他组件
-        api.logging().logToOutput("[PathFuzzer] Phase 4 - Shutting down remaining components...");
+        api.logging().logToOutput(String.format("[%s] Phase 4 - Shutting down remaining components...", pluginConfigManager.getPluginName()));
 
         shutdownComponent("RateLimiter", () -> {
             if (rateLimiter != null) {
@@ -237,37 +289,81 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             }
         });
 
-        api.logging().logToOutput("[PathFuzzer] CookieChanger resources released");
-        String shutdownMessage = String.format(
+        api.logging().logToOutput(String.format("[%s] CookieChanger resources released", pluginConfigManager.getPluginName()));
+
+        // 生成关闭消息，包含配置信息
+        String shutdownMessage = generateShutdownMessage();
+        api.logging().logToOutput(shutdownMessage);
+    }
+
+    /**
+     * 生成关闭消息，包含配置信息
+     */
+    private String generateShutdownMessage() {
+        PluginConfigManager.SwitchConfigState configState = pluginConfigManager.getSwitchConfigState();
+        StringBuilder enabledModules = new StringBuilder();
+
+        if (configState.isJsonListerEnabled()) {
+            enabledModules.append("JsonLister, ");
+        }
+        if (configState.isRouteFuzzerEnabled()) {
+            enabledModules.append("RouteFuzzer, ");
+        }
+        if (configState.isParamFuzzerEnabled()) {
+            enabledModules.append("ParamFuzzer, ");
+        }
+        if (configState.isParamDeleterEnabled()) {
+            enabledModules.append("ParamDeleter, ");
+        }
+        if (configState.isHeaderFuzzerEnabled()) {
+            enabledModules.append("HeaderFuzzer, ");
+        }
+        if (configState.isCookieFuzzerEnabled()) {
+            enabledModules.append("CookieFuzzer, ");
+        }
+        if (configState.isOOBParamFuzzerEnabled()) {
+            enabledModules.append("OOBParamFuzzer, ");
+        }
+
+        if (enabledModules.length() > 0) {
+            enabledModules.setLength(enabledModules.length() - 2);
+        } else {
+            enabledModules.append("None");
+        }
+
+        return String.format(
                 "\n" +
                         "############################################\n" +
-                        "       PATH FUZZER plugin shutdown completed!\n" +
+                        "       %s plugin shutdown completed!\n" +
                         "############################################\n" +
                         "  Shutdown time: %s\n" +
                         "  All components safely stopped\n" +
-                        "  Network connections cleared\n" +
+                        "  Network connections cleared (Port: %d)\n" +
                         "  Thread pools fully terminated\n" +
                         "  Resources released\n" +
-                        "  HeaderFuzzer, CookieFuzzer and OOBParamFuzzer included in shutdown\n" + // 更新关闭消息
+                        "  Enabled modules included in shutdown: %s\n" +
                         "############################################\n" +
-                        "       Thank you for using PATH FUZZER!\n" +
+                        "       Thank you for using %s!\n" +
                         "############################################\n",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                pluginConfigManager.getPluginName().toUpperCase(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                pluginConfigManager.getNettyPort(),
+                enabledModules.toString(),
+                pluginConfigManager.getPluginName().toUpperCase()
         );
-        api.logging().logToOutput(shutdownMessage);
     }
 
     private void shutdownComponent(String componentName, Runnable shutdownAction) {
         try {
             shutdownAction.run();
-            api.logging().logToOutput("[PathFuzzer] " + componentName + " shutdown completed");
+            api.logging().logToOutput(String.format("[%s] %s shutdown completed", pluginConfigManager.getPluginName(), componentName));
         } catch (Exception e) {
-            api.logging().logToError("[PathFuzzer] Error during " + componentName + " shutdown: " + e.getMessage());
+            api.logging().logToError(String.format("[%s] Error during %s shutdown: %s", pluginConfigManager.getPluginName(), componentName, e.getMessage()));
         }
     }
 
     private void forceShutdown() {
-        api.logging().logToOutput("[PathFuzzer] Performing force shutdown...");
+        api.logging().logToOutput(String.format("[%s] Performing force shutdown...", pluginConfigManager.getPluginName()));
 
         // 强制关闭所有组件
         try {
@@ -283,7 +379,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
                 valueReplacer.forceShutdown();
             }
         } catch (Exception e) {
-            api.logging().logToError("[PathFuzzer] Error during force shutdown: " + e.getMessage());
+            api.logging().logToError(String.format("[%s] Error during force shutdown: %s", pluginConfigManager.getPluginName(), e.getMessage()));
         }
     }
 }

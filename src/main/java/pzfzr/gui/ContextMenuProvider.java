@@ -7,6 +7,7 @@ import burp.api.montoya.ui.contextmenu.MessageEditorHttpRequestResponse;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.FilterRule;
+import pzfzr.config.PluginConfigManager; // 新增
 import pzfzr.config.SwitchState;
 import pzfzr.core.ValueReplacer;
 import pzfzr.model.RequestResponseSaver;
@@ -28,6 +29,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
     private final TableModel tableModel;
     private final RequestResponseSaver requestResponseSaver;
     private final ConfigManager configManager;
+    private final PluginConfigManager pluginConfigManager; // 新增
     private final ExecutorService executor = Executors.newFixedThreadPool(8);
     private final AtomicInteger messageIdGenerator = new AtomicInteger(5000000);
 
@@ -41,6 +43,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
         this.configManager = ConfigManager.getInstance();
+        this.pluginConfigManager = PluginConfigManager.getInstance(); // 新增
         this.taskManager = new TaskManager(api, 5); // 最多同时执行5个批量任务
     }
 
@@ -74,8 +77,9 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
         final List<HttpRequestResponse> finalAllSelectedRequests = new ArrayList<>(allSelectedRequests);
 
-        // 创建子菜单
-        JMenu headerIntruderMenu = new JMenu("Path Fuzzer");
+        // 创建子菜单 - 使用配置的名称
+        String menuName = pluginConfigManager.getContextMenuName();
+        JMenu headerIntruderMenu = new JMenu(menuName);
 
         // 获取当前任务状态信息
         int activeTasks = taskManager.getActiveTaskCount();
@@ -105,97 +109,167 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             headerIntruderMenu.addSeparator();
         }
 
-        // 添加各种测试选项 - 修改为带任务管理的批量处理
-        // 更新为包含OOBParamFuzzer的全部测试（现在有8个测试类型）
-        JMenuItem allTests = createTestMenuItem("Run All Tests", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState allEnabledState = new SwitchState(true, true, true, true, true, true, true, true); // 新增：包含OOBParamFuzzer
-                    return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
-                });
+        // 获取插件配置状态
+        PluginConfigManager.SwitchConfigState configState = pluginConfigManager.getSwitchConfigState();
+
+        // 添加各种测试选项 - 根据配置动态创建菜单
+        // 1. 全部测试（但只包括配置启用的测试）
+        if (hasAnyTestEnabled(configState)) {
+            JMenuItem allTests = createTestMenuItem("Run All Tests", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState allEnabledState = createConfigBasedSwitchState(configState, true);
+                        return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
+                    });
+            headerIntruderMenu.add(allTests);
+        }
 
         // 添加过滤器菜单项 - 这个不需要异步，保持原有逻辑
         JMenuItem addFilterItem = new JMenuItem(String.format("Add Filter (%d 个已选择)", finalAllSelectedRequests.size()));
         addFilterItem.addActionListener(e -> addFiltersSync(finalAllSelectedRequests));
-
-        // 各种测试菜单项 - 更新SwitchState构造参数（现在需要8个参数）
-        JMenuItem JsonListerTest = createTestMenuItem("JsonLister Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false, false, false); // 更新：包含OOBParamFuzzer参数
-                    return valueReplacer.unifiedTestForContextAsync(request, jsonListerOnlyState, messageId);
-                });
-
-        JMenuItem routeFuzzerTest = createTestMenuItem("RouteFuzzer Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false, false, false); // 更新：包含OOBParamFuzzer参数
-                    return valueReplacer.unifiedTestForContextAsync(request, routeFuzzerOnlyState, messageId);
-                });
-
-        JMenuItem ParamFuzzerTest = createTestMenuItem("ParamFuzzer Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false, false, false); // 更新：包含OOBParamFuzzer参数
-                    return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
-                });
-
-        JMenuItem ParamDeleterTest = createTestMenuItem("ParamDeleter Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false, false, false); // 更新：包含OOBParamFuzzer参数
-                    return valueReplacer.unifiedTestForContextAsync(request, paramDeleterOnlyState, messageId);
-                });
-
-        JMenuItem HeaderFuzzerTest = createTestMenuItem("HeaderFuzzer Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, true, false, false); // 更新：包含OOBParamFuzzer参数
-                    return valueReplacer.unifiedTestForContextAsync(request, headerFuzzerOnlyState, messageId);
-                });
-
-        JMenuItem CookieFuzzerTest = createTestMenuItem("CookieFuzzer Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState cookieFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, true, false); // 更新：包含OOBParamFuzzer参数
-                    return valueReplacer.unifiedTestForContextAsync(request, cookieFuzzerOnlyState, messageId);
-                });
-
-        // 新增：OOBParamFuzzer测试菜单项
-        JMenuItem OOBParamFuzzerTest = createTestMenuItem("OOBParamFuzzer Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState oobParamFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, false, true);
-                    return valueReplacer.unifiedTestForContextAsync(request, oobParamFuzzerOnlyState, messageId);
-                });
-
-        // 新增：Run Route Test - 组合测试（JsonLister + RouteFuzzer + ParamFuzzer + ParamDeleter）
-        JMenuItem routeTestCombo = createTestMenuItem("Run Route Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState routeTestState = new SwitchState(false, true, true, true, true, false, false, false);
-                    return valueReplacer.unifiedTestForContextAsync(request, routeTestState, messageId);
-                });
-
-        // 新增：Run OOB Test - 组合测试（HeaderFuzzer + CookieFuzzer + OOBParamFuzzer）
-        JMenuItem oobTestCombo = createTestMenuItem("Run OOB Test", finalAllSelectedRequests,
-                (request, messageId) -> {
-                    SwitchState oobTestState = new SwitchState(false, false, false, false, false, true, true, true);
-                    return valueReplacer.unifiedTestForContextAsync(request, oobTestState, messageId);
-                });
-
-        // 添加菜单项到子菜单
-        headerIntruderMenu.add(allTests);
         headerIntruderMenu.add(addFilterItem);
         headerIntruderMenu.addSeparator();
-        // 新增：添加组合测试菜单项
-        headerIntruderMenu.add(routeTestCombo);
-        headerIntruderMenu.add(oobTestCombo);
-        headerIntruderMenu.addSeparator();
-        // 原有的单独测试菜单项
-        headerIntruderMenu.add(JsonListerTest);
-        headerIntruderMenu.add(routeFuzzerTest);
-        headerIntruderMenu.add(ParamFuzzerTest);
-        headerIntruderMenu.add(ParamDeleterTest);
-        headerIntruderMenu.add(HeaderFuzzerTest);
-        headerIntruderMenu.add(CookieFuzzerTest);
-        headerIntruderMenu.add(OOBParamFuzzerTest); // 新增
+
+        // 2. 组合测试菜单
+        if (isRouteTestAvailable(configState)) {
+            JMenuItem routeTestCombo = createTestMenuItem("Run Route Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState routeTestState = new SwitchState(false,
+                                configState.isJsonListerEnabled(),
+                                configState.isRouteFuzzerEnabled(),
+                                configState.isParamFuzzerEnabled(),
+                                configState.isParamDeleterEnabled(),
+                                false, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, routeTestState, messageId);
+                    });
+            headerIntruderMenu.add(routeTestCombo);
+        }
+
+        if (isOOBTestAvailable(configState)) {
+            JMenuItem oobTestCombo = createTestMenuItem("Run OOB Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState oobTestState = new SwitchState(false, false, false, false, false,
+                                configState.isHeaderFuzzerEnabled(),
+                                configState.isCookieFuzzerEnabled(),
+                                configState.isOOBParamFuzzerEnabled());
+                        return valueReplacer.unifiedTestForContextAsync(request, oobTestState, messageId);
+                    });
+            headerIntruderMenu.add(oobTestCombo);
+        }
+
+        if (isRouteTestAvailable(configState) || isOOBTestAvailable(configState)) {
+            headerIntruderMenu.addSeparator();
+        }
+
+        // 3. 单独测试菜单项 - 只添加配置启用的测试
+        if (configState.isJsonListerEnabled()) {
+            JMenuItem JsonListerTest = createTestMenuItem("JsonLister Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, jsonListerOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(JsonListerTest);
+        }
+
+        if (configState.isRouteFuzzerEnabled()) {
+            JMenuItem routeFuzzerTest = createTestMenuItem("RouteFuzzer Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, routeFuzzerOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(routeFuzzerTest);
+        }
+
+        if (configState.isParamFuzzerEnabled()) {
+            JMenuItem ParamFuzzerTest = createTestMenuItem("ParamFuzzer Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(ParamFuzzerTest);
+        }
+
+        if (configState.isParamDeleterEnabled()) {
+            JMenuItem ParamDeleterTest = createTestMenuItem("ParamDeleter Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, paramDeleterOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(ParamDeleterTest);
+        }
+
+        if (configState.isHeaderFuzzerEnabled()) {
+            JMenuItem HeaderFuzzerTest = createTestMenuItem("HeaderFuzzer Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, true, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, headerFuzzerOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(HeaderFuzzerTest);
+        }
+
+        if (configState.isCookieFuzzerEnabled()) {
+            JMenuItem CookieFuzzerTest = createTestMenuItem("CookieFuzzer Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState cookieFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, true, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, cookieFuzzerOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(CookieFuzzerTest);
+        }
+
+        if (configState.isOOBParamFuzzerEnabled()) {
+            JMenuItem OOBParamFuzzerTest = createTestMenuItem("OOBParamFuzzer Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState oobParamFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, false, true);
+                        return valueReplacer.unifiedTestForContextAsync(request, oobParamFuzzerOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(OOBParamFuzzerTest);
+        }
 
         // 添加子菜单到列表
         menuItems.add(headerIntruderMenu);
 
         return menuItems;
+    }
+
+    /**
+     * 检查是否有任何测试被启用
+     */
+    private boolean hasAnyTestEnabled(PluginConfigManager.SwitchConfigState configState) {
+        return configState.isJsonListerEnabled() || configState.isRouteFuzzerEnabled() ||
+                configState.isParamFuzzerEnabled() || configState.isParamDeleterEnabled() ||
+                configState.isHeaderFuzzerEnabled() || configState.isCookieFuzzerEnabled() ||
+                configState.isOOBParamFuzzerEnabled();
+    }
+
+    /**
+     * 检查Route测试是否可用
+     */
+    private boolean isRouteTestAvailable(PluginConfigManager.SwitchConfigState configState) {
+        return configState.isJsonListerEnabled() || configState.isRouteFuzzerEnabled() ||
+                configState.isParamFuzzerEnabled() || configState.isParamDeleterEnabled();
+    }
+
+    /**
+     * 检查OOB测试是否可用
+     */
+    private boolean isOOBTestAvailable(PluginConfigManager.SwitchConfigState configState) {
+        return configState.isHeaderFuzzerEnabled() || configState.isCookieFuzzerEnabled() ||
+                configState.isOOBParamFuzzerEnabled();
+    }
+
+    /**
+     * 根据配置创建SwitchState
+     */
+    private SwitchState createConfigBasedSwitchState(PluginConfigManager.SwitchConfigState configState, boolean enableAll) {
+        return new SwitchState(
+                false, // masterSwitch一般设置为false
+                enableAll && configState.isJsonListerEnabled(),
+                enableAll && configState.isRouteFuzzerEnabled(),
+                enableAll && configState.isParamFuzzerEnabled(),
+                enableAll && configState.isParamDeleterEnabled(),
+                enableAll && configState.isHeaderFuzzerEnabled(),
+                enableAll && configState.isCookieFuzzerEnabled(),
+                enableAll && configState.isOOBParamFuzzerEnabled()
+        );
     }
 
     /**
@@ -214,7 +288,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                 boolean submitted = taskManager.submitTask(task);
                 if (submitted) {
                     // 改为日志输出，不显示弹窗
-                    api.logging().logToOutput(String.format("[ContextMenuProvider] Task submitted: %s, %d requests (Task ID: %d)", testName, requests.size(), taskId));
+                    api.logging().logToOutput(String.format("[%s] Task submitted: %s, %d requests (Task ID: %d)",
+                            pluginConfigManager.getContextMenuName(), testName, requests.size(), taskId));
                 } else {
                     showTaskRejectedMessage(testName, "Task queue is full. Please wait for current tasks to finish.");
                 }
@@ -255,19 +330,22 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
                             configManager.addFilterRule(filterRule);
                             successCount++;
-                            api.logging().logToOutput("[ContextMenuProvider] Added filter rule: " + baseUrl);
+                            api.logging().logToOutput(String.format("[%s] Added filter rule: %s",
+                                    pluginConfigManager.getContextMenuName(), baseUrl));
                         }
                     }
                 } catch (Exception ex) {
                     errorCount++;
-                    api.logging().logToError("[ContextMenuProvider] Error processing request: " + ex.getMessage());
+                    api.logging().logToError(String.format("[%s] Error processing request: %s",
+                            pluginConfigManager.getContextMenuName(), ex.getMessage()));
                 }
             }
 
             showBatchResult("过滤器规则", requests.size(), successCount, errorCount);
 
         } catch (Exception ex) {
-            api.logging().logToError("[ContextMenuProvider] Error adding filter rule: " + ex.getMessage());
+            api.logging().logToError(String.format("[%s] Error adding filter rule: %s",
+                    pluginConfigManager.getContextMenuName(), ex.getMessage()));
             showErrorMessage("添加过滤器规则时发生错误: " + ex.getMessage());
         }
     }
@@ -352,7 +430,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                 return;
             }
 
-            api.logging().logToOutput(String.format("[ContextMenuProvider] [Task %d] Starting batch %s with %d requests", taskId, testName, requests.size()));
+            api.logging().logToOutput(String.format("[%s] [Task %d] Starting batch %s with %d requests",
+                    pluginConfigManager.getContextMenuName(), taskId, testName, requests.size()));
 
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             int processedCount = 0;
@@ -361,7 +440,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             try {
                 for (HttpRequestResponse reqRes : requests) {
                     if (cancelled) {
-                        api.logging().logToOutput(String.format("[ContextMenuProvider] [Task %d] Cancelled", taskId));
+                        api.logging().logToOutput(String.format("[%s] [Task %d] Cancelled",
+                                pluginConfigManager.getContextMenuName(), taskId));
                         return;
                     }
 
@@ -384,7 +464,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                                             original.setOriginalResponse(originalReqRes.response());
                                         }
                                     } catch (Exception ex) {
-                                        api.logging().logToError(String.format("[ContextMenuProvider] [Task %d] Error sending original request: %s", taskId, ex.getMessage()));
+                                        api.logging().logToError(String.format("[%s] [Task %d] Error sending original request: %s",
+                                                pluginConfigManager.getContextMenuName(), taskId, ex.getMessage()));
                                     }
                                 }, executor);
 
@@ -396,7 +477,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             }
                         } catch (Exception ex) {
                             errorCount++;
-                            api.logging().logToError(String.format("[ContextMenuProvider] [Task %d] Error processing request: %s", taskId, ex.getMessage()));
+                            api.logging().logToError(String.format("[%s] [Task %d] Error processing request: %s",
+                                    pluginConfigManager.getContextMenuName(), taskId, ex.getMessage()));
                         }
                     }
                 }
@@ -407,14 +489,16 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
 
                 // 改为日志输出，不显示弹窗
                 if (!cancelled) {
-                    api.logging().logToOutput(String.format("[ContextMenuProvider] [Task %d] Task completed: %s - Processed %d requests, with %d errors",
-                            taskId, testName, processedCount, errorCount));
+                    api.logging().logToOutput(String.format("[%s] [Task %d] Task completed: %s - Processed %d requests, with %d errors",
+                            pluginConfigManager.getContextMenuName(), taskId, testName, processedCount, errorCount));
                 }
 
             } catch (TimeoutException e) {
-                api.logging().logToError(String.format("[ContextMenuProvider] [Task %d] %s timed out after 30 minutes", taskId, testName));
+                api.logging().logToError(String.format("[%s] [Task %d] %s timed out after 30 minutes",
+                        pluginConfigManager.getContextMenuName(), taskId, testName));
             } catch (Exception e) {
-                api.logging().logToError(String.format("[ContextMenuProvider] [Task %d] Error during batch execution: %s", taskId, e.getMessage()));
+                api.logging().logToError(String.format("[%s] [Task %d] Error during batch execution: %s",
+                        pluginConfigManager.getContextMenuName(), taskId, e.getMessage()));
             }
         }
 

@@ -23,6 +23,7 @@ import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.core.ByteArray;
 import burp.api.montoya.logging.Logging;
 import burp.api.montoya.utilities.CompressionUtils;
+import pzfzr.config.PluginConfigManager;
 
 import javax.net.ssl.SSLException;
 import java.net.InetSocketAddress;
@@ -34,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * NettyManager - 修复版本，完善关闭机制，新增重试机制
+ * NettyManager - 修改版支持可配置端口
  */
 public class NettyManager {
     private static volatile NettyManager instance;
@@ -59,12 +60,15 @@ public class NettyManager {
     private final ExecutorService businessExecutor;
     private static final AtomicInteger BUSINESS_THREAD_COUNTER = new AtomicInteger(1);
 
-    // 监控线程池 - 修复：存储为实例变量
+    // 监控线程池
     private final ScheduledExecutorService monitorExecutor;
+
+    // 配置管理器
+    private final PluginConfigManager configManager;
 
     // 配置
     private static final String PROXY_HOST = "127.0.0.1";
-    private static final int PROXY_PORT = 20808;
+    private final int PROXY_PORT; // 从配置读取
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_SEC = 120;
     private static final int WRITE_TIMEOUT_SEC = 60;
@@ -85,7 +89,7 @@ public class NettyManager {
     // 调试开关
     private static final boolean DEBUG = false;
 
-    // 关闭控制 - 改进版本
+    // 关闭控制
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
     private final AtomicBoolean shutdownStarted = new AtomicBoolean(false);
@@ -93,6 +97,10 @@ public class NettyManager {
     private NettyManager(Logging logging, CompressionUtils compressionUtils) {
         this.logging = logging;
         this.compressionUtils = compressionUtils;
+        this.configManager = PluginConfigManager.getInstance();
+
+        // 从配置读取端口
+        this.PROXY_PORT = configManager.getNettyPort();
 
         try {
             // 创建SSL上下文
@@ -128,7 +136,7 @@ public class NettyManager {
                 new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
-        // 创建监控线程池 - 修复：存储为实例变量
+        // 创建监控线程池
         this.monitorExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "netty-monitor");
             t.setDaemon(true);
@@ -140,11 +148,12 @@ public class NettyManager {
 
         logging.logToOutput("[NettyManager] Initialization complete, EventLoop threads: " +
                 ((NioEventLoopGroup)eventLoopGroup).executorCount() +
-                ", Proxy: " + PROXY_HOST + ":" + PROXY_PORT);
+                ", Proxy: " + PROXY_HOST + ":" + PROXY_PORT +
+                ", Plugin: " + configManager.getPluginName());
     }
 
     /**
-     * 启动监控线程 - 修复版本
+     * 启动监控线程
      */
     private void startMonitorThread() {
         monitorExecutor.scheduleAtFixedRate(() -> {
@@ -417,7 +426,7 @@ public class NettyManager {
             protected void initChannel(SocketChannel ch) {
                 ChannelPipeline p = ch.pipeline();
 
-                // SOCKS5代理
+                // SOCKS5代理 - 使用可配置端口
                 p.addLast("socks5", new Socks5ProxyHandler(
                         new InetSocketAddress(PROXY_HOST, PROXY_PORT)));
 
@@ -796,7 +805,7 @@ public class NettyManager {
     }
 
     /**
-     * 关闭管理器 - 改进版本
+     * 关闭管理器
      */
     public void shutdown() {
         // 使用CAS确保只执行一次
@@ -810,7 +819,7 @@ public class NettyManager {
             return;
         }
 
-        logging.logToOutput("[NettyManager] Starting shutdown...");
+        logging.logToOutput("[NettyManager] Starting shutdown for " + configManager.getPluginName() + "...");
 
         // 标记为关闭状态
         isShutdown.set(true);
@@ -836,8 +845,8 @@ public class NettyManager {
             // 第五步：关闭业务线程池
             shutdownBusinessExecutor();
 
-            logging.logToOutput(String.format("[NettyManager] Shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d",
-                    totalRequests.get(), successRequests.get(), failedRequests.get(), retryRequests.get()));
+            logging.logToOutput(String.format("[NettyManager] %s shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d",
+                    configManager.getPluginName(), totalRequests.get(), successRequests.get(), failedRequests.get(), retryRequests.get()));
 
         } catch (Exception e) {
             logging.logToError("[NettyManager] Error occurred during shutdown: " + e.getMessage());
@@ -845,7 +854,6 @@ public class NettyManager {
             shutdownLatch.countDown();
         }
     }
-
     /**
      * 关闭监控线程池
      */

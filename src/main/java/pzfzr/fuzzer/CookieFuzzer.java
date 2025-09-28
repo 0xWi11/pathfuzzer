@@ -3,6 +3,8 @@ package pzfzr.fuzzer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
@@ -106,6 +108,33 @@ public class CookieFuzzer {
             "personalization_id",
             "guest_id_ads",
             "guest_id_marketing"
+    ));
+
+    // Cookie中需要URL编码的特殊字符集合
+    private static final Set<Character> COOKIE_SPECIAL_CHARS = new HashSet<>(Arrays.asList(
+            ' ',   // 空格
+            '"',   // 双引号
+            ';',   // 分号
+            ',',   // 逗号
+            '=',   // 等号
+            '\n',  // 换行符
+            '\r',  // 回车符
+            '\t',  // 制表符
+            '\\',  // 反斜杠
+            '%',   // 百分号
+            '&',   // 与号
+            '+',   // 加号
+            '<',   // 小于号
+            '>',   // 大于号
+            '[',   // 左方括号
+            ']',   // 右方括号
+            '{',   // 左花括号
+            '}',   // 右花括号
+            '|',   // 竖线
+            '^',   // 脱字符
+            '~',   // 波浪号
+            '`',   // 反引号
+            '#'    // 井号
     ));
 
     public CookieFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
@@ -349,11 +378,61 @@ public class CookieFuzzer {
     }
 
     /**
-     * 使用统一的PayloadConstants处理payload
+     * 使用统一的PayloadConstants处理payload，并对cookie特殊字符进行URL编码
      */
     private String processPayload(String payload, String cookieValue) {
-        // 使用统一的PayloadConstants.PayloadProcessor进行通用处理
-        return PayloadConstants.PayloadProcessor.processCommonReplacements(payload, cookieValue);
+        // 首先使用统一的PayloadConstants.PayloadProcessor进行通用处理
+        String processedPayload = PayloadConstants.PayloadProcessor.processCommonReplacements(payload, cookieValue);
+
+        // 然后对cookie特殊字符进行URL编码
+        return urlEncodeCookieSpecialChars(processedPayload);
+    }
+
+    /**
+     * 对Cookie值中的特殊字符进行URL编码
+     * 只编码需要编码的特殊字符，其他字符保持不变
+     *
+     * @param input 输入字符串
+     * @return URL编码后的字符串
+     */
+    private String urlEncodeCookieSpecialChars(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            // 如果是特殊字符，进行URL编码
+            if (COOKIE_SPECIAL_CHARS.contains(c)) {
+                result.append(urlEncodeChar(c));
+            } else if (c < 32 || c > 126) {
+                // 编码控制字符和非ASCII字符
+                result.append(urlEncodeChar(c));
+            } else {
+                // 普通字符直接添加
+                result.append(c);
+            }
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * 对单个字符进行URL编码
+     *
+     * @param c 要编码的字符
+     * @return URL编码后的字符串
+     */
+    private String urlEncodeChar(char c) {
+        try {
+            return URLEncoder.encode(String.valueOf(c), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            // UTF-8应该总是支持的，如果失败则返回十六进制编码
+            return String.format("%%%02X", (int) c);
+        }
     }
 
     /**

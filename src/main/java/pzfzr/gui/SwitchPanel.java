@@ -1,5 +1,6 @@
 package pzfzr.gui;
 
+import pzfzr.config.PluginConfigManager;
 import pzfzr.config.SwitchManager;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
@@ -8,7 +9,7 @@ import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
+import pzfzr.fuzzer.OOBParamFuzzer;
 import pzfzr.model.CSVExporter;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -27,11 +28,12 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox paramDeleterSwitch;
     private final JCheckBox headerFuzzerSwitch;
     private final JCheckBox cookieFuzzerSwitch;
-    private final JCheckBox oobParamFuzzerSwitch; // 新增：OOBParamFuzzer开关
+    private final JCheckBox oobParamFuzzerSwitch;
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
     private final SwitchManager switchManager;
+    private final PluginConfigManager pluginConfigManager; // 新增
     private final Logging logging;
     private final CSVExporter csvExporter;
     private final RequestResponseSaver requestResponseSaver;
@@ -40,7 +42,7 @@ public class SwitchPanel extends JPanel {
     private final ParamDeleter paramDeleter;
     private final HeaderFuzzer headerFuzzer;
     private final CookieFuzzer cookieFuzzer;
-    private final OOBParamFuzzer oobParamFuzzer; // 新增：OOBParamFuzzer引用
+    private final OOBParamFuzzer oobParamFuzzer;
     private final JTextField newCapacityTextField;
     private final JTextField newRefillRateTextField;
     private final JTextField newUrlRateLimitTextField;
@@ -50,7 +52,7 @@ public class SwitchPanel extends JPanel {
     private final JTextField maxParameterCountTextField;
     private final JTextField maxParameterCountDeleterTextField;
     private final JTextField maxParameterCountCookieTextField;
-    private final JTextField maxParameterCountOOBTextField; // 新增：OOBParamFuzzer最大参数数量输入框
+    private final JTextField maxParameterCountOOBTextField;
     private final JButton setRateLimitButton;
     private final JButton clearTasksButton;
     private final TrafficHandler trafficHandler;
@@ -60,8 +62,9 @@ public class SwitchPanel extends JPanel {
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
                        ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer,
-                       OOBParamFuzzer oobParamFuzzer) { // 修改：添加OOBParamFuzzer参数
+                       OOBParamFuzzer oobParamFuzzer) {
         this.switchManager = SwitchManager.getInstance();
+        this.pluginConfigManager = PluginConfigManager.getInstance(); // 新增
         this.logging = logging;
         this.requestResponseSaver = requestResponseSaver;
         this.csvExporter = new CSVExporter(logging, tableModel, requestResponseSaver);
@@ -71,7 +74,7 @@ public class SwitchPanel extends JPanel {
         this.paramDeleter = paramDeleter;
         this.headerFuzzer = headerFuzzer;
         this.cookieFuzzer = cookieFuzzer;
-        this.oobParamFuzzer = oobParamFuzzer; // 新增：存储OOBParamFuzzer引用
+        this.oobParamFuzzer = oobParamFuzzer;
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
@@ -81,7 +84,7 @@ public class SwitchPanel extends JPanel {
         JPanel switchesPanel = new JPanel();
         switchesPanel.setLayout(new BoxLayout(switchesPanel, BoxLayout.Y_AXIS));
 
-        // 创建开关
+        // 创建开关 - 根据配置决定是否启用
         masterSwitch = createSwitch("请求总开关",
                 switchManager.isMasterSwitch(),
                 selected -> {
@@ -89,34 +92,66 @@ public class SwitchPanel extends JPanel {
                     updateSwitchStates();
                 });
 
+        // 根据配置创建和配置各个开关
+        PluginConfigManager.SwitchConfigState configState = pluginConfigManager.getSwitchConfigState();
+
         builtInSwitch = createSwitch("JsonLister 测试开关",
                 switchManager.isJsonListerSwitch(),
                 selected -> switchManager.setJsonListerSwitch(selected));
+        builtInSwitch.setEnabled(configState.isJsonListerEnabled());
 
         collectedSwitch = createSwitch("RouteFuzzer 测试开关",
                 switchManager.isRoutefuzzerSwitch(),
                 selected -> switchManager.setRoutefuzzerSwitch(selected));
+        collectedSwitch.setEnabled(configState.isRouteFuzzerEnabled());
 
         suspiciousSwitch = createSwitch("ParamFuzzer 测试开关",
                 switchManager.isParamfuzzerSwitch(),
                 selected -> switchManager.setParamfuzzerSwitch(selected));
+        suspiciousSwitch.setEnabled(configState.isParamFuzzerEnabled());
 
         paramDeleterSwitch = createSwitch("ParamDeleter 测试开关",
                 switchManager.isParamdeleterSwitch(),
                 selected -> switchManager.setParamdeleterSwitch(selected));
+        paramDeleterSwitch.setEnabled(configState.isParamDeleterEnabled());
 
         headerFuzzerSwitch = createSwitch("HeaderFuzzer 测试开关",
                 switchManager.isHeaderfuzzerSwitch(),
                 selected -> switchManager.setHeaderfuzzerSwitch(selected));
+        headerFuzzerSwitch.setEnabled(configState.isHeaderFuzzerEnabled());
 
         cookieFuzzerSwitch = createSwitch("CookieFuzzer 测试开关",
                 switchManager.isCookiefuzzerSwitch(),
                 selected -> switchManager.setCookiefuzzerSwitch(selected));
+        cookieFuzzerSwitch.setEnabled(configState.isCookieFuzzerEnabled());
 
-        // 新增：OOBParamFuzzer开关
         oobParamFuzzerSwitch = createSwitch("OOBParamFuzzer 测试开关",
                 switchManager.isOobparamfuzzerSwitch(),
                 selected -> switchManager.setOobparamfuzzerSwitch(selected));
+        oobParamFuzzerSwitch.setEnabled(configState.isOOBParamFuzzerEnabled());
+
+        // 根据配置设置开关是否可见
+        if (!configState.isJsonListerEnabled()) {
+            builtInSwitch.setVisible(false);
+        }
+        if (!configState.isRouteFuzzerEnabled()) {
+            collectedSwitch.setVisible(false);
+        }
+        if (!configState.isParamFuzzerEnabled()) {
+            suspiciousSwitch.setVisible(false);
+        }
+        if (!configState.isParamDeleterEnabled()) {
+            paramDeleterSwitch.setVisible(false);
+        }
+        if (!configState.isHeaderFuzzerEnabled()) {
+            headerFuzzerSwitch.setVisible(false);
+        }
+        if (!configState.isCookieFuzzerEnabled()) {
+            cookieFuzzerSwitch.setVisible(false);
+        }
+        if (!configState.isOOBParamFuzzerEnabled()) {
+            oobParamFuzzerSwitch.setVisible(false);
+        }
 
         // 创建清除哈希按钮
         clearHashesButton = new JButton("清除URL缓存");
@@ -199,7 +234,7 @@ public class SwitchPanel extends JPanel {
             );
         });
 
-        // 修改全局速率限制面板的布局
+        // 创建全局速率限制面板
         JPanel globalRateLimitPanel = new JPanel();
         globalRateLimitPanel.setLayout(new BoxLayout(globalRateLimitPanel, BoxLayout.Y_AXIS));
         globalRateLimitPanel.setBorder(BorderFactory.createTitledBorder("全局速率限制"));
@@ -249,7 +284,6 @@ public class SwitchPanel extends JPanel {
         JLabel urlRateLabel = new JLabel("URL限流 (req/s):");
         newUrlRateLimitTextField = new JTextField(String.valueOf(rateLimiter.getUrlRateLimit()), 5);
         JLabel urlExpireLabel = new JLabel("URL过期时间 (秒):");
-        // 将毫秒转换为秒显示
         newUrlExpireTimeTextField = new JTextField(String.valueOf(rateLimiter.getUrlExpireTime() / 1000), 5);
 
         urlRateLimitPanel.add(urlRateLabel);
@@ -258,43 +292,59 @@ public class SwitchPanel extends JPanel {
         urlRateLimitPanel.add(newUrlExpireTimeTextField);
         urlRateLimitPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 创建参数数量限制设置的UI元素 - 修改为包含OOBParamFuzzer
+        // 创建参数数量限制设置的UI元素 - 根据配置显示相关组件
         JPanel maxParameterPanel = new JPanel();
         maxParameterPanel.setLayout(new BoxLayout(maxParameterPanel, BoxLayout.Y_AXIS));
         maxParameterPanel.setBorder(BorderFactory.createTitledBorder("参数数量限制"));
 
         // ParamFuzzer参数数量限制
-        JPanel paramFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel maxParameterLabel = new JLabel("ParamFuzzer最大参数数量:");
-        maxParameterCountTextField = new JTextField(String.valueOf(paramFuzzer.getMaxParameterCount()), 5);
-        paramFuzzerLimitPanel.add(maxParameterLabel);
-        paramFuzzerLimitPanel.add(maxParameterCountTextField);
+        if (configState.isParamFuzzerEnabled()) {
+            JPanel paramFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel maxParameterLabel = new JLabel("ParamFuzzer最大参数数量:");
+            maxParameterCountTextField = new JTextField(String.valueOf(paramFuzzer.getMaxParameterCount()), 5);
+            paramFuzzerLimitPanel.add(maxParameterLabel);
+            paramFuzzerLimitPanel.add(maxParameterCountTextField);
+            maxParameterPanel.add(paramFuzzerLimitPanel);
+        } else {
+            maxParameterCountTextField = new JTextField("0", 5); // 创建隐藏字段
+        }
 
         // ParamDeleter参数数量限制
-        JPanel paramDeleterLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel maxParameterDeleterLabel = new JLabel("ParamDeleter最大参数数量:");
-        maxParameterCountDeleterTextField = new JTextField(String.valueOf(paramDeleter.getMaxParameterCount()), 5);
-        paramDeleterLimitPanel.add(maxParameterDeleterLabel);
-        paramDeleterLimitPanel.add(maxParameterCountDeleterTextField);
+        if (configState.isParamDeleterEnabled()) {
+            JPanel paramDeleterLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel maxParameterDeleterLabel = new JLabel("ParamDeleter最大参数数量:");
+            maxParameterCountDeleterTextField = new JTextField(String.valueOf(paramDeleter.getMaxParameterCount()), 5);
+            paramDeleterLimitPanel.add(maxParameterDeleterLabel);
+            paramDeleterLimitPanel.add(maxParameterCountDeleterTextField);
+            maxParameterPanel.add(paramDeleterLimitPanel);
+        } else {
+            maxParameterCountDeleterTextField = new JTextField("0", 5); // 创建隐藏字段
+        }
 
         // CookieFuzzer参数数量限制
-        JPanel cookieFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel maxParameterCookieLabel = new JLabel("CookieFuzzer最大参数数量:");
-        maxParameterCountCookieTextField = new JTextField(String.valueOf(cookieFuzzer.getMaxParameterCount()), 5);
-        cookieFuzzerLimitPanel.add(maxParameterCookieLabel);
-        cookieFuzzerLimitPanel.add(maxParameterCountCookieTextField);
+        if (configState.isCookieFuzzerEnabled()) {
+            JPanel cookieFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel maxParameterCookieLabel = new JLabel("CookieFuzzer最大参数数量:");
+            maxParameterCountCookieTextField = new JTextField(String.valueOf(cookieFuzzer.getMaxParameterCount()), 5);
+            cookieFuzzerLimitPanel.add(maxParameterCookieLabel);
+            cookieFuzzerLimitPanel.add(maxParameterCountCookieTextField);
+            maxParameterPanel.add(cookieFuzzerLimitPanel);
+        } else {
+            maxParameterCountCookieTextField = new JTextField("0", 5); // 创建隐藏字段
+        }
 
-        // 新增：OOBParamFuzzer参数数量限制
-        JPanel oobParamFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel maxParameterOOBLabel = new JLabel("OOBParamFuzzer最大参数数量:");
-        maxParameterCountOOBTextField = new JTextField(String.valueOf(oobParamFuzzer.getMaxParameterCount()), 5);
-        oobParamFuzzerLimitPanel.add(maxParameterOOBLabel);
-        oobParamFuzzerLimitPanel.add(maxParameterCountOOBTextField);
+        // OOBParamFuzzer参数数量限制
+        if (configState.isOOBParamFuzzerEnabled()) {
+            JPanel oobParamFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel maxParameterOOBLabel = new JLabel("OOBParamFuzzer最大参数数量:");
+            maxParameterCountOOBTextField = new JTextField(String.valueOf(oobParamFuzzer.getMaxParameterCount()), 5);
+            oobParamFuzzerLimitPanel.add(maxParameterOOBLabel);
+            oobParamFuzzerLimitPanel.add(maxParameterCountOOBTextField);
+            maxParameterPanel.add(oobParamFuzzerLimitPanel);
+        } else {
+            maxParameterCountOOBTextField = new JTextField("0", 5); // 创建隐藏字段
+        }
 
-        maxParameterPanel.add(paramFuzzerLimitPanel);
-        maxParameterPanel.add(paramDeleterLimitPanel);
-        maxParameterPanel.add(cookieFuzzerLimitPanel);
-        maxParameterPanel.add(oobParamFuzzerLimitPanel); // 新增：添加OOBParamFuzzer限制面板
         maxParameterPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // 创建设置按钮面板
@@ -305,35 +355,41 @@ public class SwitchPanel extends JPanel {
                 int newCapacity = Integer.parseInt(newCapacityTextField.getText());
                 int newRefillRate = Integer.parseInt(newRefillRateTextField.getText());
                 int newUrlRateLimit = Integer.parseInt(newUrlRateLimitTextField.getText());
-                long newUrlExpireTime = Long.parseLong(newUrlExpireTimeTextField.getText()) * 1000; // 转换为毫秒
+                long newUrlExpireTime = Long.parseLong(newUrlExpireTimeTextField.getText()) * 1000;
                 long newRefillInterval = Long.parseLong(newRefillIntervalTextField.getText());
                 int newMaxHeadersPerBatch = Integer.parseInt(maxHeadersPerBatchTextField.getText());
-                int newMaxParameterCount = Integer.parseInt(maxParameterCountTextField.getText()); // ParamFuzzer最大参数数量
-                int newMaxParameterCountDeleter = Integer.parseInt(maxParameterCountDeleterTextField.getText()); // ParamDeleter最大参数数量
-                int newMaxParameterCountCookie = Integer.parseInt(maxParameterCountCookieTextField.getText()); // CookieFuzzer最大参数数量
-                int newMaxParameterCountOOB = Integer.parseInt(maxParameterCountOOBTextField.getText()); // 新增：OOBParamFuzzer最大参数数量
+
+                // 只获取启用的组件的参数值
+                int newMaxParameterCount = configState.isParamFuzzerEnabled() ?
+                        Integer.parseInt(maxParameterCountTextField.getText()) : 0;
+                int newMaxParameterCountDeleter = configState.isParamDeleterEnabled() ?
+                        Integer.parseInt(maxParameterCountDeleterTextField.getText()) : 0;
+                int newMaxParameterCountCookie = configState.isCookieFuzzerEnabled() ?
+                        Integer.parseInt(maxParameterCountCookieTextField.getText()) : 0;
+                int newMaxParameterCountOOB = configState.isOOBParamFuzzerEnabled() ?
+                        Integer.parseInt(maxParameterCountOOBTextField.getText()) : 0;
 
                 if (newCapacity > 0 && newRefillRate >= 0 && newUrlRateLimit >= 0 &&
-                        newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0 &&
-                        newMaxParameterCount > 0 && newMaxParameterCountDeleter > 0 && newMaxParameterCountCookie > 0 &&
-                        newMaxParameterCountOOB > 0) { // 新增：验证OOBParamFuzzer参数
-                    // 使用完整的参数列表调用更新方法
+                        newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0) {
+
                     rateLimiter.updateConfiguration(newCapacity, newRefillRate, newUrlRateLimit,
                             newUrlExpireTime, newRefillInterval, newMaxHeadersPerBatch);
 
-                    // 设置ParamFuzzer的最大参数数量
-                    paramFuzzer.setMaxParameterCount(newMaxParameterCount);
+                    // 只更新启用的组件
+                    if (configState.isParamFuzzerEnabled() && newMaxParameterCount > 0) {
+                        paramFuzzer.setMaxParameterCount(newMaxParameterCount);
+                    }
+                    if (configState.isParamDeleterEnabled() && newMaxParameterCountDeleter > 0) {
+                        paramDeleter.setMaxParameterCount(newMaxParameterCountDeleter);
+                    }
+                    if (configState.isCookieFuzzerEnabled() && newMaxParameterCountCookie > 0) {
+                        cookieFuzzer.setMaxParameterCount(newMaxParameterCountCookie);
+                    }
+                    if (configState.isOOBParamFuzzerEnabled() && newMaxParameterCountOOB > 0) {
+                        oobParamFuzzer.setMaxParameterCount(newMaxParameterCountOOB);
+                    }
 
-                    // 设置ParamDeleter的最大参数数量
-                    paramDeleter.setMaxParameterCount(newMaxParameterCountDeleter);
-
-                    // 设置CookieFuzzer的最大参数数量
-                    cookieFuzzer.setMaxParameterCount(newMaxParameterCountCookie);
-
-                    // 新增：设置OOBParamFuzzer的最大参数数量
-                    oobParamFuzzer.setMaxParameterCount(newMaxParameterCountOOB);
-
-                    // 更新每小时请求数显示 - 使用更新后的值计算
+                    // 更新每小时请求数显示
                     double updatedRequestsPerSecond = calculateRequestsPerSecond(newRefillRate, newRefillInterval);
                     int updatedRequestsPerHour = (int)(updatedRequestsPerSecond * 3600);
                     requestsPerHourLabel.setText(String.format("%d req/h | %.2f req/s", updatedRequestsPerHour, updatedRequestsPerSecond));
@@ -347,7 +403,7 @@ public class SwitchPanel extends JPanel {
                 } else {
                     JOptionPane.showMessageDialog(
                             this,
-                            "容量、令牌添加间隔、每批次最大Header数和最大参数数量必须大于0，其他参数不能为负数",
+                            "容量、令牌添加间隔、每批次最大Header数必须大于0，其他参数不能为负数",
                             "错误",
                             JOptionPane.ERROR_MESSAGE
                     );
@@ -398,20 +454,35 @@ public class SwitchPanel extends JPanel {
 
         // 添加固定间距的开关和按钮
         switchesPanel.add(masterSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(builtInSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(collectedSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(suspiciousSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(paramDeleterSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(headerFuzzerSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(cookieFuzzerSwitch);
-        switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(oobParamFuzzerSwitch); // 新增：添加OOBParamFuzzer开关
+        if (configState.isJsonListerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(builtInSwitch);
+        }
+        if (configState.isRouteFuzzerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(collectedSwitch);
+        }
+        if (configState.isParamFuzzerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(suspiciousSwitch);
+        }
+        if (configState.isParamDeleterEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(paramDeleterSwitch);
+        }
+        if (configState.isHeaderFuzzerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(headerFuzzerSwitch);
+        }
+        if (configState.isCookieFuzzerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(cookieFuzzerSwitch);
+        }
+        if (configState.isOOBParamFuzzerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(oobParamFuzzerSwitch);
+        }
+
         switchesPanel.add(Box.createVerticalStrut(10));
         switchesPanel.add(buttonsContainer);
         switchesPanel.add(Box.createVerticalStrut(10));
@@ -434,13 +505,30 @@ public class SwitchPanel extends JPanel {
 
     private void updateSwitchStates() {
         boolean masterState = masterSwitch.isSelected();
-        builtInSwitch.setEnabled(masterState);
-        collectedSwitch.setEnabled(masterState);
-        suspiciousSwitch.setEnabled(masterState);
-        paramDeleterSwitch.setEnabled(masterState);
-        headerFuzzerSwitch.setEnabled(masterState);
-        cookieFuzzerSwitch.setEnabled(masterState);
-        oobParamFuzzerSwitch.setEnabled(masterState); // 新增：OOBParamFuzzer开关也受主开关控制
+        PluginConfigManager.SwitchConfigState configState = pluginConfigManager.getSwitchConfigState();
+
+        // 只有配置启用且主开关开启时，子开关才能操作
+        if (configState.isJsonListerEnabled()) {
+            builtInSwitch.setEnabled(masterState);
+        }
+        if (configState.isRouteFuzzerEnabled()) {
+            collectedSwitch.setEnabled(masterState);
+        }
+        if (configState.isParamFuzzerEnabled()) {
+            suspiciousSwitch.setEnabled(masterState);
+        }
+        if (configState.isParamDeleterEnabled()) {
+            paramDeleterSwitch.setEnabled(masterState);
+        }
+        if (configState.isHeaderFuzzerEnabled()) {
+            headerFuzzerSwitch.setEnabled(masterState);
+        }
+        if (configState.isCookieFuzzerEnabled()) {
+            cookieFuzzerSwitch.setEnabled(masterState);
+        }
+        if (configState.isOOBParamFuzzerEnabled()) {
+            oobParamFuzzerSwitch.setEnabled(masterState);
+        }
     }
 
     // 修正计算请求数的方法

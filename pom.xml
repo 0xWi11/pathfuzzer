@@ -12,7 +12,69 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- 默认配置，会被profile覆盖 -->
+        <plugin.name>PathFuzzer</plugin.name>
+        <plugin.package.prefix>pzfzr</plugin.package.prefix>
+        <netty.port>20808</netty.port>
+        <context.menu.name>PathFuzzer</context.menu.name>
+        <switch.jsonlister.enabled>true</switch.jsonlister.enabled>
+        <switch.routefuzzer.enabled>true</switch.routefuzzer.enabled>
+        <switch.paramfuzzer.enabled>true</switch.paramfuzzer.enabled>
+        <switch.paramdeleter.enabled>true</switch.paramdeleter.enabled>
+        <switch.headerfuzzer.enabled>false</switch.headerfuzzer.enabled>
+        <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
+        <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>
+        <!-- 文件名配置 -->
+        <final.jar.name>pathfuzzer</final.jar.name>
+        <shade.package.prefix>pathfuzzer</shade.package.prefix>
     </properties>
+
+    <!-- Profile配置 -->
+    <profiles>
+        <!-- PathFuzzer Profile -->
+        <profile>
+            <id>pathfuzzer</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <plugin.name>PathFuzzer</plugin.name>
+                <plugin.package.prefix>pzfzr</plugin.package.prefix>
+                <netty.port>20808</netty.port>
+                <context.menu.name>PathFuzzer</context.menu.name>
+                <switch.jsonlister.enabled>true</switch.jsonlister.enabled>
+                <switch.routefuzzer.enabled>true</switch.routefuzzer.enabled>
+                <switch.paramfuzzer.enabled>true</switch.paramfuzzer.enabled>
+                <switch.paramdeleter.enabled>true</switch.paramdeleter.enabled>
+                <switch.headerfuzzer.enabled>false</switch.headerfuzzer.enabled>
+                <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
+                <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>
+                <final.jar.name>pathfuzzer</final.jar.name>
+                <shade.package.prefix>pathfuzzer</shade.package.prefix>
+            </properties>
+        </profile>
+
+        <!-- OOBFuzzer Profile -->
+        <profile>
+            <id>oobfuzzer</id>
+            <properties>
+                <plugin.name>OOBFuzzer</plugin.name>
+                <plugin.package.prefix>oobfzr</plugin.package.prefix>
+                <netty.port>20668</netty.port>
+                <context.menu.name>OOBFuzzer</context.menu.name>
+                <switch.jsonlister.enabled>false</switch.jsonlister.enabled>
+                <switch.routefuzzer.enabled>false</switch.routefuzzer.enabled>
+                <switch.paramfuzzer.enabled>false</switch.paramfuzzer.enabled>
+                <switch.paramdeleter.enabled>false</switch.paramdeleter.enabled>
+                <switch.headerfuzzer.enabled>true</switch.headerfuzzer.enabled>
+                <switch.cookiefuzzer.enabled>true</switch.cookiefuzzer.enabled>
+                <switch.oobparamfuzzer.enabled>true</switch.oobparamfuzzer.enabled>
+                <final.jar.name>oobfuzzer</final.jar.name>
+                <shade.package.prefix>oobfuzzer</shade.package.prefix>
+            </properties>
+        </profile>
+    </profiles>
 
     <dependencies>
         <dependency>
@@ -43,18 +105,134 @@
     </dependencies>
 
     <build>
+        <!-- 设置最终JAR文件名 -->
+        <finalName>${final.jar.name}-${project.version}</finalName>
+
+        <!-- 资源过滤配置 -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>**/*.properties</exclude>
+                    <exclude>**/*.xml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+
         <plugins>
-            <!-- 使用 Maven Shade 插件来打包所有依赖到一个 JAR 文件中 -->
+            <!-- 资源插件配置 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <propertiesEncoding>UTF-8</propertiesEncoding>
+                </configuration>
+            </plugin>
+
+            <!-- 编译插件配置 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Shade插件配置 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.4.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <!-- 不创建带-shaded后缀的文件 -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <!-- 生成简化的依赖POM -->
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+
+                            <relocations>
+                                <!-- 重定位主包名 -->
+                                <relocation>
+                                    <pattern>pzfzr</pattern>
+                                    <shadedPattern>${shade.package.prefix}</shadedPattern>
+                                </relocation>
+                            </relocations>
+
+                            <transformers>
+                                <!-- 合并服务文件 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- 合并META-INF/spring.handlers -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.handlers</resource>
+                                </transformer>
+                                <!-- 合并META-INF/spring.schemas -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.schemas</resource>
+                                </transformer>
+                                <!-- 主类变换器 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <Plugin-Name>${plugin.name}</Plugin-Name>
+                                    </manifestEntries>
+                                </transformer>
+                            </transformers>
+
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 复制插件 - 将构建的JAR复制到dist目录 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- 创建dist目录 -->
+                                <mkdir dir="${project.basedir}/dist"/>
+                                <!-- 复制JAR文件到dist目录，使用profile特定的名称 -->
+                                <copy file="${project.build.directory}/${final.jar.name}-${project.version}.jar"
+                                      tofile="${project.basedir}/dist/${final.jar.name}-${project.version}.jar"/>
+                                <echo message="JAR copied to: dist/${final.jar.name}-${project.version}.jar"/>
+                            </target>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
