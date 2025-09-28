@@ -161,10 +161,29 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                     return valueReplacer.unifiedTestForContextAsync(request, oobParamFuzzerOnlyState, messageId);
                 });
 
+        // 新增：Run Route Test - 组合测试（JsonLister + RouteFuzzer + ParamFuzzer + ParamDeleter）
+        JMenuItem routeTestCombo = createTestMenuItem("Run Route Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState routeTestState = new SwitchState(false, true, true, true, true, false, false, false);
+                    return valueReplacer.unifiedTestForContextAsync(request, routeTestState, messageId);
+                });
+
+        // 新增：Run OOB Test - 组合测试（HeaderFuzzer + CookieFuzzer + OOBParamFuzzer）
+        JMenuItem oobTestCombo = createTestMenuItem("Run OOB Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState oobTestState = new SwitchState(false, false, false, false, false, true, true, true);
+                    return valueReplacer.unifiedTestForContextAsync(request, oobTestState, messageId);
+                });
+
         // 添加菜单项到子菜单
         headerIntruderMenu.add(allTests);
         headerIntruderMenu.add(addFilterItem);
         headerIntruderMenu.addSeparator();
+        // 新增：添加组合测试菜单项
+        headerIntruderMenu.add(routeTestCombo);
+        headerIntruderMenu.add(oobTestCombo);
+        headerIntruderMenu.addSeparator();
+        // 原有的单独测试菜单项
         headerIntruderMenu.add(JsonListerTest);
         headerIntruderMenu.add(routeFuzzerTest);
         headerIntruderMenu.add(ParamFuzzerTest);
