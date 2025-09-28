@@ -9,7 +9,8 @@ import pzfzr.model.TableModel;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
+import pzfzr.fuzzer.CookieFuzzer;
+import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,12 +18,12 @@ import java.awt.*;
 public class ControlPanel extends JPanel {
     private final RequestResponseViewer requestResponseViewer;
     private final SettingsPanel settingsPanel;
-    private final CookieChangerPanel cookieChangerPanel;  // CookieChangerPanel 引用
+    private final CookieChangerPanel cookieChangerPanel;
 
     public ControlPanel(MontoyaApi api, ConfigManager configManager, TableModel tableModel,
                         RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                         TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
-                        HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer) { // 新增：CookieFuzzer参数
+                        HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer) { // 新增：OOBParamFuzzer参数
         setLayout(new BorderLayout());
 
         // 创建标签页面板
@@ -31,9 +32,9 @@ public class ControlPanel extends JPanel {
         // 初始化请求响应查看器
         requestResponseViewer = new RequestResponseViewer(api);
 
-        // 初始化设置面板 - 传入必要组件和 RateLimiter 实例以及所有Fuzzer组件（包括CookieFuzzer）
+        // 初始化设置面板 - 传入必要组件和 RateLimiter 实例以及所有Fuzzer组件（包括OOBParamFuzzer）
         settingsPanel = new SettingsPanel(configManager, api.logging(), tableModel, requestResponseSaver,
-                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer); // 新增：cookieFuzzer参数
+                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer); // 新增：oobParamFuzzer参数
 
         // 初始化 Cookie 修改器面板
         cookieChangerPanel = new CookieChangerPanel(api);
@@ -50,7 +51,6 @@ public class ControlPanel extends JPanel {
         return requestResponseViewer;
     }
 
-    // 获取 CookieChangerPanel 的 getter 方法
     public CookieChangerPanel getCookieChangerPanel() {
         return cookieChangerPanel;
     }

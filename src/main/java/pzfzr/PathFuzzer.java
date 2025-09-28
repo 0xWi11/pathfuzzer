@@ -9,7 +9,8 @@ import pzfzr.core.*;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
+import pzfzr.fuzzer.CookieFuzzer;
+import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
 import pzfzr.gui.MainPanel;
 import pzfzr.gui.ContextMenuProvider;
 import pzfzr.model.CSVExporter;
@@ -69,15 +70,16 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter); // 传递 *同一个* TableModel 和 RequestResponseSaver 和 RateLimiter 实例
         this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver); // 传递 *同一个* TableModel 和 RequestResponseSaver 实例
 
-        // 新增：从ValueReplacer获取所有Fuzzer引用（包括CookieFuzzer）
+        // 新增：从ValueReplacer获取所有Fuzzer引用（包括OOBParamFuzzer）
         ParamFuzzer paramFuzzer = valueReplacer.getParamFuzzer();
         ParamDeleter paramDeleter = valueReplacer.getParamDeleter();
         HeaderFuzzer headerFuzzer = valueReplacer.getHeaderFuzzer();
-        CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer(); // 新增：获取CookieFuzzer引用
+        CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer();
+        OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer(); // 新增：获取OOBParamFuzzer引用
 
-        // 注册UI - 修改：传入所有Fuzzer引用（包括CookieFuzzer）
+        // 注册UI - 修改：传入所有Fuzzer引用（包括OOBParamFuzzer）
         MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
-                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer); // 新增：传递CookieFuzzer
+                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer); // 新增：传递OOBParamFuzzer
 
         api.userInterface().registerSuiteTab("Path Fuzzer", mainPanel);
 
@@ -99,7 +101,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         api.logging().logToOutput(
                 String.format("[PathFuzzer]%s - %s",
                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                        " Path Fuzzer extension loaded with Netty (including HeaderFuzzer and CookieFuzzer)") // 更新启动日志
+                        " Path Fuzzer extension loaded with Netty (including HeaderFuzzer, CookieFuzzer and OOBParamFuzzer)") // 更新启动日志
         );
     }
 
@@ -246,7 +248,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
                         "  Network connections cleared\n" +
                         "  Thread pools fully terminated\n" +
                         "  Resources released\n" +
-                        "  HeaderFuzzer and CookieFuzzer included in shutdown\n" + // 更新关闭消息
+                        "  HeaderFuzzer, CookieFuzzer and OOBParamFuzzer included in shutdown\n" + // 更新关闭消息
                         "############################################\n" +
                         "       Thank you for using PATH FUZZER!\n" +
                         "############################################\n",

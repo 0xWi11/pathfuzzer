@@ -106,10 +106,10 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         }
 
         // 添加各种测试选项 - 修改为带任务管理的批量处理
-        // 更新为包含CookieFuzzer的全部测试（现在有7个测试类型）
+        // 更新为包含OOBParamFuzzer的全部测试（现在有8个测试类型）
         JMenuItem allTests = createTestMenuItem("Run All Tests", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState allEnabledState = new SwitchState(true, true, true, true, true, true, true); // 新增：包含CookieFuzzer
+                    SwitchState allEnabledState = new SwitchState(true, true, true, true, true, true, true, true); // 新增：包含OOBParamFuzzer
                     return valueReplacer.unifiedTestForContextAsync(request, allEnabledState, messageId);
                 });
 
@@ -117,42 +117,48 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         JMenuItem addFilterItem = new JMenuItem(String.format("Add Filter (%d 个已选择)", finalAllSelectedRequests.size()));
         addFilterItem.addActionListener(e -> addFiltersSync(finalAllSelectedRequests));
 
-        // 各种测试菜单项 - 更新SwitchState构造参数（现在需要7个参数）
+        // 各种测试菜单项 - 更新SwitchState构造参数（现在需要8个参数）
         JMenuItem JsonListerTest = createTestMenuItem("JsonLister Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false, false); // 更新：包含CookieFuzzer参数
+                    SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false, false, false); // 更新：包含OOBParamFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, jsonListerOnlyState, messageId);
                 });
 
         JMenuItem routeFuzzerTest = createTestMenuItem("RouteFuzzer Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false, false); // 更新：包含CookieFuzzer参数
+                    SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false, false, false); // 更新：包含OOBParamFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, routeFuzzerOnlyState, messageId);
                 });
 
         JMenuItem ParamFuzzerTest = createTestMenuItem("ParamFuzzer Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false, false); // 更新：包含CookieFuzzer参数
+                    SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false, false, false); // 更新：包含OOBParamFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
                 });
 
         JMenuItem ParamDeleterTest = createTestMenuItem("ParamDeleter Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false, false); // 更新：包含CookieFuzzer参数
+                    SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false, false, false); // 更新：包含OOBParamFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, paramDeleterOnlyState, messageId);
                 });
 
         JMenuItem HeaderFuzzerTest = createTestMenuItem("HeaderFuzzer Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, true, false); // 更新：包含CookieFuzzer参数
+                    SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, true, false, false); // 更新：包含OOBParamFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, headerFuzzerOnlyState, messageId);
                 });
 
-        // 新增：CookieFuzzer测试菜单项
         JMenuItem CookieFuzzerTest = createTestMenuItem("CookieFuzzer Test", finalAllSelectedRequests,
                 (request, messageId) -> {
-                    SwitchState cookieFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, true);
+                    SwitchState cookieFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, true, false); // 更新：包含OOBParamFuzzer参数
                     return valueReplacer.unifiedTestForContextAsync(request, cookieFuzzerOnlyState, messageId);
+                });
+
+        // 新增：OOBParamFuzzer测试菜单项
+        JMenuItem OOBParamFuzzerTest = createTestMenuItem("OOBParamFuzzer Test", finalAllSelectedRequests,
+                (request, messageId) -> {
+                    SwitchState oobParamFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, false, true);
+                    return valueReplacer.unifiedTestForContextAsync(request, oobParamFuzzerOnlyState, messageId);
                 });
 
         // 添加菜单项到子菜单
@@ -164,7 +170,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         headerIntruderMenu.add(ParamFuzzerTest);
         headerIntruderMenu.add(ParamDeleterTest);
         headerIntruderMenu.add(HeaderFuzzerTest);
-        headerIntruderMenu.add(CookieFuzzerTest); // 新增
+        headerIntruderMenu.add(CookieFuzzerTest);
+        headerIntruderMenu.add(OOBParamFuzzerTest); // 新增
 
         // 添加子菜单到列表
         menuItems.add(headerIntruderMenu);
@@ -193,7 +200,8 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                     showTaskRejectedMessage(testName, "Task queue is full. Please wait for current tasks to finish.");
                 }
             } else {
-                showTaskRejectedMessage(testName, "Too many tasks are running. Please wait for current tasks to complete.");            }
+                showTaskRejectedMessage(testName, "Too many tasks are running. Please wait for current tasks to complete.");
+            }
         });
 
         return menuItem;

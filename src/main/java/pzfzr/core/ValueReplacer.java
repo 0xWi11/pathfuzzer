@@ -17,7 +17,8 @@ import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.RouteFuzzer;
 import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
+import pzfzr.fuzzer.CookieFuzzer;
+import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -32,7 +33,6 @@ public class ValueReplacer {
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
     private volatile boolean forceShutdownRequested = false;
 
-
     private final RequestResponseSaver requestResponseSaver;
     private final Logging logging;
     private final RateLimiter rateLimiter;
@@ -42,7 +42,8 @@ public class ValueReplacer {
     private final ParamFuzzer paramFuzzer;
     private final ParamDeleter paramDeleter;
     private final HeaderFuzzer headerFuzzer;
-    private final CookieFuzzer cookieFuzzer; // 新增：CookieFuzzer字段
+    private final CookieFuzzer cookieFuzzer;
+    private final OOBParamFuzzer oobParamFuzzer; // 新增：OOBParamFuzzer字段
 
     // 添加专门用于异步执行的线程池
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
@@ -62,7 +63,8 @@ public class ValueReplacer {
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
-        this.cookieFuzzer = new CookieFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增：初始化CookieFuzzer
+        this.cookieFuzzer = new CookieFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+        this.oobParamFuzzer = new OOBParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增：初始化OOBParamFuzzer
     }
 
     public ParamFuzzer getParamFuzzer() {
@@ -77,9 +79,13 @@ public class ValueReplacer {
         return this.headerFuzzer;
     }
 
-    // 新增：CookieFuzzer的getter方法
     public CookieFuzzer getCookieFuzzer() {
         return this.cookieFuzzer;
+    }
+
+    // 新增：OOBParamFuzzer的getter方法
+    public OOBParamFuzzer getOOBParamFuzzer() {
+        return this.oobParamFuzzer;
     }
 
     public String extractHostFromRequest(String url) {
@@ -136,9 +142,13 @@ public class ValueReplacer {
                 headerFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            // 新增：CookieFuzzer支持
             if (switchState.isCookiefuzzerSwitch()) {
                 cookieFuzzer.processRequest(originalRequest, messageId, host);
+            }
+
+            // 新增：OOBParamFuzzer支持
+            if (switchState.isOobparamfuzzerSwitch()) {
+                oobParamFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -174,9 +184,13 @@ public class ValueReplacer {
                 headerFuzzer.processRequest(originalRequest, messageId, host);
             }
 
-            // 新增：CookieFuzzer支持
             if (switchState.isCookiefuzzerSwitch()) {
                 cookieFuzzer.processRequest(originalRequest, messageId, host);
+            }
+
+            // 新增：OOBParamFuzzer支持
+            if (switchState.isOobparamfuzzerSwitch()) {
+                oobParamFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -254,7 +268,6 @@ public class ValueReplacer {
                 futures.add(headerFuzzerFuture);
             }
 
-            // 新增：CookieFuzzer异步支持
             if (switchState.isCookiefuzzerSwitch()) {
                 CompletableFuture<Void> cookieFuzzerFuture = CompletableFuture.runAsync(() -> {
                     try {
@@ -266,14 +279,24 @@ public class ValueReplacer {
                 futures.add(cookieFuzzerFuture);
             }
 
+            // 新增：OOBParamFuzzer异步支持
+            if (switchState.isOobparamfuzzerSwitch()) {
+                CompletableFuture<Void> oobParamFuzzerFuture = CompletableFuture.runAsync(() -> {
+                    try {
+                        oobParamFuzzer.processRequest(originalRequest, messageId, host);
+                    } catch (Exception e) {
+                        api.logging().logToError("Error in OOBParamFuzzer async execution: " + e.getMessage());
+                    }
+                }, asyncExecutor);
+                futures.add(oobParamFuzzerFuture);
+            }
+
             // 返回一个组合的 CompletableFuture，当所有任务完成时完成
             return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                     .whenComplete((result, throwable) -> {
                         if (throwable != null) {
                             api.logging().logToError("Error in unified test async execution: " + throwable.getMessage());
                         }
-                        // 清理host变量
-                        // host = null; // 注意：不能在这里设置为null，因为这是异步回调
                     });
 
         } catch (Exception e) {
@@ -281,7 +304,6 @@ public class ValueReplacer {
             return CompletableFuture.completedFuture(null);
         }
     }
-
 
     public void setShuttingDown(boolean shuttingDown) {
         this.isShuttingDown = shuttingDown;
@@ -367,7 +389,6 @@ public class ValueReplacer {
             }
         }));
 
-        // 新增：CookieFuzzer关闭
         shutdownFutures.add(CompletableFuture.runAsync(() -> {
             try {
                 if (cookieFuzzer != null) {
@@ -375,6 +396,17 @@ public class ValueReplacer {
                 }
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] Error shutting down CookieFuzzer: " + e.getMessage());
+            }
+        }));
+
+        // 新增：OOBParamFuzzer关闭
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
+            try {
+                if (oobParamFuzzer != null) {
+                    oobParamFuzzer.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] Error shutting down OOBParamFuzzer: " + e.getMessage());
             }
         }));
 

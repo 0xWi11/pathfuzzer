@@ -225,7 +225,8 @@ public class HeaderFuzzer {
             "content-encoding",
             "Link",
             "Location",
-            "Content-Transfer-Encoding"
+            "Content-Transfer-Encoding",
+            "sec-ch-ua"
     ));
 
     public HeaderFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,

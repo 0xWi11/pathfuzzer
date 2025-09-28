@@ -7,7 +7,8 @@ public class SwitchManager {
     private boolean paramfuzzerSwitch;
     private boolean paramdeleterSwitch;
     private boolean headerfuzzerSwitch;
-    private boolean cookiefuzzerSwitch; // 新增：CookieFuzzer开关
+    private boolean cookiefuzzerSwitch;
+    private boolean oobparamfuzzerSwitch; // 新增：OOBParamFuzzer开关
 
     // 单例模式
     private static SwitchManager instance;
@@ -20,7 +21,8 @@ public class SwitchManager {
         this.paramfuzzerSwitch = false;
         this.paramdeleterSwitch = false;
         this.headerfuzzerSwitch = false;
-        this.cookiefuzzerSwitch = false; // 新增，默认关闭
+        this.cookiefuzzerSwitch = false;
+        this.oobparamfuzzerSwitch = false; // 新增，默认关闭
     }
 
     public static synchronized SwitchManager getInstance() {
@@ -79,13 +81,21 @@ public class SwitchManager {
         this.headerfuzzerSwitch = headerfuzzerSwitch;
     }
 
-    // 新增：CookieFuzzer相关方法
     public boolean isCookiefuzzerSwitch() {
         return cookiefuzzerSwitch;
     }
 
     public void setCookiefuzzerSwitch(boolean cookiefuzzerSwitch) {
         this.cookiefuzzerSwitch = cookiefuzzerSwitch;
+    }
+
+    // 新增：OOBParamFuzzer相关方法
+    public boolean isOobparamfuzzerSwitch() {
+        return oobparamfuzzerSwitch;
+    }
+
+    public void setOobparamfuzzerSwitch(boolean oobparamfuzzerSwitch) {
+        this.oobparamfuzzerSwitch = oobparamfuzzerSwitch;
     }
 
     // 获取当前所有开关状态
@@ -97,7 +107,8 @@ public class SwitchManager {
                 paramfuzzerSwitch,
                 paramdeleterSwitch,
                 headerfuzzerSwitch,
-                cookiefuzzerSwitch // 新增
+                cookiefuzzerSwitch,
+                oobparamfuzzerSwitch // 新增
         );
     }
 }
