@@ -263,6 +263,7 @@ public class HeaderFuzzer {
 
     /**
      * 对请求头进行模糊测试
+     * 修改为按header分组：对每个header轮流使用所有payload进行测试
      */
     private void fuzzRequestHeaders(HttpRequest originalRequest, int messageId, String host) {
         if (isShuttingDown) {
@@ -280,14 +281,14 @@ public class HeaderFuzzer {
             }
         }
 
-        // 使用PayloadManager获取启用的header payloads
-        for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
+        // 修改：按header分组，对每个header轮流使用所有payload进行测试
+        for (HttpHeader header : testableHeaders) {
             if (isShuttingDown) {
                 return;
             }
 
-            // 对每个可测试的header进行测试
-            for (HttpHeader header : testableHeaders) {
+            // 使用PayloadManager获取启用的header payloads
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
                 if (isShuttingDown) {
                     return;
                 }
