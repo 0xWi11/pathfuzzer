@@ -8,7 +8,8 @@ import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.HeaderFuzzer; // 新增导入
+import pzfzr.fuzzer.HeaderFuzzer;
+import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
 
 import javax.swing.*;
 import java.awt.*;
@@ -21,7 +22,7 @@ public class ControlPanel extends JPanel {
     public ControlPanel(MontoyaApi api, ConfigManager configManager, TableModel tableModel,
                         RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                         TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
-                        HeaderFuzzer headerFuzzer) { // 新增HeaderFuzzer参数
+                        HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer) { // 新增：CookieFuzzer参数
         setLayout(new BorderLayout());
 
         // 创建标签页面板
@@ -30,9 +31,9 @@ public class ControlPanel extends JPanel {
         // 初始化请求响应查看器
         requestResponseViewer = new RequestResponseViewer(api);
 
-        // 初始化设置面板 - 传入必要组件和 RateLimiter 实例以及HeaderFuzzer
+        // 初始化设置面板 - 传入必要组件和 RateLimiter 实例以及所有Fuzzer组件（包括CookieFuzzer）
         settingsPanel = new SettingsPanel(configManager, api.logging(), tableModel, requestResponseSaver,
-                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer); // 新增headerFuzzer参数
+                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer); // 新增：cookieFuzzer参数
 
         // 初始化 Cookie 修改器面板
         cookieChangerPanel = new CookieChangerPanel(api);

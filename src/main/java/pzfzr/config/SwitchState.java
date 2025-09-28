@@ -6,17 +6,20 @@ public class SwitchState {
     private final boolean routefuzzerSwitch;
     private final boolean paramfuzzerSwitch;
     private final boolean paramdeleterSwitch;
-    private final boolean headerfuzzerSwitch; // 新增
+    private final boolean headerfuzzerSwitch;
+    private final boolean cookiefuzzerSwitch; // 新增：CookieFuzzer开关状态
 
     public SwitchState(boolean masterSwitch, boolean jsonlisterSwitch,
                        boolean routefuzzerSwitch, boolean paramfuzzerSwitch,
-                       boolean paramdeleterSwitch, boolean headerfuzzerSwitch) { // 新增参数
+                       boolean paramdeleterSwitch, boolean headerfuzzerSwitch,
+                       boolean cookiefuzzerSwitch) { // 新增参数
         this.masterSwitch = masterSwitch;
         this.jsonlisterSwitch = jsonlisterSwitch;
         this.routefuzzerSwitch = routefuzzerSwitch;
         this.paramfuzzerSwitch = paramfuzzerSwitch;
         this.paramdeleterSwitch = paramdeleterSwitch;
-        this.headerfuzzerSwitch = headerfuzzerSwitch; // 新增
+        this.headerfuzzerSwitch = headerfuzzerSwitch;
+        this.cookiefuzzerSwitch = cookiefuzzerSwitch; // 新增
     }
 
     public boolean isMasterSwitch() {
@@ -39,8 +42,12 @@ public class SwitchState {
         return paramdeleterSwitch;
     }
 
-    // 新增：HeaderFuzzer的getter方法
     public boolean isHeaderfuzzerSwitch() {
         return headerfuzzerSwitch;
+    }
+
+    // 新增：CookieFuzzer的getter方法
+    public boolean isCookiefuzzerSwitch() {
+        return cookiefuzzerSwitch;
     }
 }

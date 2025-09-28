@@ -16,7 +16,8 @@ import pzfzr.fuzzer.JsonLister;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.RouteFuzzer;
-import pzfzr.fuzzer.HeaderFuzzer; // 新增导入
+import pzfzr.fuzzer.HeaderFuzzer;
+import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -40,7 +41,8 @@ public class ValueReplacer {
     private final RouteFuzzer routeFuzzer;
     private final ParamFuzzer paramFuzzer;
     private final ParamDeleter paramDeleter;
-    private final HeaderFuzzer headerFuzzer; // 新增
+    private final HeaderFuzzer headerFuzzer;
+    private final CookieFuzzer cookieFuzzer; // 新增：CookieFuzzer字段
 
     // 添加专门用于异步执行的线程池
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
@@ -59,7 +61,8 @@ public class ValueReplacer {
         this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
-        this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增
+        this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+        this.cookieFuzzer = new CookieFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增：初始化CookieFuzzer
     }
 
     public ParamFuzzer getParamFuzzer() {
@@ -70,9 +73,13 @@ public class ValueReplacer {
         return this.paramDeleter;
     }
 
-    // 新增：HeaderFuzzer的getter方法
     public HeaderFuzzer getHeaderFuzzer() {
         return this.headerFuzzer;
+    }
+
+    // 新增：CookieFuzzer的getter方法
+    public CookieFuzzer getCookieFuzzer() {
+        return this.cookieFuzzer;
     }
 
     public String extractHostFromRequest(String url) {
@@ -125,9 +132,13 @@ public class ValueReplacer {
                 paramDeleter.processRequest(originalRequest, messageId, host);
             }
 
-            // 新增：HeaderFuzzer支持
             if (switchState.isHeaderfuzzerSwitch()) {
                 headerFuzzer.processRequest(originalRequest, messageId, host);
+            }
+
+            // 新增：CookieFuzzer支持
+            if (switchState.isCookiefuzzerSwitch()) {
+                cookieFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -159,9 +170,13 @@ public class ValueReplacer {
                 paramDeleter.processRequest(originalRequest, messageId, host);
             }
 
-            // 新增：HeaderFuzzer支持
             if (switchState.isHeaderfuzzerSwitch()) {
                 headerFuzzer.processRequest(originalRequest, messageId, host);
+            }
+
+            // 新增：CookieFuzzer支持
+            if (switchState.isCookiefuzzerSwitch()) {
+                cookieFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -171,7 +186,7 @@ public class ValueReplacer {
     }
 
     /**
-     * 异步版本的 unifiedTestForContext - 新增方法
+     * 异步版本的 unifiedTestForContext
      * 每个测试类型都在独立的异步任务中执行，避免相互阻塞
      */
     public CompletableFuture<Void> unifiedTestForContextAsync(HttpRequest originalRequest, SwitchState switchState, int messageId) {
@@ -228,7 +243,6 @@ public class ValueReplacer {
                 futures.add(paramDeleterFuture);
             }
 
-            // 新增：HeaderFuzzer异步支持
             if (switchState.isHeaderfuzzerSwitch()) {
                 CompletableFuture<Void> headerFuzzerFuture = CompletableFuture.runAsync(() -> {
                     try {
@@ -238,6 +252,18 @@ public class ValueReplacer {
                     }
                 }, asyncExecutor);
                 futures.add(headerFuzzerFuture);
+            }
+
+            // 新增：CookieFuzzer异步支持
+            if (switchState.isCookiefuzzerSwitch()) {
+                CompletableFuture<Void> cookieFuzzerFuture = CompletableFuture.runAsync(() -> {
+                    try {
+                        cookieFuzzer.processRequest(originalRequest, messageId, host);
+                    } catch (Exception e) {
+                        api.logging().logToError("Error in CookieFuzzer async execution: " + e.getMessage());
+                    }
+                }, asyncExecutor);
+                futures.add(cookieFuzzerFuture);
             }
 
             // 返回一个组合的 CompletableFuture，当所有任务完成时完成
@@ -331,7 +357,6 @@ public class ValueReplacer {
             }
         }));
 
-        // 新增：HeaderFuzzer关闭
         shutdownFutures.add(CompletableFuture.runAsync(() -> {
             try {
                 if (headerFuzzer != null) {
@@ -339,6 +364,17 @@ public class ValueReplacer {
                 }
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] Error shutting down HeaderFuzzer: " + e.getMessage());
+            }
+        }));
+
+        // 新增：CookieFuzzer关闭
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
+            try {
+                if (cookieFuzzer != null) {
+                    cookieFuzzer.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] Error shutting down CookieFuzzer: " + e.getMessage());
             }
         }));
 

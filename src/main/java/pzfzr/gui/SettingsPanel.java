@@ -9,7 +9,8 @@ import pzfzr.model.TableModel;
 import burp.api.montoya.logging.Logging;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.HeaderFuzzer; // 新增导入
+import pzfzr.fuzzer.HeaderFuzzer;
+import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
 
 import javax.swing.*;
 import java.awt.*;
@@ -22,7 +23,7 @@ public class SettingsPanel extends JPanel {
     public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel,
                          RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                          TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
-                         HeaderFuzzer headerFuzzer) { // 新增HeaderFuzzer参数
+                         HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer) { // 新增：CookieFuzzer参数
         setLayout(new BorderLayout());
 
         // 创建主要的水平分割面板（左右结构）
@@ -32,9 +33,9 @@ public class SettingsPanel extends JPanel {
         JPanel leftPanel = new JPanel(new BorderLayout());
         leftPanel.setBorder(BorderFactory.createTitledBorder("Function Controls"));
 
-        // 创建开关面板 - 传入logging实例和其他必要组件、RateLimiter实例以及HeaderFuzzer
+        // 创建开关面板 - 传入logging实例和其他必要组件、RateLimiter实例以及所有Fuzzer组件（包括CookieFuzzer）
         switchPanel = new SwitchPanel(logging, tableModel, requestResponseSaver, rateLimiter, trafficHandler,
-                paramFuzzer, paramDeleter, headerFuzzer); // 新增headerFuzzer参数
+                paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer); // 新增：cookieFuzzer参数
 
         // 将switchPanel添加到一个滚动面板中以防内容过多
         JScrollPane switchScrollPane = new JScrollPane(switchPanel);

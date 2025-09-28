@@ -6,7 +6,8 @@ import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.HeaderFuzzer; // 新增导入
+import pzfzr.fuzzer.HeaderFuzzer;
+import pzfzr.fuzzer.CookieFuzzer; // 新增：CookieFuzzer导入
 import pzfzr.model.CSVExporter;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -23,7 +24,8 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox collectedSwitch;
     private final JCheckBox suspiciousSwitch;
     private final JCheckBox paramDeleterSwitch;
-    private final JCheckBox headerFuzzerSwitch; // 新增HeaderFuzzer开关
+    private final JCheckBox headerFuzzerSwitch;
+    private final JCheckBox cookieFuzzerSwitch; // 新增：CookieFuzzer开关
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
@@ -31,36 +33,39 @@ public class SwitchPanel extends JPanel {
     private final Logging logging;
     private final CSVExporter csvExporter;
     private final RequestResponseSaver requestResponseSaver;
-    private final RateLimiter rateLimiter; // 添加 RateLimiter 引用
-    private final ParamFuzzer paramFuzzer; // ParamFuzzer 引用
-    private final ParamDeleter paramDeleter; // ParamDeleter 引用
-    private final HeaderFuzzer headerFuzzer; // 新增：HeaderFuzzer 引用
+    private final RateLimiter rateLimiter;
+    private final ParamFuzzer paramFuzzer;
+    private final ParamDeleter paramDeleter;
+    private final HeaderFuzzer headerFuzzer;
+    private final CookieFuzzer cookieFuzzer; // 新增：CookieFuzzer引用
     private final JTextField newCapacityTextField;
     private final JTextField newRefillRateTextField;
-    private final JTextField newUrlRateLimitTextField; // 新增URL限流输入框
-    private final JTextField newUrlExpireTimeTextField; // 新增URL过期时间输入框
-    private final JTextField newRefillIntervalTextField; // 新增令牌添加间隔输入框
-    private final JTextField maxHeadersPerBatchTextField; // 新增maxHeadersPerBatch输入框
-    private final JTextField maxParameterCountTextField; // ParamFuzzer最大参数数量输入框
-    private final JTextField maxParameterCountDeleterTextField; // 新增：ParamDeleter最大参数数量输入框
+    private final JTextField newUrlRateLimitTextField;
+    private final JTextField newUrlExpireTimeTextField;
+    private final JTextField newRefillIntervalTextField;
+    private final JTextField maxHeadersPerBatchTextField;
+    private final JTextField maxParameterCountTextField;
+    private final JTextField maxParameterCountDeleterTextField;
+    private final JTextField maxParameterCountCookieTextField; // 新增：CookieFuzzer最大参数数量输入框
     private final JButton setRateLimitButton;
     private final JButton clearTasksButton;
     private final TrafficHandler trafficHandler;
-    private final JLabel requestsPerHourLabel; // 新增每小时请求数提示标签
+    private final JLabel requestsPerHourLabel;
     private final JButton cancelActiveTasksButton;
 
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
-                       ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer) { // 修改：添加HeaderFuzzer参数
+                       ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer) { // 修改：添加CookieFuzzer参数
         this.switchManager = SwitchManager.getInstance();
         this.logging = logging;
         this.requestResponseSaver = requestResponseSaver;
         this.csvExporter = new CSVExporter(logging, tableModel, requestResponseSaver);
         this.rateLimiter = rateLimiter;
-        this.trafficHandler = trafficHandler; // Store the reference
-        this.paramFuzzer = paramFuzzer; // 存储ParamFuzzer引用
-        this.paramDeleter = paramDeleter; // 存储ParamDeleter引用
-        this.headerFuzzer = headerFuzzer; // 新增：存储HeaderFuzzer引用
+        this.trafficHandler = trafficHandler;
+        this.paramFuzzer = paramFuzzer;
+        this.paramDeleter = paramDeleter;
+        this.headerFuzzer = headerFuzzer;
+        this.cookieFuzzer = cookieFuzzer; // 新增：存储CookieFuzzer引用
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
@@ -94,10 +99,14 @@ public class SwitchPanel extends JPanel {
                 switchManager.isParamdeleterSwitch(),
                 selected -> switchManager.setParamdeleterSwitch(selected));
 
-        // 新增：HeaderFuzzer开关
         headerFuzzerSwitch = createSwitch("HeaderFuzzer 测试开关",
                 switchManager.isHeaderfuzzerSwitch(),
                 selected -> switchManager.setHeaderfuzzerSwitch(selected));
+
+        // 新增：CookieFuzzer开关
+        cookieFuzzerSwitch = createSwitch("CookieFuzzer 测试开关",
+                switchManager.isCookiefuzzerSwitch(),
+                selected -> switchManager.setCookiefuzzerSwitch(selected));
 
         // 创建清除哈希按钮
         clearHashesButton = new JButton("清除URL缓存");
@@ -182,7 +191,7 @@ public class SwitchPanel extends JPanel {
 
         // 修改全局速率限制面板的布局
         JPanel globalRateLimitPanel = new JPanel();
-        globalRateLimitPanel.setLayout(new BoxLayout(globalRateLimitPanel, BoxLayout.Y_AXIS)); // 改为垂直布局
+        globalRateLimitPanel.setLayout(new BoxLayout(globalRateLimitPanel, BoxLayout.Y_AXIS));
         globalRateLimitPanel.setBorder(BorderFactory.createTitledBorder("全局速率限制"));
 
         // 第一行：容量和速率
@@ -239,9 +248,9 @@ public class SwitchPanel extends JPanel {
         urlRateLimitPanel.add(newUrlExpireTimeTextField);
         urlRateLimitPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 创建参数数量限制设置的UI元素
+        // 创建参数数量限制设置的UI元素 - 修改为包含CookieFuzzer
         JPanel maxParameterPanel = new JPanel();
-        maxParameterPanel.setLayout(new BoxLayout(maxParameterPanel, BoxLayout.Y_AXIS)); // 改为垂直布局
+        maxParameterPanel.setLayout(new BoxLayout(maxParameterPanel, BoxLayout.Y_AXIS));
         maxParameterPanel.setBorder(BorderFactory.createTitledBorder("参数数量限制"));
 
         // ParamFuzzer参数数量限制
@@ -258,9 +267,16 @@ public class SwitchPanel extends JPanel {
         paramDeleterLimitPanel.add(maxParameterDeleterLabel);
         paramDeleterLimitPanel.add(maxParameterCountDeleterTextField);
 
+        // 新增：CookieFuzzer参数数量限制
+        JPanel cookieFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel maxParameterCookieLabel = new JLabel("CookieFuzzer最大参数数量:");
+        maxParameterCountCookieTextField = new JTextField(String.valueOf(cookieFuzzer.getMaxParameterCount()), 5);
+        cookieFuzzerLimitPanel.add(maxParameterCookieLabel);
+        cookieFuzzerLimitPanel.add(maxParameterCountCookieTextField);
+
         maxParameterPanel.add(paramFuzzerLimitPanel);
         maxParameterPanel.add(paramDeleterLimitPanel);
-        // maxParameterPanel.add(headerFuzzerLimitPanel); // 如果需要HeaderFuzzer限制则取消注释
+        maxParameterPanel.add(cookieFuzzerLimitPanel); // 新增：添加CookieFuzzer限制面板
         maxParameterPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // 创建设置按钮面板
@@ -276,10 +292,11 @@ public class SwitchPanel extends JPanel {
                 int newMaxHeadersPerBatch = Integer.parseInt(maxHeadersPerBatchTextField.getText());
                 int newMaxParameterCount = Integer.parseInt(maxParameterCountTextField.getText()); // ParamFuzzer最大参数数量
                 int newMaxParameterCountDeleter = Integer.parseInt(maxParameterCountDeleterTextField.getText()); // ParamDeleter最大参数数量
+                int newMaxParameterCountCookie = Integer.parseInt(maxParameterCountCookieTextField.getText()); // 新增：CookieFuzzer最大参数数量
 
                 if (newCapacity > 0 && newRefillRate >= 0 && newUrlRateLimit >= 0 &&
                         newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0 &&
-                        newMaxParameterCount > 0 && newMaxParameterCountDeleter > 0) { // 验证参数
+                        newMaxParameterCount > 0 && newMaxParameterCountDeleter > 0 && newMaxParameterCountCookie > 0) { // 新增：验证CookieFuzzer参数
                     // 使用完整的参数列表调用更新方法
                     rateLimiter.updateConfiguration(newCapacity, newRefillRate, newUrlRateLimit,
                             newUrlExpireTime, newRefillInterval, newMaxHeadersPerBatch);
@@ -289,6 +306,9 @@ public class SwitchPanel extends JPanel {
 
                     // 设置ParamDeleter的最大参数数量
                     paramDeleter.setMaxParameterCount(newMaxParameterCountDeleter);
+
+                    // 新增：设置CookieFuzzer的最大参数数量
+                    cookieFuzzer.setMaxParameterCount(newMaxParameterCountCookie);
 
                     // 更新每小时请求数显示 - 使用更新后的值计算
                     double updatedRequestsPerSecond = calculateRequestsPerSecond(newRefillRate, newRefillInterval);
@@ -327,11 +347,11 @@ public class SwitchPanel extends JPanel {
         rateLimitingContainer.setLayout(new BoxLayout(rateLimitingContainer, BoxLayout.Y_AXIS));
         rateLimitingContainer.add(globalRateLimitPanel);
         rateLimitingContainer.add(urlRateLimitPanel);
-        rateLimitingContainer.add(maxParameterPanel); // 添加参数数量限制面板
+        rateLimitingContainer.add(maxParameterPanel);
         rateLimitingContainer.add(buttonPanel);
         rateLimitingContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 创建按钮布局面板 - 修改这部分实现新的布局
+        // 创建按钮布局面板
         JPanel buttonsContainer = new JPanel();
         buttonsContainer.setLayout(new BoxLayout(buttonsContainer, BoxLayout.Y_AXIS));
         buttonsContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -364,11 +384,13 @@ public class SwitchPanel extends JPanel {
         switchesPanel.add(Box.createVerticalStrut(5));
         switchesPanel.add(paramDeleterSwitch);
         switchesPanel.add(Box.createVerticalStrut(5));
-        switchesPanel.add(headerFuzzerSwitch); // 新增：添加HeaderFuzzer开关
+        switchesPanel.add(headerFuzzerSwitch);
+        switchesPanel.add(Box.createVerticalStrut(5));
+        switchesPanel.add(cookieFuzzerSwitch); // 新增：添加CookieFuzzer开关
         switchesPanel.add(Box.createVerticalStrut(10));
-        switchesPanel.add(buttonsContainer); // 添加新的按钮布局容器
+        switchesPanel.add(buttonsContainer);
         switchesPanel.add(Box.createVerticalStrut(10));
-        switchesPanel.add(rateLimitingContainer); // 添加所有速率限制控制面板
+        switchesPanel.add(rateLimitingContainer);
 
         wrapperPanel.add(switchesPanel);
         add(wrapperPanel);
@@ -391,7 +413,8 @@ public class SwitchPanel extends JPanel {
         collectedSwitch.setEnabled(masterState);
         suspiciousSwitch.setEnabled(masterState);
         paramDeleterSwitch.setEnabled(masterState);
-        headerFuzzerSwitch.setEnabled(masterState); // 新增：HeaderFuzzer开关也受主开关控制
+        headerFuzzerSwitch.setEnabled(masterState);
+        cookieFuzzerSwitch.setEnabled(masterState); // 新增：CookieFuzzer开关也受主开关控制
     }
 
     // 修正计算请求数的方法
