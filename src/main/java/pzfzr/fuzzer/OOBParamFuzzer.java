@@ -228,15 +228,26 @@ public class OOBParamFuzzer {
             String paramValue = param.value();
 
             // 使用PayloadManager获取启用的header payloads用于OOB测试
-            for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) { // 修改为使用HEADER_PAYLOAD_INFOS
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
                 if (isShuttingDown) return;
 
                 // URL参数的OOB测试可能需要特定的过滤逻辑
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
-                String expression = paramName + "=" + processedPayload;
+
+                // 对URL参数的payload进行URL编码
+                String encodedPayload;
+                try {
+                    encodedPayload = URLEncoder.encode(processedPayload, StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    // 如果编码失败，使用原始payload并记录错误
+                    encodedPayload = processedPayload;
+                    logging.logToError("[OOBParamFuzzer] URL encoding failed for payload: " + processedPayload);
+                }
+
+                String expression = paramName + "=" + encodedPayload;
 
                 try {
-                    HttpParameter newParam = HttpParameter.urlParameter(paramName, processedPayload);
+                    HttpParameter newParam = HttpParameter.urlParameter(paramName, encodedPayload);
                     HttpRequest modifiedRequest = originalRequest.withUpdatedParameters(newParam);
 
                     sendTestRequest(modifiedRequest, messageId, host, expression, "URL_PARAM_OOB",
@@ -269,14 +280,25 @@ public class OOBParamFuzzer {
             String paramValue = param.value();
 
             // 使用PayloadManager获取启用的header payloads用于OOB测试
-            for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) { // 修改为使用HEADER_PAYLOAD_INFOS
+            for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
                 if (isShuttingDown) return;
 
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
-                String expression = paramName + "=" + processedPayload;
+
+                // 对POST body参数的payload进行URL编码（application/x-www-form-urlencoded格式需要编码）
+                String encodedPayload;
+                try {
+                    encodedPayload = URLEncoder.encode(processedPayload, StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    // 如果编码失败，使用原始payload并记录错误
+                    encodedPayload = processedPayload;
+                    logging.logToError("[OOBParamFuzzer] URL encoding failed for payload: " + processedPayload);
+                }
+
+                String expression = paramName + "=" + encodedPayload;
 
                 try {
-                    HttpParameter newParam = HttpParameter.bodyParameter(paramName, processedPayload);
+                    HttpParameter newParam = HttpParameter.bodyParameter(paramName, encodedPayload);
                     HttpRequest modifiedRequest = originalRequest.withUpdatedParameters(newParam);
 
                     sendTestRequest(modifiedRequest, messageId, host, expression, "BODY_PARAM_OOB",
