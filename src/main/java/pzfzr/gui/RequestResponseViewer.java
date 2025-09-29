@@ -10,9 +10,12 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import static burp.api.montoya.ui.editor.EditorOptions.READ_ONLY;
 
@@ -37,6 +40,9 @@ public class RequestResponseViewer extends JPanel {
     private ResizablePanel modifiedResponsePanel;
 
     private CustomLayoutContainer layoutContainer;
+
+    // 弹出窗口管理
+    private final Map<ResizablePanel, PopoutWindow> popoutWindows = new HashMap<>();
 
     // 滚轮增强倍数
     private static final double SCROLL_MULTIPLIER = 1.0; // 200% 增强
@@ -63,10 +69,10 @@ public class RequestResponseViewer extends JPanel {
         enhanceScrolling(modifiedResponseViewer.uiComponent());
 
         // 创建四个可调整大小的面板
-        originalRequestPanel = new ResizablePanel("Original Request", originalRequestViewer.uiComponent());
-        modifiedRequestPanel = new ResizablePanel("Modified Request", modifiedRequestViewer.uiComponent());
-        originalResponsePanel = new ResizablePanel("Original Response", originalResponseViewer.uiComponent());
-        modifiedResponsePanel = new ResizablePanel("Modified Response", modifiedResponseViewer.uiComponent());
+        originalRequestPanel = new ResizablePanel("Original Request", originalRequestViewer.uiComponent(), this);
+        modifiedRequestPanel = new ResizablePanel("Modified Request", modifiedRequestViewer.uiComponent(), this);
+        originalResponsePanel = new ResizablePanel("Original Response", originalResponseViewer.uiComponent(), this);
+        modifiedResponsePanel = new ResizablePanel("Modified Response", modifiedResponseViewer.uiComponent(), this);
 
         // 创建自定义布局容器
         layoutContainer = new CustomLayoutContainer();
@@ -81,6 +87,47 @@ public class RequestResponseViewer extends JPanel {
 
         // 设置按钮状态
         updateButtonState();
+    }
+
+    /**
+     * 处理面板弹出
+     */
+    public void popoutPanel(ResizablePanel panel) {
+        if (popoutWindows.containsKey(panel)) {
+            return; // 已经弹出
+        }
+
+        // 从主容器中移除面板
+        layoutContainer.removePanel(panel);
+
+        // 创建弹出窗口
+        PopoutWindow window = new PopoutWindow(panel, this);
+        popoutWindows.put(panel, window);
+        window.setVisible(true);
+
+        // 重新布局主容器
+        layoutContainer.layoutPanels();
+        revalidate();
+        repaint();
+    }
+
+    /**
+     * 处理面板放回
+     */
+    public void restorePanel(ResizablePanel panel) {
+        PopoutWindow window = popoutWindows.get(panel);
+        if (window != null) {
+            // 关闭弹出窗口
+            window.setVisible(false);
+            window.dispose();
+            popoutWindows.remove(panel);
+
+            // 将面板放回主容器
+            layoutContainer.addPanel(panel);
+            layoutContainer.layoutPanels();
+            revalidate();
+            repaint();
+        }
     }
 
     /**
@@ -291,6 +338,13 @@ public class RequestResponseViewer extends JPanel {
 
     public void cleanup() {
         clearViewers();
+
+        // 关闭所有弹出窗口
+        for (PopoutWindow window : popoutWindows.values()) {
+            window.dispose();
+        }
+        popoutWindows.clear();
+
         previousButton.removeActionListener(l -> {});
         nextButton.removeActionListener(l -> {});
         historyPanel = null;
@@ -312,11 +366,201 @@ public class RequestResponseViewer extends JPanel {
     }
 
     /**
+     * 弹出窗口类
+     */
+    private static class PopoutWindow extends JFrame {
+        private final ResizablePanel panel;
+        private final RequestResponseViewer parentViewer;
+        private JButton alwaysOnTopButton;
+        private boolean isAlwaysOnTop = false;
+
+        public PopoutWindow(ResizablePanel panel, RequestResponseViewer parentViewer) {
+            super(panel.getTitle() + " - 弹出窗口");
+            this.panel = panel;
+            this.parentViewer = parentViewer;
+
+            setupWindow();
+        }
+
+        private void setupWindow() {
+            setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            setSize(800, 600);
+            setLocationRelativeTo(null);
+
+            // 创建工具栏
+            JToolBar toolbar = new JToolBar();
+            toolbar.setFloatable(false);
+            toolbar.setBorder(BorderFactory.createEmptyBorder(1, 10, 1, 10));
+            toolbar.setPreferredSize(new Dimension(0, 18));
+            toolbar.setMinimumSize(new Dimension(0, 18));
+            toolbar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+
+            // 置顶按钮
+            alwaysOnTopButton = new JButton("📌 置顶");
+            alwaysOnTopButton.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
+            alwaysOnTopButton.setPreferredSize(new Dimension(75, 16));
+            alwaysOnTopButton.setMinimumSize(new Dimension(75, 16));
+            alwaysOnTopButton.setMaximumSize(new Dimension(75, 16));
+            alwaysOnTopButton.setToolTipText("置顶窗口");
+            alwaysOnTopButton.setFocusPainted(false);
+            alwaysOnTopButton.setBorderPainted(true);
+            alwaysOnTopButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            alwaysOnTopButton.setMargin(new Insets(0, 2, 0, 2));
+
+            // 设置初始状态样式
+            updateAlwaysOnTopButtonStyle();
+
+            // 置顶按钮事件
+            alwaysOnTopButton.addActionListener(e -> toggleAlwaysOnTop());
+
+            // 置顶按钮悬停效果
+            alwaysOnTopButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    if (!isAlwaysOnTop) {
+                        alwaysOnTopButton.setBackground(new Color(233, 236, 239));
+                    }
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    updateAlwaysOnTopButtonStyle(); // 恢复原始状态
+                }
+            });
+
+            // 放回主界面按钮
+            JButton restoreButton = new JButton("放回主界面");
+            restoreButton.setPreferredSize(new Dimension(80, 16));
+            restoreButton.setMinimumSize(new Dimension(80, 16));
+            restoreButton.setMaximumSize(new Dimension(80, 16));
+            restoreButton.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
+            restoreButton.setToolTipText("将面板放回主界面");
+            restoreButton.setFocusPainted(false);
+            restoreButton.setMargin(new Insets(0, 2, 0, 2));
+
+            // 设置按钮样式
+            setupButtonStyle(restoreButton);
+
+            // 添加放回主界面按钮的点击事件
+            restoreButton.addActionListener(e -> {
+                parentViewer.restorePanel(panel);
+            });
+
+            // 添加组件到工具栏
+            toolbar.add(alwaysOnTopButton);
+            toolbar.add(Box.createHorizontalStrut(5));
+            toolbar.add(Box.createHorizontalGlue());
+            toolbar.add(restoreButton);
+
+            // 设置布局
+            setLayout(new BorderLayout());
+            add(toolbar, BorderLayout.NORTH);
+            add(panel, BorderLayout.CENTER);
+
+            // 处理窗口关闭事件
+            addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    parentViewer.restorePanel(panel);
+                }
+            });
+
+            // 设置透明图标
+            try {
+                // 创建1x1透明图像作为图标
+                BufferedImage transparentIcon = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+                setIconImage(transparentIcon);
+            } catch (Exception e) {
+                // 忽略图标设置错误
+            }
+        }
+
+        private void setupButtonStyle(JButton button) {
+            Color defaultColor = new Color(248, 249, 250);
+            Color hoverColor = new Color(233, 236, 239);
+            Color pressedColor = new Color(222, 226, 230);
+
+            button.setBackground(defaultColor);
+            button.setContentAreaFilled(true);
+            button.setBorderPainted(true);
+            button.setBorder(BorderFactory.createLineBorder(new Color(206, 212, 218), 1));
+
+            button.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    button.setBackground(hoverColor);
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    button.setBackground(defaultColor);
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    button.setBackground(pressedColor);
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    button.setBackground(hoverColor);
+                }
+            });
+        }
+
+        private void toggleAlwaysOnTop() {
+            isAlwaysOnTop = !isAlwaysOnTop;
+
+            try {
+                setAlwaysOnTop(isAlwaysOnTop);
+                updateAlwaysOnTopButtonStyle();
+
+                // 更新工具提示
+                alwaysOnTopButton.setToolTipText(isAlwaysOnTop ? "取消置顶" : "置顶窗口");
+
+            } catch (SecurityException ex) {
+                // 如果由于安全限制无法设置置顶，显示警告
+                JOptionPane.showMessageDialog(this,
+                        "由于安全限制，无法设置窗口置顶。",
+                        "置顶失败",
+                        JOptionPane.WARNING_MESSAGE);
+
+                // 恢复状态
+                isAlwaysOnTop = !isAlwaysOnTop;
+                updateAlwaysOnTopButtonStyle();
+            }
+        }
+
+        private void updateAlwaysOnTopButtonStyle() {
+            Color defaultColor = new Color(248, 249, 250);
+            Color borderColor = new Color(206, 212, 218);
+            Color activeColor = new Color(233, 236, 239);
+
+            if (isAlwaysOnTop) {
+                // 置顶状态：稍微深一点的背景和边框
+                alwaysOnTopButton.setContentAreaFilled(true);
+                alwaysOnTopButton.setBackground(activeColor);
+                alwaysOnTopButton.setBorder(BorderFactory.createLineBorder(new Color(173, 181, 189), 1));
+                alwaysOnTopButton.setText("📌 已置顶");
+                alwaysOnTopButton.setForeground(new Color(52, 58, 64));
+            } else {
+                // 非置顶状态：普通按钮样式
+                alwaysOnTopButton.setContentAreaFilled(true);
+                alwaysOnTopButton.setBackground(defaultColor);
+                alwaysOnTopButton.setBorder(BorderFactory.createLineBorder(borderColor, 1));
+                alwaysOnTopButton.setText("📌 置顶");
+                alwaysOnTopButton.setForeground(new Color(108, 117, 125));
+            }
+        }
+    }
+
+    /**
      * 可调整大小的面板 - 完全自主控制折叠
      */
     private static class ResizablePanel extends JPanel {
         private final String title;
         private final Component content;
+        private final RequestResponseViewer parentViewer;
         private boolean isCollapsed = false;
         private boolean isDragging = false;
         private Point dragStart;
@@ -324,13 +568,15 @@ public class RequestResponseViewer extends JPanel {
 
         private JPanel titlePanel;
         private JButton collapseButton;
+        private JButton popoutButton;
         private int preferredWidth = 300; // 默认宽度
         private int collapsedWidth = 30;  // 折叠宽度
 
-        public ResizablePanel(String title, Component content) {
+        public ResizablePanel(String title, Component content, RequestResponseViewer parentViewer) {
             super();
             this.title = title;
             this.content = content;
+            this.parentViewer = parentViewer;
 
             // 不使用布局管理器，手动控制
             setLayout(null);
@@ -342,21 +588,32 @@ public class RequestResponseViewer extends JPanel {
             // 创建标题栏
             titlePanel = new JPanel(new BorderLayout());
             titlePanel.setBackground(new Color(248, 249, 250));
-            titlePanel.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4)); // 修改：减小左右边距以适应30px宽度
+            titlePanel.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4));
             titlePanel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
 
             JLabel titleLabel = new JLabel(title);
-            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 9f)); // 修改：减小字体大小
+            titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 9f));
             titleLabel.setForeground(new Color(52, 58, 64));
 
             // 创建按钮面板
-            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 1, 0)); // 修改：进一步减小间距
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 1, 0));
             buttonPanel.setOpaque(false);
+
+            // 弹出按钮
+            popoutButton = new JButton("⧉");
+            popoutButton.setFont(new Font(Font.MONOSPACED, Font.BOLD, 10));
+            popoutButton.setPreferredSize(new Dimension(15, 15));
+            popoutButton.setFocusPainted(false);
+            popoutButton.setBorderPainted(false);
+            popoutButton.setContentAreaFilled(false);
+            popoutButton.setForeground(new Color(108, 117, 125));
+            popoutButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            popoutButton.setToolTipText("弹出面板到独立窗口");
 
             // 折叠按钮
             collapseButton = new JButton("−");
-            collapseButton.setFont(new Font(Font.MONOSPACED, Font.BOLD, 10)); // 修改：减小字体大小
-            collapseButton.setPreferredSize(new Dimension(15, 15)); // 修改：减小按钮大小
+            collapseButton.setFont(new Font(Font.MONOSPACED, Font.BOLD, 10));
+            collapseButton.setPreferredSize(new Dimension(15, 15));
             collapseButton.setFocusPainted(false);
             collapseButton.setBorderPainted(false);
             collapseButton.setContentAreaFilled(false);
@@ -365,24 +622,31 @@ public class RequestResponseViewer extends JPanel {
             collapseButton.setToolTipText("折叠面板");
 
             // 按钮悬停效果
-            collapseButton.addMouseListener(new MouseAdapter() {
+            MouseAdapter buttonHoverListener = new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
-                    collapseButton.setForeground(new Color(52, 58, 64));
-                    collapseButton.setContentAreaFilled(true);
-                    collapseButton.setBackground(new Color(233, 236, 239));
+                    JButton button = (JButton) e.getSource();
+                    button.setForeground(new Color(52, 58, 64));
+                    button.setContentAreaFilled(true);
+                    button.setBackground(new Color(233, 236, 239));
                 }
 
                 @Override
                 public void mouseExited(MouseEvent e) {
-                    collapseButton.setForeground(new Color(108, 117, 125));
-                    collapseButton.setContentAreaFilled(false);
+                    JButton button = (JButton) e.getSource();
+                    button.setForeground(new Color(108, 117, 125));
+                    button.setContentAreaFilled(false);
                 }
-            });
+            };
 
+            popoutButton.addMouseListener(buttonHoverListener);
+            collapseButton.addMouseListener(buttonHoverListener);
+
+            popoutButton.addActionListener(e -> parentViewer.popoutPanel(this));
             collapseButton.addActionListener(e -> toggleCollapse());
 
-            // 折叠状态下不显示拖拽图标和标题，只显示按钮
+            // 添加按钮到面板
+            buttonPanel.add(popoutButton);
             buttonPanel.add(collapseButton);
 
             titlePanel.add(titleLabel, BorderLayout.CENTER);
@@ -408,6 +672,7 @@ public class RequestResponseViewer extends JPanel {
                 titlePanel.removeAll();
                 JPanel buttonOnlyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
                 buttonOnlyPanel.setOpaque(false);
+                buttonOnlyPanel.add(popoutButton);
                 buttonOnlyPanel.add(collapseButton);
                 titlePanel.add(buttonOnlyPanel, BorderLayout.CENTER);
                 titlePanel.setBorder(BorderFactory.createEmptyBorder(1, 2, 1, 2));
@@ -424,6 +689,7 @@ public class RequestResponseViewer extends JPanel {
 
                 JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 1, 0));
                 buttonPanel.setOpaque(false);
+                buttonPanel.add(popoutButton);
                 buttonPanel.add(collapseButton);
 
                 titlePanel.add(titleLabel, BorderLayout.CENTER);
@@ -446,7 +712,7 @@ public class RequestResponseViewer extends JPanel {
 
             // 手动布局子组件
             if (titlePanel != null && content != null) {
-                int titleHeight = 15; // 修改：将标题高度设置为15像素
+                int titleHeight = 15;
                 titlePanel.setBounds(0, 0, width, titleHeight);
 
                 if (isCollapsed) {
@@ -460,7 +726,7 @@ public class RequestResponseViewer extends JPanel {
         @Override
         public Dimension getPreferredSize() {
             if (isCollapsed) {
-                return new Dimension(30, 15); // 修改：折叠时宽度为30像素
+                return new Dimension(50, 15); // 折叠时稍微宽一点以容纳两个按钮
             } else {
                 return new Dimension(preferredWidth, 400);
             }
@@ -469,7 +735,7 @@ public class RequestResponseViewer extends JPanel {
         @Override
         public Dimension getMinimumSize() {
             if (isCollapsed) {
-                return new Dimension(30, 15); // 修改：最小宽度也设置为30像素
+                return new Dimension(50, 15);
             } else {
                 return new Dimension(200, 150);
             }
@@ -582,6 +848,29 @@ public class RequestResponseViewer extends JPanel {
             }
 
             layoutPanels();
+        }
+
+        public void removePanel(ResizablePanel panel) {
+            int index = panels.indexOf(panel);
+            if (index != -1) {
+                panels.remove(panel);
+                remove(panel);
+                panel.setParentContainer(null);
+
+                // 移除对应的调整柄
+                if (index < handles.size()) {
+                    ResizableHandle handle = handles.get(index);
+                    handles.remove(handle);
+                    remove(handle);
+                } else if (handles.size() > 0 && index == panels.size()) {
+                    // 如果移除的是最后一个面板，移除前一个调整柄
+                    ResizableHandle handle = handles.get(handles.size() - 1);
+                    handles.remove(handle);
+                    remove(handle);
+                }
+
+                layoutPanels();
+            }
         }
 
         public void layoutPanels() {
