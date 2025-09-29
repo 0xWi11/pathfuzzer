@@ -1745,7 +1745,7 @@ public class JsonLister {
     }
 
     /**
-     * 生成重复字段的expression
+     * 生成重复字段的expression - 修改后只显示新值
      * @param fieldName 字段名
      * @param originalValue 原始值
      * @param alias 别名
@@ -1812,7 +1812,8 @@ public class JsonLister {
             duplicateValue = originalValue;
         }
 
-        return "\"" + fieldName + "\":" + originalValue + ",\"" + fieldName + "\":" + duplicateValue;
+        // 修改：只返回修改后的值，不显示原值
+        return "\"" + fieldName + "\":" + duplicateValue;
     }
 
     /**
