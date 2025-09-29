@@ -35,13 +35,16 @@ public class HistoryPanel extends JPanel {
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
-        // 为每个标签页创建独立的表格 - 现在有6个标签页
+        // 为每个标签页创建独立的表格 - 现在有9个标签页
         JTable allTable = createTable();
         JTable jsonTable = createTable();
         JTable paramTable = createTable();
         JTable route1Table = createTable();
         JTable route2Table = createTable();
-        JTable paramDelTable = createTable();  // 新增PARAM DEL表格
+        JTable paramDelTable = createTable();  // PARAM DEL表格
+        JTable oobparamTable = createTable();  // 新增OOBPARAM表格
+        JTable cookieTable = createTable();    // 新增COOKIE表格
+        JTable headerTable = createTable();    // 新增HEADER表格
 
         // 设置初始的当前表格
         currentTable = allTable;
@@ -51,11 +54,14 @@ public class HistoryPanel extends JPanel {
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
         tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
-        tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));  // 新增PARAM DEL标签页
+        tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));
         tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));
         tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));
+        tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));  // 新增OOBPARAM标签页
+        tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));      // 新增COOKIE标签页
+        tabbedPane.addTab("HEADER", new JScrollPane(headerTable));      // 新增HEADER标签页
 
-        // 添加标签切换监听器 - 更新为6个标签页
+        // 添加标签切换监听器 - 更新为9个标签页
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = tabbedPane.getSelectedIndex();
             // 更新当前表格
@@ -73,13 +79,22 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("PARAM");
                     break;
                 case 3:
-                    tableModel.setFilter("PARAM_DELETE");  // 新增PARAM_DELETE过滤器
+                    tableModel.setFilter("PARAM_DELETE");
                     break;
                 case 4:
                     tableModel.setFilter("ROUTE1");
                     break;
                 case 5:
                     tableModel.setFilter("ROUTE2");
+                    break;
+                case 6:
+                    tableModel.setFilter("PARAM-OOB");      // 新增OOBPARAM过滤器
+                    break;
+                case 7:
+                    tableModel.setFilter("COOKIE");         // 新增COOKIE过滤器
+                    break;
+                case 8:
+                    tableModel.setFilter("HEADER");         // 新增HEADER过滤器
                     break;
             }
         });
