@@ -321,7 +321,12 @@ public class RequestResponseSaver {
             if (response.contains("/bin/sh", false)) {
                 detectedTypes.add("LFI");
             }
-
+            if (response.contains("chaxx123'\">", false)) {
+                detectedTypes.add("RXSS");
+            }
+            if (response.contains("SHELL=/", false) || response.contains("PWD=/", false) || response.contains("HOME=/", false) ) {
+                detectedTypes.add("CMDI");
+            }
             // 检测CRLF漏洞
             for (HttpHeader header : response.headers()) {
                 if (header.name().toLowerCase().contains("c9w") ||

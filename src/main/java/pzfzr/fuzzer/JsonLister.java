@@ -83,7 +83,8 @@ public class JsonLister {
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[JsonLister] Initialization complete, using new NettyManager client");    }
+        logging.logToOutput("[JsonLister] Initialization complete, using new NettyManager client");
+    }
 
     /**
      * 生成随机hash值
@@ -344,7 +345,7 @@ public class JsonLister {
             try {
                 long originalId = Long.parseLong(idStr);
 
-                // 生成递减变体 - 只在结果为正数时添加
+                // 原有的递减变体 - 只在结果为正数时添加
                 if (originalId > 4) {
                     variants.add(createPathVariant(originalPath, pathId, String.valueOf(originalId - 4), "-4"));
                 }
@@ -355,7 +356,19 @@ public class JsonLister {
                     variants.add(createPathVariant(originalPath, pathId, String.valueOf(originalId - 100), "-100"));
                 }
 
-                // 生成路径遍历变体 - 只在递减结果为正数时添加
+                // 新增：前缀零变体
+                variants.addAll(generatePathIdZeroPrefixVariants(originalPath, pathId, idStr));
+
+                // 新增：后缀"a"变体
+                variants.addAll(generatePathIdSuffixAVariants(originalPath, pathId, idStr));
+
+                // 新增：小数点变体
+                variants.addAll(generatePathIdDecimalVariants(originalPath, pathId, idStr));
+
+                // 新增：多个9变体
+                variants.addAll(generatePathIdNinesVariants(originalPath, pathId));
+
+                // 原有的路径遍历变体 - 只在递减结果为正数时添加
                 if (originalId > 4) {
                     variants.add(createPathVariant(originalPath, pathId, originalId + "/../" + (originalId - 4), "/../-4"));
                 }
@@ -369,12 +382,425 @@ public class JsonLister {
             } catch (NumberFormatException e) {
                 // 对于非数字或超范围数字，使用字符串处理
                 variants.addAll(generateStringBasedVariants(originalPath, pathId, idStr));
+                // 非数字情况下也添加多个9变体
+                variants.addAll(generatePathIdNinesVariants(originalPath, pathId));
             }
         }
 
-        // 基本变体 - 所有情况都添加
+        // 原有的基本变体 - 所有情况都添加
         variants.add(createPathVariant(originalPath, pathId, "[]", "[]"));
         variants.add(createPathVariant(originalPath, pathId, "null", "null"));
+
+        return variants;
+    }
+
+    /**
+     * 生成带前缀零的变体
+     * @param originalIdStr 原始ID字符串
+     * @return 前缀零变体列表
+     */
+    private List<PayloadVariant> generateZeroPrefixVariants(String originalIdStr, String paramName, boolean isBody) {
+        List<PayloadVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(originalIdStr);
+
+            // 生成前缀零变体
+            String originalWithZeros = String.format("000%s", originalIdStr);
+            String minus4WithZeros = String.format("000%d", originalId - 4);
+            String minus10WithZeros = String.format("000%d", originalId - 10);
+            String minus100WithZeros = String.format("000%d", originalId - 100);
+
+            if (isBody) {
+                // Body参数格式
+                variants.add(new PayloadVariant(originalWithZeros, paramName + "=" + originalWithZeros, "000orig", false, false, null));
+                variants.add(new PayloadVariant(minus4WithZeros, paramName + "=" + minus4WithZeros, "000-4", false, false, null));
+                variants.add(new PayloadVariant(minus10WithZeros, paramName + "=" + minus10WithZeros, "000-10", false, false, null));
+                variants.add(new PayloadVariant(minus100WithZeros, paramName + "=" + minus100WithZeros, "000-100", false, false, null));
+            } else {
+                // Query参数格式
+                variants.add(new PayloadVariant(originalWithZeros, paramName + "=" + originalWithZeros, "000orig", false, false, null));
+                variants.add(new PayloadVariant(minus4WithZeros, paramName + "=" + minus4WithZeros, "000-4", false, false, null));
+                variants.add(new PayloadVariant(minus10WithZeros, paramName + "=" + minus10WithZeros, "000-10", false, false, null));
+                variants.add(new PayloadVariant(minus100WithZeros, paramName + "=" + minus100WithZeros, "000-100", false, false, null));
+            }
+
+        } catch (NumberFormatException e) {
+            // 非数字情况，跳过前缀零变体
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成后缀"a"的变体
+     * @param originalIdStr 原始ID字符串
+     * @param paramName 参数名
+     * @param isBody 是否为Body参数
+     * @return 后缀"a"变体列表
+     */
+    private List<PayloadVariant> generateSuffixAVariants(String originalIdStr, String paramName, boolean isBody) {
+        List<PayloadVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(originalIdStr);
+
+            // 生成后缀"a"变体
+            String minus4WithA = (originalId - 4) + "a";
+            String minus10WithA = (originalId - 10) + "a";
+            String minus100WithA = (originalId - 100) + "a";
+
+            if (isBody) {
+                // Body参数格式
+                variants.add(new PayloadVariant(minus4WithA, paramName + "=" + minus4WithA, "-4a", false, false, null));
+                variants.add(new PayloadVariant(minus10WithA, paramName + "=" + minus10WithA, "-10a", false, false, null));
+                variants.add(new PayloadVariant(minus100WithA, paramName + "=" + minus100WithA, "-100a", false, false, null));
+            } else {
+                // Query参数格式
+                variants.add(new PayloadVariant(minus4WithA, paramName + "=" + minus4WithA, "-4a", false, false, null));
+                variants.add(new PayloadVariant(minus10WithA, paramName + "=" + minus10WithA, "-10a", false, false, null));
+                variants.add(new PayloadVariant(minus100WithA, paramName + "=" + minus100WithA, "-100a", false, false, null));
+            }
+
+        } catch (NumberFormatException e) {
+            // 非数字情况，跳过后缀"a"变体
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成小数点变体
+     * @param originalIdStr 原始ID字符串
+     * @param paramName 参数名
+     * @param isBody 是否为Body参数
+     * @return 小数点变体列表
+     */
+    private List<PayloadVariant> generateDecimalVariants(String originalIdStr, String paramName, boolean isBody) {
+        List<PayloadVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(originalIdStr);
+
+            // 生成小数点变体 (-5, -11, -101)
+            String minus5Decimal = (originalId - 5) + ".99999";
+            String minus11Decimal = (originalId - 11) + ".99999";
+            String minus101Decimal = (originalId - 101) + ".99999";
+
+            if (isBody) {
+                // Body参数格式
+                variants.add(new PayloadVariant(minus5Decimal, paramName + "=" + minus5Decimal, "-5.99999", false, false, null));
+                variants.add(new PayloadVariant(minus11Decimal, paramName + "=" + minus11Decimal, "-11.99999", false, false, null));
+                variants.add(new PayloadVariant(minus101Decimal, paramName + "=" + minus101Decimal, "-101.99999", false, false, null));
+            } else {
+                // Query参数格式
+                variants.add(new PayloadVariant(minus5Decimal, paramName + "=" + minus5Decimal, "-5.99999", false, false, null));
+                variants.add(new PayloadVariant(minus11Decimal, paramName + "=" + minus11Decimal, "-11.99999", false, false, null));
+                variants.add(new PayloadVariant(minus101Decimal, paramName + "=" + minus101Decimal, "-101.99999", false, false, null));
+            }
+
+        } catch (NumberFormatException e) {
+            // 非数字情况，跳过小数点变体
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成多个9的变体
+     * @param paramName 参数名
+     * @param isBody 是否为Body参数
+     * @return 多个9变体列表
+     */
+    private List<PayloadVariant> generateNinesVariant(String paramName, boolean isBody) {
+        List<PayloadVariant> variants = new ArrayList<>();
+
+        String ninesValue = "999999999999999999999";
+
+        if (isBody) {
+            // Body参数格式
+            variants.add(new PayloadVariant(ninesValue, paramName + "=" + ninesValue, "999s", false, false, null));
+        } else {
+            // Query参数格式
+            variants.add(new PayloadVariant(ninesValue, paramName + "=" + ninesValue, "999s", false, false, null));
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成JSON前缀零变体
+     * @param originalValue 原始值
+     * @return JSON前缀零变体列表
+     */
+    private List<JsonPayloadVariant> generateJsonZeroPrefixVariants(JsonNode originalValue) {
+        List<JsonPayloadVariant> variants = new ArrayList<>();
+
+        if (originalValue.isInt()) {
+            int id = originalValue.asInt();
+
+            // 字符串格式的前缀零变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id)), "\"000orig\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 4)), "\"000-4\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 10)), "\"000-10\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 100)), "\"000-100\""));
+
+        } else if (originalValue.isLong()) {
+            long id = originalValue.asLong();
+
+            // 字符串格式的前缀零变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id)), "\"000orig\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 4)), "\"000-4\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 10)), "\"000-10\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 100)), "\"000-100\""));
+
+        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
+            String idStr = originalValue.asText();
+            try {
+                long id = Long.parseLong(idStr);
+
+                // 前缀零变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%s", idStr)), "\"000orig\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 4)), "\"000-4\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 10)), "\"000-10\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 100)), "\"000-100\""));
+
+            } catch (NumberFormatException e) {
+                // 解析失败，跳过前缀零变体
+            }
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成JSON后缀"a"变体
+     * @param originalValue 原始值
+     * @return JSON后缀"a"变体列表
+     */
+    private List<JsonPayloadVariant> generateJsonSuffixAVariants(JsonNode originalValue) {
+        List<JsonPayloadVariant> variants = new ArrayList<>();
+
+        if (originalValue.isInt()) {
+            int id = originalValue.asInt();
+
+            // 数字型转字符串型的后缀"a"变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "a"), "\"-4a\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "a"), "\"-10a\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "a"), "\"-100a\""));
+
+        } else if (originalValue.isLong()) {
+            long id = originalValue.asLong();
+
+            // 数字型转字符串型的后缀"a"变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "a"), "\"-4a\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "a"), "\"-10a\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "a"), "\"-100a\""));
+
+        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
+            String idStr = originalValue.asText();
+            try {
+                long id = Long.parseLong(idStr);
+
+                // 字符串型的后缀"a"变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "a"), "\"-4a\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "a"), "\"-10a\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "a"), "\"-100a\""));
+
+            } catch (NumberFormatException e) {
+                // 解析失败，跳过后缀"a"变体
+            }
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成JSON小数点变体
+     * @param originalValue 原始值
+     * @return JSON小数点变体列表
+     */
+    private List<JsonPayloadVariant> generateJsonDecimalVariants(JsonNode originalValue) {
+        List<JsonPayloadVariant> variants = new ArrayList<>();
+
+        if (originalValue.isInt()) {
+            int id = originalValue.asInt();
+
+            // 数字型小数点变体 (-5, -11, -101) - 只生成数字型，不生成字符串型
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 5) + 0.99999), "-5.99999"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 11) + 0.99999), "-11.99999"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 101) + 0.99999), "-101.99999"));
+
+        } else if (originalValue.isLong()) {
+            long id = originalValue.asLong();
+
+            // 数字型小数点变体 (-5, -11, -101) - 只生成数字型，不生成字符串型
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 5) + 0.99999), "-5.99999"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 11) + 0.99999), "-11.99999"));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 101) + 0.99999), "-101.99999"));
+
+        } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
+            String idStr = originalValue.asText();
+            try {
+                long id = Long.parseLong(idStr);
+
+                // 字符串型小数点变体 (-5, -11, -101)
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 5) + ".99999"), "\"-5.99999\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 11) + ".99999"), "\"-11.99999\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 101) + ".99999"), "\"-101.99999\""));
+
+            } catch (NumberFormatException e) {
+                // 解析失败，跳过小数点变体
+            }
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成JSON多个9变体
+     * @param originalValue 原始值
+     * @return JSON多个9变体列表
+     */
+    private List<JsonPayloadVariant> generateJsonNinesVariants(JsonNode originalValue) {
+        List<JsonPayloadVariant> variants = new ArrayList<>();
+
+        String ninesValue = "999999999999999999999";
+
+        if (originalValue.isInt() || originalValue.isLong()) {
+            // 数字型保持为字符串（因为数值太大）
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(ninesValue), "\"999s\""));
+        } else if (originalValue.isTextual()) {
+            // 字符串型
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(ninesValue), "\"999s\""));
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成路径ID的前缀零变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @param idStr ID字符串
+     * @return 路径ID前缀零变体列表
+     */
+    private List<PathIdVariant> generatePathIdZeroPrefixVariants(String originalPath, PathIdMatch pathId, String idStr) {
+        List<PathIdVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(idStr);
+
+            // 生成前缀零变体
+            String originalWithZeros = String.format("000%s", idStr);
+            String minus4WithZeros = String.format("000%d", originalId - 4);
+            String minus10WithZeros = String.format("000%d", originalId - 10);
+            String minus100WithZeros = String.format("000%d", originalId - 100);
+
+            // 创建路径变体
+            variants.add(createPathVariant(originalPath, pathId, originalWithZeros, "000orig"));
+
+            // 只在递减结果为正数时添加
+            if (originalId > 4) {
+                variants.add(createPathVariant(originalPath, pathId, minus4WithZeros, "000-4"));
+            }
+            if (originalId > 10) {
+                variants.add(createPathVariant(originalPath, pathId, minus10WithZeros, "000-10"));
+            }
+            if (originalId > 100) {
+                variants.add(createPathVariant(originalPath, pathId, minus100WithZeros, "000-100"));
+            }
+
+        } catch (NumberFormatException e) {
+            // 非数字情况，跳过前缀零变体
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成路径ID的后缀"a"变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @param idStr ID字符串
+     * @return 路径ID后缀"a"变体列表
+     */
+    private List<PathIdVariant> generatePathIdSuffixAVariants(String originalPath, PathIdMatch pathId, String idStr) {
+        List<PathIdVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(idStr);
+
+            // 生成后缀"a"变体
+            String minus4WithA = (originalId - 4) + "a";
+            String minus10WithA = (originalId - 10) + "a";
+            String minus100WithA = (originalId - 100) + "a";
+
+            // 只在递减结果为正数时添加
+            if (originalId > 4) {
+                variants.add(createPathVariant(originalPath, pathId, minus4WithA, "-4a"));
+            }
+            if (originalId > 10) {
+                variants.add(createPathVariant(originalPath, pathId, minus10WithA, "-10a"));
+            }
+            if (originalId > 100) {
+                variants.add(createPathVariant(originalPath, pathId, minus100WithA, "-100a"));
+            }
+
+        } catch (NumberFormatException e) {
+            // 非数字情况，跳过后缀"a"变体
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成路径ID的小数点变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @param idStr ID字符串
+     * @return 路径ID小数点变体列表
+     */
+    private List<PathIdVariant> generatePathIdDecimalVariants(String originalPath, PathIdMatch pathId, String idStr) {
+        List<PathIdVariant> variants = new ArrayList<>();
+
+        try {
+            long originalId = Long.parseLong(idStr);
+
+            // 生成小数点变体 (-5, -11, -101)
+            String minus5Decimal = (originalId - 5) + ".99999";
+            String minus11Decimal = (originalId - 11) + ".99999";
+            String minus101Decimal = (originalId - 101) + ".99999";
+
+            // 只在递减结果为正数时添加
+            if (originalId > 5) {
+                variants.add(createPathVariant(originalPath, pathId, minus5Decimal, "-5.99999"));
+            }
+            if (originalId > 11) {
+                variants.add(createPathVariant(originalPath, pathId, minus11Decimal, "-11.99999"));
+            }
+            if (originalId > 101) {
+                variants.add(createPathVariant(originalPath, pathId, minus101Decimal, "-101.99999"));
+            }
+
+        } catch (NumberFormatException e) {
+            // 非数字情况，跳过小数点变体
+        }
+
+        return variants;
+    }
+
+    /**
+     * 生成路径ID的多个9变体
+     * @param originalPath 原始路径
+     * @param pathId 路径ID匹配
+     * @return 路径ID多个9变体列表
+     */
+    private List<PathIdVariant> generatePathIdNinesVariants(String originalPath, PathIdMatch pathId) {
+        List<PathIdVariant> variants = new ArrayList<>();
+
+        String ninesValue = "999999999999999999999";
+        variants.add(createPathVariant(originalPath, pathId, ninesValue, "999s"));
 
         return variants;
     }
@@ -496,8 +922,8 @@ public class JsonLister {
                 newValue +
                 originalPath.substring(pathId.getEndIndex());
 
-        // 生成表达式，显示原始ID -> 新值的变化
-        String expression = "path: " + pathId.getId() + " -> " + newValue;
+        // 生成表达式，只显示修改后的值
+        String expression = newValue;
 
         return new PathIdVariant(newPath, expression, alias);
     }
@@ -861,6 +1287,7 @@ public class JsonLister {
                 String fieldPath = entry.getKey();
                 JsonNode originalValue = entry.getValue();
 
+                // 原有的字段替换变体
                 List<JsonPayloadVariant> variants = generateJsonIdPayloadVariants(originalValue);
                 for (JsonPayloadVariant variant : variants) {
                     if (isShuttingDown) {
@@ -881,6 +1308,9 @@ public class JsonLister {
                     HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
                     sendModifiedRequest(modifiedRequest, messageId, host, expression, variant.getAlias(), currentParamName);
                 }
+
+                // 新增：重复字段变体
+                processJsonDuplicateFieldVariants(originalRequest, fieldPath, originalValue, messageId, host);
             }
         } catch (Exception e) {
             logging.logToOutput("Exception in processJsonIdReplacements: " + e.getMessage());
@@ -900,12 +1330,24 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(originalIdStr);
 
-            // 整型的递减变体
+            // 原有的递减变体
             variants.add(new PayloadVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), "-4", false, false, null));
             variants.add(new PayloadVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), "-10", false, false, null));
             variants.add(new PayloadVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), "-100", false, false, null));
 
-            // 参数污染变体 - 修改为仅包含新增的污染参数
+            // 新增：前缀零变体
+            variants.addAll(generateZeroPrefixVariants(originalIdStr, paramName, true));
+
+            // 新增：后缀"a"变体
+            variants.addAll(generateSuffixAVariants(originalIdStr, paramName, true));
+
+            // 新增：小数点变体
+            variants.addAll(generateDecimalVariants(originalIdStr, paramName, true));
+
+            // 新增：多个9变体
+            variants.addAll(generateNinesVariant(paramName, true));
+
+            // 原有的参数污染变体 - 修改为仅包含新增的污染参数
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 10), "pollute-10", true, false, String.valueOf(originalId - 10)));
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 100), "pollute-100", true, false, String.valueOf(originalId - 100)));
@@ -923,9 +1365,10 @@ public class JsonLister {
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
         } catch (NumberFormatException e) {
-            // 如果不是数字，只添加基本变体
+            // 如果不是数字，只添加基本变体和多个9变体
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
+            variants.addAll(generateNinesVariant(paramName, true));
         }
 
         return variants;
@@ -943,12 +1386,24 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(originalIdStr);
 
-            // 整型的递减变体
+            // 原有的递减变体
             variants.add(new PayloadVariant(String.valueOf(originalId - 4), paramName + "=" + (originalId - 4), "-4", false, false, null));
             variants.add(new PayloadVariant(String.valueOf(originalId - 10), paramName + "=" + (originalId - 10), "-10", false, false, null));
             variants.add(new PayloadVariant(String.valueOf(originalId - 100), paramName + "=" + (originalId - 100), "-100", false, false, null));
 
-            // 参数污染变体 - 修改为仅包含新增的污染参数
+            // 新增：前缀零变体
+            variants.addAll(generateZeroPrefixVariants(originalIdStr, paramName, false));
+
+            // 新增：后缀"a"变体
+            variants.addAll(generateSuffixAVariants(originalIdStr, paramName, false));
+
+            // 新增：小数点变体
+            variants.addAll(generateDecimalVariants(originalIdStr, paramName, false));
+
+            // 新增：多个9变体
+            variants.addAll(generateNinesVariant(paramName, false));
+
+            // 原有的参数污染变体 - 修改为仅包含新增的污染参数
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 10), "pollute-10", true, false, String.valueOf(originalId - 10)));
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 100), "pollute-100", true, false, String.valueOf(originalId - 100)));
@@ -966,9 +1421,10 @@ public class JsonLister {
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
         } catch (NumberFormatException e) {
-            // 如果不是数字，只添加基本变体
+            // 如果不是数字，只添加基本变体和多个9变体
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
+            variants.addAll(generateNinesVariant(paramName, false));
         }
 
         return variants;
@@ -986,10 +1442,22 @@ public class JsonLister {
             // 处理32位整数
             int id = originalValue.asInt();
 
-            // 整型的递减变体
+            // 原有的整型递减变体
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 4), "-4"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 10), "-10"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 100), "-100"));
+
+            // 新增：前缀零变体
+            variants.addAll(generateJsonZeroPrefixVariants(originalValue));
+
+            // 新增：后缀"a"变体
+            variants.addAll(generateJsonSuffixAVariants(originalValue));
+
+            // 新增：小数点变体
+            variants.addAll(generateJsonDecimalVariants(originalValue));
+
+            // 新增：多个9变体
+            variants.addAll(generateJsonNinesVariants(originalValue));
 
             // 数组变体 [原值,递减4,递减10,递减100]
             ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
@@ -1012,10 +1480,22 @@ public class JsonLister {
             // 处理64位长整数
             long id = originalValue.asLong();
 
-            // 长整型的递减变体
+            // 原有的长整型递减变体
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 4), "-4"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 10), "-10"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode(id - 100), "-100"));
+
+            // 新增：前缀零变体
+            variants.addAll(generateJsonZeroPrefixVariants(originalValue));
+
+            // 新增：后缀"a"变体
+            variants.addAll(generateJsonSuffixAVariants(originalValue));
+
+            // 新增：小数点变体
+            variants.addAll(generateJsonDecimalVariants(originalValue));
+
+            // 新增：多个9变体
+            variants.addAll(generateJsonNinesVariants(originalValue));
 
             // 数组变体
             ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
@@ -1039,10 +1519,22 @@ public class JsonLister {
             try {
                 long id = Long.parseLong(idStr);
 
-                // 字符串型但是数值递减的变体
+                // 原有的字符串型但是数值递减的变体
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 4)), "\"-4\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 10)), "\"-10\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.valueOf(id - 100)), "\"-100\""));
+
+                // 新增：前缀零变体
+                variants.addAll(generateJsonZeroPrefixVariants(originalValue));
+
+                // 新增：后缀"a"变体
+                variants.addAll(generateJsonSuffixAVariants(originalValue));
+
+                // 新增：小数点变体
+                variants.addAll(generateJsonDecimalVariants(originalValue));
+
+                // 新增：多个9变体
+                variants.addAll(generateJsonNinesVariants(originalValue));
 
                 // 字符串数组变体
                 ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
@@ -1061,9 +1553,10 @@ public class JsonLister {
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
             } catch (NumberFormatException e) {
-                // 如果解析失败，只添加基本变体
+                // 如果解析失败，只添加基本变体和多个9变体
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+                variants.addAll(generateJsonNinesVariants(originalValue));
             }
 
         } else if (originalValue.isArray()) {
@@ -1106,9 +1599,232 @@ public class JsonLister {
             // 数组情况下的空数组和null - 移到最后
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
+
+            // 新增：多个9变体
+            variants.addAll(generateJsonNinesVariants(originalValue));
         }
 
         return variants;
+    }
+
+    /**
+     * 生成JSON重复字段变体 - 通过直接修改JSON字符串
+     * @param originalRequest 原始请求
+     * @param fieldPath 字段路径
+     * @param originalValue 原始值
+     * @param messageId 消息ID
+     * @param host 主机名
+     */
+    private void processJsonDuplicateFieldVariants(HttpRequest originalRequest, String fieldPath, JsonNode originalValue, int messageId, String host) {
+        if (isShuttingDown) {
+            return;
+        }
+
+        try {
+            String originalBody = originalRequest.bodyToString();
+            String fieldName = extractParamNameFromPath(fieldPath);
+
+            if (originalValue.isInt()) {
+                int id = originalValue.asInt();
+
+                // 生成重复数字字段的变体
+                List<String> duplicateVariants = generateJsonDuplicateStringVariants(originalBody, fieldName,
+                        String.valueOf(id), String.valueOf(id - 4), String.valueOf(id - 10), String.valueOf(id - 100), false);
+
+                for (int i = 0; i < duplicateVariants.size(); i++) {
+                    String modifiedBody = duplicateVariants.get(i);
+                    String[] aliases = {"dup-4", "dup-10", "dup-100"};
+                    String alias = aliases[i];
+
+                    HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                    String expression = generateDuplicateExpression(fieldName, String.valueOf(id), alias);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, alias, fieldName);
+                }
+
+            } else if (originalValue.isLong()) {
+                long id = originalValue.asLong();
+
+                // 生成重复数字字段的变体
+                List<String> duplicateVariants = generateJsonDuplicateStringVariants(originalBody, fieldName,
+                        String.valueOf(id), String.valueOf(id - 4), String.valueOf(id - 10), String.valueOf(id - 100), false);
+
+                for (int i = 0; i < duplicateVariants.size(); i++) {
+                    String modifiedBody = duplicateVariants.get(i);
+                    String[] aliases = {"dup-4", "dup-10", "dup-100"};
+                    String alias = aliases[i];
+
+                    HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                    String expression = generateDuplicateExpression(fieldName, String.valueOf(id), alias);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, alias, fieldName);
+                }
+
+            } else if (originalValue.isTextual() && isNumericId(originalValue.asText())) {
+                String idStr = originalValue.asText();
+                try {
+                    long id = Long.parseLong(idStr);
+
+                    // 生成重复字符串字段的变体
+                    List<String> duplicateVariants = generateJsonDuplicateStringVariants(originalBody, fieldName,
+                            "\"" + idStr + "\"", "\"" + (id - 4) + "\"", "\"" + (id - 10) + "\"", "\"" + (id - 100) + "\"", true);
+
+                    for (int i = 0; i < duplicateVariants.size(); i++) {
+                        String modifiedBody = duplicateVariants.get(i);
+                        String[] aliases = {"\"dup-4\"", "\"dup-10\"", "\"dup-100\""};
+                        String alias = aliases[i];
+
+                        HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                        String expression = generateDuplicateExpression(fieldName, "\"" + idStr + "\"", alias);
+                        sendModifiedRequest(modifiedRequest, messageId, host, expression, alias, fieldName);
+                    }
+
+                } catch (NumberFormatException e) {
+                    // 解析失败，跳过重复字段变体
+                }
+            }
+
+        } catch (Exception e) {
+            logging.logToOutput("Exception in processJsonDuplicateFieldVariants: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成JSON重复字段的字符串变体
+     * @param originalJson 原始JSON字符串
+     * @param fieldName 字段名
+     * @param originalValue 原始值
+     * @param value4 -4值
+     * @param value10 -10值
+     * @param value100 -100值
+     * @param isStringValue 是否为字符串值
+     * @return 修改后的JSON字符串列表
+     */
+    private List<String> generateJsonDuplicateStringVariants(String originalJson, String fieldName,
+                                                             String originalValue, String value4, String value10, String value100, boolean isStringValue) {
+
+        List<String> variants = new ArrayList<>();
+
+        try {
+            // 查找字段在JSON中的位置
+            String fieldPattern = "\"" + fieldName + "\"\\s*:\\s*" + Pattern.quote(originalValue);
+            Pattern pattern = Pattern.compile(fieldPattern);
+            Matcher matcher = pattern.matcher(originalJson);
+
+            if (matcher.find()) {
+                // 生成重复字段变体（不包含换行符）
+                String duplicateField4 = ",\"" + fieldName + "\":" + value4;
+                String duplicateField10 = ",\"" + fieldName + "\":" + value10;
+                String duplicateField100 = ",\"" + fieldName + "\":" + value100;
+
+                // 插入位置：在原字段后面，跳过可能存在的换行符和空格
+                int insertPos = matcher.end();
+
+                // 生成三个变体
+                variants.add(insertDuplicateFieldClean(originalJson, insertPos, duplicateField4));
+                variants.add(insertDuplicateFieldClean(originalJson, insertPos, duplicateField10));
+                variants.add(insertDuplicateFieldClean(originalJson, insertPos, duplicateField100));
+            }
+
+        } catch (Exception e) {
+            logging.logToOutput("Error generating duplicate field variants: " + e.getMessage());
+        }
+
+        return variants;
+    }
+
+    /**
+     * 在JSON字符串中插入重复字段（清理版本，避免换行符）
+     * @param originalJson 原始JSON
+     * @param insertPos 插入位置
+     * @param duplicateField 重复字段
+     * @return 修改后的JSON
+     */
+    private String insertDuplicateFieldClean(String originalJson, int insertPos, String duplicateField) {
+        StringBuilder sb = new StringBuilder(originalJson);
+
+        // 检查插入位置后是否有换行符或空格，如果有则跳过
+        int actualInsertPos = insertPos;
+        while (actualInsertPos < originalJson.length() &&
+                (originalJson.charAt(actualInsertPos) == '\r' ||
+                        originalJson.charAt(actualInsertPos) == '\n' ||
+                        originalJson.charAt(actualInsertPos) == ' ' ||
+                        originalJson.charAt(actualInsertPos) == '\t')) {
+            actualInsertPos++;
+        }
+
+        // 在清理后的位置插入重复字段
+        sb.insert(actualInsertPos, duplicateField);
+        return sb.toString();
+    }
+
+    /**
+     * 生成重复字段的expression
+     * @param fieldName 字段名
+     * @param originalValue 原始值
+     * @param alias 别名
+     * @return expression字符串
+     */
+    private String generateDuplicateExpression(String fieldName, String originalValue, String alias) {
+        // 根据别名确定实际的重复值
+        String duplicateValue;
+        if (alias.equals("dup-4") || alias.equals("\"dup-4\"")) {
+            // 从原始值中提取数字并减4
+            if (originalValue.startsWith("\"") && originalValue.endsWith("\"")) {
+                // 字符串格式："500" -> "496"
+                String numStr = originalValue.substring(1, originalValue.length() - 1);
+                try {
+                    long num = Long.parseLong(numStr);
+                    duplicateValue = "\"" + (num - 4) + "\"";
+                } catch (NumberFormatException e) {
+                    duplicateValue = originalValue;
+                }
+            } else {
+                // 数字格式：500 -> 496
+                try {
+                    long num = Long.parseLong(originalValue);
+                    duplicateValue = String.valueOf(num - 4);
+                } catch (NumberFormatException e) {
+                    duplicateValue = originalValue;
+                }
+            }
+        } else if (alias.equals("dup-10") || alias.equals("\"dup-10\"")) {
+            if (originalValue.startsWith("\"") && originalValue.endsWith("\"")) {
+                String numStr = originalValue.substring(1, originalValue.length() - 1);
+                try {
+                    long num = Long.parseLong(numStr);
+                    duplicateValue = "\"" + (num - 10) + "\"";
+                } catch (NumberFormatException e) {
+                    duplicateValue = originalValue;
+                }
+            } else {
+                try {
+                    long num = Long.parseLong(originalValue);
+                    duplicateValue = String.valueOf(num - 10);
+                } catch (NumberFormatException e) {
+                    duplicateValue = originalValue;
+                }
+            }
+        } else if (alias.equals("dup-100") || alias.equals("\"dup-100\"")) {
+            if (originalValue.startsWith("\"") && originalValue.endsWith("\"")) {
+                String numStr = originalValue.substring(1, originalValue.length() - 1);
+                try {
+                    long num = Long.parseLong(numStr);
+                    duplicateValue = "\"" + (num - 100) + "\"";
+                } catch (NumberFormatException e) {
+                    duplicateValue = originalValue;
+                }
+            } else {
+                try {
+                    long num = Long.parseLong(originalValue);
+                    duplicateValue = String.valueOf(num - 100);
+                } catch (NumberFormatException e) {
+                    duplicateValue = originalValue;
+                }
+            }
+        } else {
+            duplicateValue = originalValue;
+        }
+
+        return "\"" + fieldName + "\":" + originalValue + ",\"" + fieldName + "\":" + duplicateValue;
     }
 
     /**
