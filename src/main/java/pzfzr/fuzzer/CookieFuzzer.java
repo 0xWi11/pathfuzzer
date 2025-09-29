@@ -113,9 +113,7 @@ public class CookieFuzzer {
     // Cookie中需要URL编码的特殊字符集合
     private static final Set<Character> COOKIE_SPECIAL_CHARS = new HashSet<>(Arrays.asList(
             ' ',   // 空格
-            '"',   // 双引号
             ';',   // 分号
-            ',',   // 逗号
             '=',   // 等号
             '\n',  // 换行符
             '\r',  // 回车符
@@ -124,16 +122,6 @@ public class CookieFuzzer {
             '%',   // 百分号
             '&',   // 与号
             '+',   // 加号
-            '<',   // 小于号
-            '>',   // 大于号
-            '[',   // 左方括号
-            ']',   // 右方括号
-            '{',   // 左花括号
-            '}',   // 右花括号
-            '|',   // 竖线
-            '^',   // 脱字符
-            '~',   // 波浪号
-            '`',   // 反引号
             '#'    // 井号
     ));
 

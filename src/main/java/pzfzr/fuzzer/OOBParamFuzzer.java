@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.io.UnsupportedEncodingException;
 
 import burp.api.montoya.http.message.HttpRequestResponse;
 import burp.api.montoya.http.message.requests.HttpRequest;
@@ -52,6 +53,20 @@ public class OOBParamFuzzer {
     private volatile int maxParameterCount = 30;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // 参数中需要URL编码的特殊字符集合（与CookieFuzzer保持一致）
+    private static final Set<Character> PARAM_SPECIAL_CHARS = new HashSet<>(Arrays.asList(
+            ' ',   // 空格
+            '"',   // 双引号
+            '\n',  // 换行符
+            '\r',  // 回车符
+            '\t',  // 制表符
+            '\\',  // 反斜杠
+            '%',   // 百分号
+            '&',   // 与号
+            '+',   // 加号
+            '#'    // 井号
+    ));
 
     public OOBParamFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                           RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
@@ -234,15 +249,8 @@ public class OOBParamFuzzer {
                 // URL参数的OOB测试可能需要特定的过滤逻辑
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
 
-                // 对URL参数的payload进行URL编码
-                String encodedPayload;
-                try {
-                    encodedPayload = URLEncoder.encode(processedPayload, StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    // 如果编码失败，使用原始payload并记录错误
-                    encodedPayload = processedPayload;
-                    logging.logToError("[OOBParamFuzzer] URL encoding failed for payload: " + processedPayload);
-                }
+                // 对URL参数的payload进行特殊字符URL编码（与Cookie编码方式一致）
+                String encodedPayload = urlEncodeSpecialChars(processedPayload);
 
                 String expression = paramName + "=" + encodedPayload;
 
@@ -285,15 +293,8 @@ public class OOBParamFuzzer {
 
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
 
-                // 对POST body参数的payload进行URL编码（application/x-www-form-urlencoded格式需要编码）
-                String encodedPayload;
-                try {
-                    encodedPayload = URLEncoder.encode(processedPayload, StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    // 如果编码失败，使用原始payload并记录错误
-                    encodedPayload = processedPayload;
-                    logging.logToError("[OOBParamFuzzer] URL encoding failed for payload: " + processedPayload);
-                }
+                // 对POST body参数的payload进行特殊字符URL编码（与Cookie编码方式一致）
+                String encodedPayload = urlEncodeSpecialChars(processedPayload);
 
                 String expression = paramName + "=" + encodedPayload;
 
@@ -463,6 +464,55 @@ public class OOBParamFuzzer {
             // 不需要额外的清理工作，因为NettyManager内部管理了所有连接
 
             logging.logToOutput("[OOBParamFuzzer] Shutdown completed");
+        }
+    }
+
+    // ===== 以下是URL编码相关方法（与CookieFuzzer保持一致） =====
+
+    /**
+     * 对参数值中的特殊字符进行URL编码
+     * 只编码需要编码的特殊字符，其他字符保持不变
+     *
+     * @param input 输入字符串
+     * @return URL编码后的字符串
+     */
+    private String urlEncodeSpecialChars(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            // 如果是特殊字符，进行URL编码
+            if (PARAM_SPECIAL_CHARS.contains(c)) {
+                result.append(urlEncodeChar(c));
+            } else if (c < 32 || c > 126) {
+                // 编码控制字符和非ASCII字符
+                result.append(urlEncodeChar(c));
+            } else {
+                // 普通字符直接添加
+                result.append(c);
+            }
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * 对单个字符进行URL编码
+     *
+     * @param c 要编码的字符
+     * @return URL编码后的字符串
+     */
+    private String urlEncodeChar(char c) {
+        try {
+            return URLEncoder.encode(String.valueOf(c), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            // UTF-8应该总是支持的，如果失败则返回十六进制编码
+            return String.format("%%%02X", (int) c);
         }
     }
 
