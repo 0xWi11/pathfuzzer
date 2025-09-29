@@ -1710,18 +1710,18 @@ public class JsonLister {
             Matcher matcher = pattern.matcher(originalJson);
 
             if (matcher.find()) {
-                // 生成重复字段变体（不包含换行符）
+                // 生成重复字段变体
                 String duplicateField4 = ",\"" + fieldName + "\":" + value4;
                 String duplicateField10 = ",\"" + fieldName + "\":" + value10;
                 String duplicateField100 = ",\"" + fieldName + "\":" + value100;
 
-                // 插入位置：在原字段后面，跳过可能存在的换行符和空格
+                // 插入位置：在原字段匹配结束位置
                 int insertPos = matcher.end();
 
-                // 生成三个变体
-                variants.add(insertDuplicateFieldClean(originalJson, insertPos, duplicateField4));
-                variants.add(insertDuplicateFieldClean(originalJson, insertPos, duplicateField10));
-                variants.add(insertDuplicateFieldClean(originalJson, insertPos, duplicateField100));
+                // 生成三个变体 - 直接插入
+                variants.add(insertDuplicateField(originalJson, insertPos, duplicateField4));
+                variants.add(insertDuplicateField(originalJson, insertPos, duplicateField10));
+                variants.add(insertDuplicateField(originalJson, insertPos, duplicateField100));
             }
 
         } catch (Exception e) {
@@ -1732,27 +1732,15 @@ public class JsonLister {
     }
 
     /**
-     * 在JSON字符串中插入重复字段（清理版本，避免换行符）
+     * 在JSON字符串中插入重复字段
      * @param originalJson 原始JSON
      * @param insertPos 插入位置
      * @param duplicateField 重复字段
      * @return 修改后的JSON
      */
-    private String insertDuplicateFieldClean(String originalJson, int insertPos, String duplicateField) {
+    private String insertDuplicateField(String originalJson, int insertPos, String duplicateField) {
         StringBuilder sb = new StringBuilder(originalJson);
-
-        // 检查插入位置后是否有换行符或空格，如果有则跳过
-        int actualInsertPos = insertPos;
-        while (actualInsertPos < originalJson.length() &&
-                (originalJson.charAt(actualInsertPos) == '\r' ||
-                        originalJson.charAt(actualInsertPos) == '\n' ||
-                        originalJson.charAt(actualInsertPos) == ' ' ||
-                        originalJson.charAt(actualInsertPos) == '\t')) {
-            actualInsertPos++;
-        }
-
-        // 在清理后的位置插入重复字段
-        sb.insert(actualInsertPos, duplicateField);
+        sb.insert(insertPos, duplicateField);
         return sb.toString();
     }
 
