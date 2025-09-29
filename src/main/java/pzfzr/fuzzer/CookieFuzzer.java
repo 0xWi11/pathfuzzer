@@ -228,7 +228,7 @@ public class CookieFuzzer {
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "COOKIEFUZZ",
+                    "COOKIE",
                     "", // expression置空
                     "COOKIETOOMANY", // payloadAlias设置为COOKIETOOMANY
                     "", // parameterName置空
@@ -322,7 +322,7 @@ public class CookieFuzzer {
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "COOKIEFUZZ",
+                    "COOKIE",
                     cookieName,        // expression为被替换的cookie名称
                     payloadAlias,      // payload别名
                     cookieName,        // parameterName为cookie名称

