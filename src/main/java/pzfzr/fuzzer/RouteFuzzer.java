@@ -58,6 +58,19 @@ public class RouteFuzzer {
             "{path}/chaxx"
     ));
 
+    /**
+     * 内部类用于保存路径生成结果和表达式
+     */
+    private static class PathGenerationResult {
+        final String modifiedPath;
+        final String expression;
+
+        PathGenerationResult(String modifiedPath, String expression) {
+            this.modifiedPath = modifiedPath;
+            this.expression = expression;
+        }
+    }
+
     public RouteFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
         this.api = api;
@@ -228,15 +241,15 @@ public class RouteFuzzer {
                                    List<String> pathSegments, int targetIndex, String payload,
                                    String payloadAlias, String currentTestParam,
                                    boolean addTrailingSlash, boolean useDeduplication) {
-        String modifiedPath = generateModifiedPath(pathSegments, targetIndex, payload, addTrailingSlash);
-        if (modifiedPath != null) {
+        PathGenerationResult result = generateModifiedPath(pathSegments, targetIndex, payload, addTrailingSlash);
+        if (result != null && result.modifiedPath != null) {
             if (useDeduplication) {
-                String fullUrl = host + modifiedPath;
+                String fullUrl = host + result.modifiedPath;
                 if (!requestDeduplicator.shouldSkipRequest(originalRequest.method(), fullUrl, "RouteFuzzer")) {
-                    sendTestRequestAsync(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
+                    sendTestRequestAsync(originalRequest, messageId, host, result.modifiedPath, payloadAlias, currentTestParam, result.expression);
                 }
             } else {
-                sendTestRequestAsync(originalRequest, messageId, host, modifiedPath, payloadAlias, currentTestParam);
+                sendTestRequestAsync(originalRequest, messageId, host, result.modifiedPath, payloadAlias, currentTestParam, result.expression);
             }
         }
     }
@@ -245,7 +258,7 @@ public class RouteFuzzer {
      * 异步发送测试请求 - 使用新NettyManager
      */
     private void sendTestRequestAsync(HttpRequest originalRequest, int messageId, String host, String modifiedPath,
-                                      String payloadAlias, String currentTestParam) {
+                                      String payloadAlias, String currentTestParam, String expression) {
         if (isShuttingDown) {
             return;
         }
@@ -275,12 +288,12 @@ public class RouteFuzzer {
             // 根据payloadAlias判断testType
             String testType = determineTestType(payloadAlias);
 
-            // 创建ModifiedRequestResponse条目
+            // 创建ModifiedRequestResponse条目，使用传入的expression
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
                     testType,
-                    "",
+                    expression,  // 使用生成路径时记录的expression
                     payloadAlias,
                     currentTestParam,
                     requestResponseSaver,
@@ -318,11 +331,12 @@ public class RouteFuzzer {
     }
 
     /**
-     * 生成修改后的路径
+     * 生成修改后的路径，并返回路径和被替换的表达式
      */
-    private String generateModifiedPath(List<String> pathSegments, int targetIndex, String payload, boolean addTrailingSlash) {
+    private PathGenerationResult generateModifiedPath(List<String> pathSegments, int targetIndex, String payload, boolean addTrailingSlash) {
         List<String> modifiedSegments = new ArrayList<>(pathSegments);
         String modifiedPayload = payload;
+        String expression = ""; // 记录实际替换后的内容
 
         // 使用统一的PayloadConstants.PayloadProcessor处理{fuzz}替换
         if (modifiedPayload.contains("{fuzz}")) {
@@ -331,32 +345,47 @@ public class RouteFuzzer {
 
         // 处理特殊情况 {path_del}
         if (modifiedPayload.equals("{path_del}")) {
-            return handlePathDelPayload(modifiedSegments, targetIndex, addTrailingSlash);
+            String path = handlePathDelPayload(modifiedSegments, targetIndex, addTrailingSlash);
+            expression = ""; // path_del 情况下expression为空
+            return new PathGenerationResult(path, expression);
         }
 
         // 处理特殊情况 {path1}{path2}
         if (modifiedPayload.contains("{path1}{path2}")) {
-            return handlePath1Path2Payload(modifiedSegments, targetIndex, addTrailingSlash);
+            if (targetIndex < modifiedSegments.size() - 1) {
+                String path1 = modifiedSegments.get(targetIndex);
+                String path2 = modifiedSegments.get(targetIndex + 1);
+                expression = path1 + path2;
+                modifiedSegments.set(targetIndex, expression);
+                modifiedSegments.remove(targetIndex + 1);
+            } else if (targetIndex > 0) {
+                String path1 = modifiedSegments.get(targetIndex - 1);
+                String path2 = modifiedSegments.get(targetIndex);
+                expression = path1 + path2;
+                modifiedSegments.set(targetIndex - 1, expression);
+                modifiedSegments.remove(targetIndex);
+            } else {
+                return null;
+            }
+            return new PathGenerationResult(buildPath(modifiedSegments, addTrailingSlash), expression);
         }
 
         // 处理URL编码的特殊情况
+        String targetSegment = modifiedSegments.get(targetIndex);
         if (modifiedPayload.equals("{path_url_encoded}")) {
-            String targetSegment = modifiedSegments.get(targetIndex);
-            String urlEncoded = PayloadConstants.PayloadProcessor.urlEncodeFullly(targetSegment);
-            modifiedSegments.set(targetIndex, urlEncoded);
+            expression = PayloadConstants.PayloadProcessor.urlEncodeFullly(targetSegment);
+            modifiedSegments.set(targetIndex, expression);
         } else if (modifiedPayload.equals("{path_double_url_encoded}")) {
-            String targetSegment = modifiedSegments.get(targetIndex);
-            String doubleUrlEncoded = PayloadConstants.PayloadProcessor.urlEncodeFullly(
+            expression = PayloadConstants.PayloadProcessor.urlEncodeFullly(
                     PayloadConstants.PayloadProcessor.urlEncodeFullly(targetSegment));
-            modifiedSegments.set(targetIndex, doubleUrlEncoded);
+            modifiedSegments.set(targetIndex, expression);
         } else {
             // 处理普通的替换
-            String targetSegment = modifiedSegments.get(targetIndex);
-            modifiedPayload = PayloadConstants.PayloadProcessor.processCommonReplacements(modifiedPayload, targetSegment);
-            modifiedSegments.set(targetIndex, modifiedPayload);
+            expression = PayloadConstants.PayloadProcessor.processCommonReplacements(modifiedPayload, targetSegment);
+            modifiedSegments.set(targetIndex, expression);
         }
 
-        return buildPath(modifiedSegments, addTrailingSlash);
+        return new PathGenerationResult(buildPath(modifiedSegments, addTrailingSlash), expression);
     }
 
     /**
@@ -370,29 +399,6 @@ public class RouteFuzzer {
         }
 
         if (targetIndex >= 0 && targetIndex < modifiedSegments.size()) {
-            modifiedSegments.remove(targetIndex);
-        } else {
-            return null;
-        }
-
-        return buildPath(modifiedSegments, addTrailingSlash);
-    }
-
-    /**
-     * 处理 {path1}{path2} 特殊情况
-     */
-    private String handlePath1Path2Payload(List<String> pathSegments, int targetIndex, boolean addTrailingSlash) {
-        List<String> modifiedSegments = new ArrayList<>(pathSegments);
-
-        if (targetIndex < modifiedSegments.size() - 1) {
-            String path1 = modifiedSegments.get(targetIndex);
-            String path2 = modifiedSegments.get(targetIndex + 1);
-            modifiedSegments.set(targetIndex, path1 + path2);
-            modifiedSegments.remove(targetIndex + 1);
-        } else if (targetIndex > 0) {
-            String path1 = modifiedSegments.get(targetIndex - 1);
-            String path2 = modifiedSegments.get(targetIndex);
-            modifiedSegments.set(targetIndex - 1, path1 + path2);
             modifiedSegments.remove(targetIndex);
         } else {
             return null;

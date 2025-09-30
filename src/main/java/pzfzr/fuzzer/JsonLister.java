@@ -426,7 +426,37 @@ public class JsonLister {
             }
 
         } catch (NumberFormatException e) {
-            // 非数字情况，跳过前缀零变体
+            // 对于超长数字，使用字符串处理
+            if (isValidDigitString(originalIdStr)) {
+                String originalWithZeros = "000" + originalIdStr;
+                String decremented4 = decrementStringNumber(originalIdStr, 4);
+                String decremented10 = decrementStringNumber(originalIdStr, 10);
+                String decremented100 = decrementStringNumber(originalIdStr, 100);
+
+                if (isBody) {
+                    variants.add(new PayloadVariant(originalWithZeros, paramName + "=" + originalWithZeros, "000orig", false, false, null));
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new PayloadVariant("000" + decremented4, paramName + "=" + "000" + decremented4, "000-4", false, false, null));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new PayloadVariant("000" + decremented10, paramName + "=" + "000" + decremented10, "000-10", false, false, null));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new PayloadVariant("000" + decremented100, paramName + "=" + "000" + decremented100, "000-100", false, false, null));
+                    }
+                } else {
+                    variants.add(new PayloadVariant(originalWithZeros, paramName + "=" + originalWithZeros, "000orig", false, false, null));
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new PayloadVariant("000" + decremented4, paramName + "=" + "000" + decremented4, "000-4", false, false, null));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new PayloadVariant("000" + decremented10, paramName + "=" + "000" + decremented10, "000-10", false, false, null));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new PayloadVariant("000" + decremented100, paramName + "=" + "000" + decremented100, "000-100", false, false, null));
+                    }
+                }
+            }
         }
 
         return variants;
@@ -463,7 +493,34 @@ public class JsonLister {
             }
 
         } catch (NumberFormatException e) {
-            // 非数字情况，跳过后缀"a"变体
+            // 对于超长数字，使用字符串处理
+            if (isValidDigitString(originalIdStr)) {
+                String decremented4 = decrementStringNumber(originalIdStr, 4);
+                String decremented10 = decrementStringNumber(originalIdStr, 10);
+                String decremented100 = decrementStringNumber(originalIdStr, 100);
+
+                if (isBody) {
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented4 + "a", paramName + "=" + decremented4 + "a", "-4a", false, false, null));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented10 + "a", paramName + "=" + decremented10 + "a", "-10a", false, false, null));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented100 + "a", paramName + "=" + decremented100 + "a", "-100a", false, false, null));
+                    }
+                } else {
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented4 + "a", paramName + "=" + decremented4 + "a", "-4a", false, false, null));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented10 + "a", paramName + "=" + decremented10 + "a", "-10a", false, false, null));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented100 + "a", paramName + "=" + decremented100 + "a", "-100a", false, false, null));
+                    }
+                }
+            }
         }
 
         return variants;
@@ -500,7 +557,34 @@ public class JsonLister {
             }
 
         } catch (NumberFormatException e) {
-            // 非数字情况，跳过小数点变体
+            // 对于超长数字，使用字符串处理
+            if (isValidDigitString(originalIdStr)) {
+                String decremented5 = decrementStringNumber(originalIdStr, 5);
+                String decremented11 = decrementStringNumber(originalIdStr, 11);
+                String decremented101 = decrementStringNumber(originalIdStr, 101);
+
+                if (isBody) {
+                    if (decremented5 != null && !decremented5.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented5 + ".99999", paramName + "=" + decremented5 + ".99999", "-5.99999", false, false, null));
+                    }
+                    if (decremented11 != null && !decremented11.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented11 + ".99999", paramName + "=" + decremented11 + ".99999", "-11.99999", false, false, null));
+                    }
+                    if (decremented101 != null && !decremented101.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented101 + ".99999", paramName + "=" + decremented101 + ".99999", "-101.99999", false, false, null));
+                    }
+                } else {
+                    if (decremented5 != null && !decremented5.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented5 + ".99999", paramName + "=" + decremented5 + ".99999", "-5.99999", false, false, null));
+                    }
+                    if (decremented11 != null && !decremented11.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented11 + ".99999", paramName + "=" + decremented11 + ".99999", "-11.99999", false, false, null));
+                    }
+                    if (decremented101 != null && !decremented101.startsWith("-")) {
+                        variants.add(new PayloadVariant(decremented101 + ".99999", paramName + "=" + decremented101 + ".99999", "-101.99999", false, false, null));
+                    }
+                }
+            }
         }
 
         return variants;
@@ -566,7 +650,23 @@ public class JsonLister {
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(String.format("000%d", id - 100)), "\"000-100\""));
 
             } catch (NumberFormatException e) {
-                // 解析失败，跳过前缀零变体
+                // 处理超长数字
+                if (isValidDigitString(idStr)) {
+                    String decremented4 = decrementStringNumber(idStr, 4);
+                    String decremented10 = decrementStringNumber(idStr, 10);
+                    String decremented100 = decrementStringNumber(idStr, 100);
+
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode("000" + idStr), "\"000orig\""));
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode("000" + decremented4), "\"000-4\""));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode("000" + decremented10), "\"000-10\""));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode("000" + decremented100), "\"000-100\""));
+                    }
+                }
             }
         }
 
@@ -608,7 +708,22 @@ public class JsonLister {
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "a"), "\"-100a\""));
 
             } catch (NumberFormatException e) {
-                // 解析失败，跳过后缀"a"变体
+                // 处理超长数字
+                if (isValidDigitString(idStr)) {
+                    String decremented4 = decrementStringNumber(idStr, 4);
+                    String decremented10 = decrementStringNumber(idStr, 10);
+                    String decremented100 = decrementStringNumber(idStr, 100);
+
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "a"), "\"-4a\""));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "a"), "\"-10a\""));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "a"), "\"-100a\""));
+                    }
+                }
             }
         }
 
@@ -650,7 +765,22 @@ public class JsonLister {
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 101) + ".99999"), "\"-101.99999\""));
 
             } catch (NumberFormatException e) {
-                // 解析失败，跳过小数点变体
+                // 处理超长数字
+                if (isValidDigitString(idStr)) {
+                    String decremented5 = decrementStringNumber(idStr, 5);
+                    String decremented11 = decrementStringNumber(idStr, 11);
+                    String decremented101 = decrementStringNumber(idStr, 101);
+
+                    if (decremented5 != null && !decremented5.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented5 + ".99999"), "\"-5.99999\""));
+                    }
+                    if (decremented11 != null && !decremented11.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented11 + ".99999"), "\"-11.99999\""));
+                    }
+                    if (decremented101 != null && !decremented101.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented101 + ".99999"), "\"-101.99999\""));
+                    }
+                }
             }
         }
 
@@ -712,7 +842,25 @@ public class JsonLister {
             }
 
         } catch (NumberFormatException e) {
-            // 非数字情况，跳过前缀零变体
+            // 处理超长数字
+            if (isValidDigitString(idStr)) {
+                String originalWithZeros = "000" + idStr;
+                String decremented4 = decrementStringNumber(idStr, 4);
+                String decremented10 = decrementStringNumber(idStr, 10);
+                String decremented100 = decrementStringNumber(idStr, 100);
+
+                variants.add(createPathVariant(originalPath, pathId, originalWithZeros, "000orig"));
+
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, "000" + decremented4, "000-4"));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, "000" + decremented10, "000-10"));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, "000" + decremented100, "000-100"));
+                }
+            }
         }
 
         return variants;
@@ -748,7 +896,22 @@ public class JsonLister {
             }
 
         } catch (NumberFormatException e) {
-            // 非数字情况，跳过后缀"a"变体
+            // 处理超长数字
+            if (isValidDigitString(idStr)) {
+                String decremented4 = decrementStringNumber(idStr, 4);
+                String decremented10 = decrementStringNumber(idStr, 10);
+                String decremented100 = decrementStringNumber(idStr, 100);
+
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented4 + "a", "-4a"));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented10 + "a", "-10a"));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented100 + "a", "-100a"));
+                }
+            }
         }
 
         return variants;
@@ -784,7 +947,22 @@ public class JsonLister {
             }
 
         } catch (NumberFormatException e) {
-            // 非数字情况，跳过小数点变体
+            // 处理超长数字
+            if (isValidDigitString(idStr)) {
+                String decremented5 = decrementStringNumber(idStr, 5);
+                String decremented11 = decrementStringNumber(idStr, 11);
+                String decremented101 = decrementStringNumber(idStr, 101);
+
+                if (decremented5 != null && !decremented5.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented5 + ".99999", "-5.99999"));
+                }
+                if (decremented11 != null && !decremented11.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented11 + ".99999", "-11.99999"));
+                }
+                if (decremented101 != null && !decremented101.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented101 + ".99999", "-101.99999"));
+                }
+            }
         }
 
         return variants;
@@ -1365,7 +1543,73 @@ public class JsonLister {
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
         } catch (NumberFormatException e) {
-            // 如果不是数字，只添加基本变体和多个9变体
+            // 处理超长数字或非数字情况
+            if (isValidDigitString(originalIdStr)) {
+                // 使用BigInteger处理超长数字
+                String decremented4 = decrementStringNumber(originalIdStr, 4);
+                String decremented10 = decrementStringNumber(originalIdStr, 10);
+                String decremented100 = decrementStringNumber(originalIdStr, 100);
+
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented4, paramName + "=" + decremented4, "-4", false, false, null));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented10, paramName + "=" + decremented10, "-10", false, false, null));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented100, paramName + "=" + decremented100, "-100", false, false, null));
+                }
+
+                // 新增：前缀零变体
+                variants.addAll(generateZeroPrefixVariants(originalIdStr, paramName, true));
+
+                // 新增：后缀"a"变体
+                variants.addAll(generateSuffixAVariants(originalIdStr, paramName, true));
+
+                // 新增：小数点变体
+                variants.addAll(generateDecimalVariants(originalIdStr, paramName, true));
+
+                // 新增：多个9变体
+                variants.addAll(generateNinesVariant(paramName, true));
+
+                // 参数污染变体
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented4, "pollute-4", true, false, decremented4));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented10, "pollute-10", true, false, decremented10));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented100, "pollute-100", true, false, decremented100));
+                }
+
+                // 数组格式变体
+                StringBuilder arrayFormat = new StringBuilder("[" + originalIdStr);
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    arrayFormat.append(",").append(decremented4);
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    arrayFormat.append(",").append(decremented10);
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    arrayFormat.append(",").append(decremented100);
+                }
+                arrayFormat.append("]");
+                variants.add(new PayloadVariant(arrayFormat.toString(), paramName + "=" + arrayFormat, "to[-4-10-100]", false, true, null));
+
+                // 路径遍历变体
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr + "/../" + decremented4, paramName + "=" + originalIdStr + "/../" + decremented4, "/../-4", false, false, null));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr + "/../" + decremented10, paramName + "=" + originalIdStr + "/../" + decremented10, "/../-10", false, false, null));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr + "/../" + decremented100, paramName + "=" + originalIdStr + "/../" + decremented100, "/../-100", false, false, null));
+                }
+            }
+
+            // 基本变体 - 移到最后（倒数第二和倒数第一）
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
             variants.addAll(generateNinesVariant(paramName, true));
@@ -1421,7 +1665,73 @@ public class JsonLister {
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
         } catch (NumberFormatException e) {
-            // 如果不是数字，只添加基本变体和多个9变体
+            // 处理超长数字或非数字情况
+            if (isValidDigitString(originalIdStr)) {
+                // 使用BigInteger处理超长数字
+                String decremented4 = decrementStringNumber(originalIdStr, 4);
+                String decremented10 = decrementStringNumber(originalIdStr, 10);
+                String decremented100 = decrementStringNumber(originalIdStr, 100);
+
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented4, paramName + "=" + decremented4, "-4", false, false, null));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented10, paramName + "=" + decremented10, "-10", false, false, null));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented100, paramName + "=" + decremented100, "-100", false, false, null));
+                }
+
+                // 新增：前缀零变体
+                variants.addAll(generateZeroPrefixVariants(originalIdStr, paramName, false));
+
+                // 新增：后缀"a"变体
+                variants.addAll(generateSuffixAVariants(originalIdStr, paramName, false));
+
+                // 新增：小数点变体
+                variants.addAll(generateDecimalVariants(originalIdStr, paramName, false));
+
+                // 新增：多个9变体
+                variants.addAll(generateNinesVariant(paramName, false));
+
+                // 参数污染变体
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented4, "pollute-4", true, false, decremented4));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented10, "pollute-10", true, false, decremented10));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented100, "pollute-100", true, false, decremented100));
+                }
+
+                // 数组格式变体
+                StringBuilder arrayFormat = new StringBuilder("[" + originalIdStr);
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    arrayFormat.append(",").append(decremented4);
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    arrayFormat.append(",").append(decremented10);
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    arrayFormat.append(",").append(decremented100);
+                }
+                arrayFormat.append("]");
+                variants.add(new PayloadVariant(arrayFormat.toString(), paramName + "=" + arrayFormat, "to[-4-10-100]", false, true, null));
+
+                // 路径遍历变体
+                if (decremented4 != null && !decremented4.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr + "/../" + decremented4, paramName + "=" + originalIdStr + "/../" + decremented4, "/../-4", false, false, null));
+                }
+                if (decremented10 != null && !decremented10.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr + "/../" + decremented10, paramName + "=" + originalIdStr + "/../" + decremented10, "/../-10", false, false, null));
+                }
+                if (decremented100 != null && !decremented100.startsWith("-")) {
+                    variants.add(new PayloadVariant(originalIdStr + "/../" + decremented100, paramName + "=" + originalIdStr + "/../" + decremented100, "/../-100", false, false, null));
+                }
+            }
+
+            // 基本变体 - 移到最后（倒数第二和倒数第一）
             variants.add(new PayloadVariant("[]", paramName + "=[]", "[]", false, true, null));
             variants.add(new PayloadVariant("null", paramName + "=null", "null", false, false, null));
             variants.addAll(generateNinesVariant(paramName, false));
@@ -1553,7 +1863,61 @@ public class JsonLister {
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
             } catch (NumberFormatException e) {
-                // 如果解析失败，只添加基本变体和多个9变体
+                // 处理超长数字
+                if (isValidDigitString(idStr)) {
+                    String decremented4 = decrementStringNumber(idStr, 4);
+                    String decremented10 = decrementStringNumber(idStr, 10);
+                    String decremented100 = decrementStringNumber(idStr, 100);
+
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4), "\"-4\""));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10), "\"-10\""));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100), "\"-100\""));
+                    }
+
+                    // 新增：前缀零变体
+                    variants.addAll(generateJsonZeroPrefixVariants(originalValue));
+
+                    // 新增：后缀"a"变体
+                    variants.addAll(generateJsonSuffixAVariants(originalValue));
+
+                    // 新增：小数点变体
+                    variants.addAll(generateJsonDecimalVariants(originalValue));
+
+                    // 新增：多个9变体
+                    variants.addAll(generateJsonNinesVariants(originalValue));
+
+                    // 字符串数组变体
+                    ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
+                    arrayVariant3.add(idStr);
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        arrayVariant3.add(decremented4);
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        arrayVariant3.add(decremented10);
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        arrayVariant3.add(decremented100);
+                    }
+                    variants.add(new JsonPayloadVariant(arrayVariant3, "to[\"-4\"\"-10\"\"-100\"]"));
+
+                    // 路径遍历变体
+                    if (decremented4 != null && !decremented4.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + decremented4), "\"/../-4\""));
+                    }
+                    if (decremented10 != null && !decremented10.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + decremented10), "\"/../-10\""));
+                    }
+                    if (decremented100 != null && !decremented100.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "/../" + decremented100), "\"/../-100\""));
+                    }
+                }
+
+                // 空数组和null - 移到最后
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.arrayNode(), "[]"));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.nullNode(), "null"));
                 variants.addAll(generateJsonNinesVariants(originalValue));
@@ -1591,7 +1955,25 @@ public class JsonLister {
                         arrayVariant.add(String.valueOf(id - 100));
                         variants.add(new JsonPayloadVariant(arrayVariant, "to[\"-4\"\"-10\"\"-100\"]"));
                     } catch (NumberFormatException e) {
-                        // 如果解析失败，跳过数组变体生成
+                        // 处理超长数字
+                        if (isValidDigitString(idStr)) {
+                            String decremented4 = decrementStringNumber(idStr, 4);
+                            String decremented10 = decrementStringNumber(idStr, 10);
+                            String decremented100 = decrementStringNumber(idStr, 100);
+
+                            ArrayNode arrayVariant = JsonNodeFactory.instance.arrayNode();
+                            arrayVariant.add(idStr);
+                            if (decremented4 != null && !decremented4.startsWith("-")) {
+                                arrayVariant.add(decremented4);
+                            }
+                            if (decremented10 != null && !decremented10.startsWith("-")) {
+                                arrayVariant.add(decremented10);
+                            }
+                            if (decremented100 != null && !decremented100.startsWith("-")) {
+                                arrayVariant.add(decremented100);
+                            }
+                            variants.add(new JsonPayloadVariant(arrayVariant, "to[\"-4\"\"-10\"\"-100\"]"));
+                        }
                     }
                 }
             }
@@ -1678,7 +2060,38 @@ public class JsonLister {
                     }
 
                 } catch (NumberFormatException e) {
-                    // 解析失败，跳过重复字段变体
+                    // 处理超长数字
+                    if (isValidDigitString(idStr)) {
+                        String decremented4 = decrementStringNumber(idStr, 4);
+                        String decremented10 = decrementStringNumber(idStr, 10);
+                        String decremented100 = decrementStringNumber(idStr, 100);
+
+                        List<String> values = new ArrayList<>();
+                        if (decremented4 != null && !decremented4.startsWith("-")) {
+                            values.add("\"" + decremented4 + "\"");
+                        }
+                        if (decremented10 != null && !decremented10.startsWith("-")) {
+                            values.add("\"" + decremented10 + "\"");
+                        }
+                        if (decremented100 != null && !decremented100.startsWith("-")) {
+                            values.add("\"" + decremented100 + "\"");
+                        }
+
+                        if (values.size() >= 3) {
+                            List<String> duplicateVariants = generateJsonDuplicateStringVariants(originalBody, fieldName,
+                                    "\"" + idStr + "\"", values.get(0), values.get(1), values.get(2), true);
+
+                            for (int i = 0; i < duplicateVariants.size(); i++) {
+                                String modifiedBody = duplicateVariants.get(i);
+                                String[] aliases = {"\"dup-4\"", "\"dup-10\"", "\"dup-100\""};
+                                String alias = aliases[i];
+
+                                HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                                String expression = generateDuplicateExpression(fieldName, "\"" + idStr + "\"", alias);
+                                sendModifiedRequest(modifiedRequest, messageId, host, expression, alias, fieldName);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -2027,7 +2440,7 @@ public class JsonLister {
                 String fieldPath = currentPath.isEmpty() ? fieldName : currentPath + "." + fieldName;
 
 
-                // 检查是否为ID参数
+                // 检查是否为ID参数 - 修复：扩展匹配规则以支持 "clientNameisd" 等
                 boolean isIdParam = isIdParameter(fieldName);
 
                 if (isIdParam) {
@@ -2076,18 +2489,37 @@ public class JsonLister {
     }
 
     /**
-     * 检查是否为数字ID - 支持长整数
+     * 检查是否为数字ID - 修复：支持长整数和超长数字
      * @param value 值
      * @return 是否为数字ID
      */
     private boolean isNumericId(String value) {
+        // 修复：首先检查是否为纯数字字符串
+        if (!isValidDigitString(value)) {
+            return false;
+        }
+
         try {
-            // 使用Long.parseLong()支持长整数，而不是Integer.parseInt()
+            // 尝试使用Long.parseLong()解析
             Long.parseLong(value);
             return true;
         } catch (NumberFormatException e) {
+            // 如果Long.parseLong()失败，但是是有效的数字字符串，仍然认为是数字ID
+            // 这样可以支持超长数字
+            return true;
+        }
+    }
+
+    /**
+     * 检查字符串是否为有效的数字字符串（只包含数字）
+     * @param str 字符串
+     * @return 是否为有效的数字字符串
+     */
+    private boolean isValidDigitString(String str) {
+        if (str == null || str.isEmpty()) {
             return false;
         }
+        return str.matches("\\d+");
     }
 
     /**
