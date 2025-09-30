@@ -64,8 +64,7 @@ public class JsonLister {
     private static final Pattern ID_REGEX = Pattern.compile("(\"[^\"]*ids?\":|[?&][^=&]*ids?=)", Pattern.CASE_INSENSITIVE);
 
     // 路径中数字ID的正则表达式
-    private static final Pattern PATH_NUMERIC_PATTERN = Pattern.compile("/([0-9]+)(?=/|$)");
-
+    private static final Pattern PATH_NUMERIC_PATTERN = Pattern.compile("/([0-9]+)(?=[/?#]|$)");
     public JsonLister(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                       RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
         this.api = api;
