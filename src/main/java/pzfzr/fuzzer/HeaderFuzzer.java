@@ -333,12 +333,15 @@ public class HeaderFuzzer {
             // 保存修改后的请求
             requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
 
+            // 创建完整的expression，包含header名称、冒号、空格和值
+            String fullExpression = headerName + ": " + payload;
+
             // 创建ModifiedRequestResponse条目
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
                     "HEADER",
-                    headerName,        // expression为被替换的header名称
+                    fullExpression,    // expression为完整的header键值对（headerName: payload）
                     payloadAlias,      // payload别名
                     headerName,        // parameterName为header名称
                     requestResponseSaver,

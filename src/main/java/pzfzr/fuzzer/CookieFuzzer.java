@@ -306,12 +306,15 @@ public class CookieFuzzer {
             // 保存修改后的请求
             requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
 
+            // 创建完整的expression，包含cookie名称、等号和值
+            String fullExpression = cookieName + "=" + payload;
+
             // 创建ModifiedRequestResponse条目
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
                     "COOKIE",
-                    cookieName,        // expression为被替换的cookie名称
+                    fullExpression,    // expression为完整的cookie键值对（cookieName=payload）
                     payloadAlias,      // payload别名
                     cookieName,        // parameterName为cookie名称
                     requestResponseSaver,
