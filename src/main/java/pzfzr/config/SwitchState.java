@@ -6,22 +6,25 @@ public class SwitchState {
     private final boolean routefuzzerSwitch;
     private final boolean paramfuzzerSwitch;
     private final boolean paramdeleterSwitch;
+    private final boolean paramadderSwitch; // 新增：ParamAdder开关状态
     private final boolean headerfuzzerSwitch;
     private final boolean cookiefuzzerSwitch;
-    private final boolean oobparamfuzzerSwitch; // 新增：OOBParamFuzzer开关状态
+    private final boolean oobparamfuzzerSwitch;
 
     public SwitchState(boolean masterSwitch, boolean jsonlisterSwitch,
                        boolean routefuzzerSwitch, boolean paramfuzzerSwitch,
-                       boolean paramdeleterSwitch, boolean headerfuzzerSwitch,
-                       boolean cookiefuzzerSwitch, boolean oobparamfuzzerSwitch) { // 新增参数
+                       boolean paramdeleterSwitch, boolean paramadderSwitch, // 新增参数
+                       boolean headerfuzzerSwitch, boolean cookiefuzzerSwitch,
+                       boolean oobparamfuzzerSwitch) {
         this.masterSwitch = masterSwitch;
         this.jsonlisterSwitch = jsonlisterSwitch;
         this.routefuzzerSwitch = routefuzzerSwitch;
         this.paramfuzzerSwitch = paramfuzzerSwitch;
         this.paramdeleterSwitch = paramdeleterSwitch;
+        this.paramadderSwitch = paramadderSwitch; // 新增
         this.headerfuzzerSwitch = headerfuzzerSwitch;
         this.cookiefuzzerSwitch = cookiefuzzerSwitch;
-        this.oobparamfuzzerSwitch = oobparamfuzzerSwitch; // 新增
+        this.oobparamfuzzerSwitch = oobparamfuzzerSwitch;
     }
 
     public boolean isMasterSwitch() {
@@ -42,6 +45,11 @@ public class SwitchState {
 
     public boolean isParamdeleterSwitch() {
         return paramdeleterSwitch;
+    }
+
+    // 新增：ParamAdder的getter方法
+    public boolean isParamadderSwitch() {
+        return paramadderSwitch;
     }
 
     public boolean isHeaderfuzzerSwitch() {

@@ -7,7 +7,7 @@ import burp.api.montoya.ui.contextmenu.MessageEditorHttpRequestResponse;
 import burp.api.montoya.http.message.HttpRequestResponse;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.FilterRule;
-import pzfzr.config.PluginConfigManager; // 新增
+import pzfzr.config.PluginConfigManager;
 import pzfzr.config.SwitchState;
 import pzfzr.core.ValueReplacer;
 import pzfzr.model.RequestResponseSaver;
@@ -29,7 +29,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
     private final TableModel tableModel;
     private final RequestResponseSaver requestResponseSaver;
     private final ConfigManager configManager;
-    private final PluginConfigManager pluginConfigManager; // 新增
+    private final PluginConfigManager pluginConfigManager;
     private final ExecutorService executor = Executors.newFixedThreadPool(8);
     private final AtomicInteger messageIdGenerator = new AtomicInteger(5000000);
 
@@ -138,6 +138,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                                 configState.isRouteFuzzerEnabled(),
                                 configState.isParamFuzzerEnabled(),
                                 configState.isParamDeleterEnabled(),
+                                configState.isParamAdderEnabled(), // 新增
                                 false, false, false);
                         return valueReplacer.unifiedTestForContextAsync(request, routeTestState, messageId);
                     });
@@ -147,7 +148,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (isOOBTestAvailable(configState)) {
             JMenuItem oobTestCombo = createTestMenuItem("Run OOB Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState oobTestState = new SwitchState(false, false, false, false, false,
+                        SwitchState oobTestState = new SwitchState(false, false, false, false, false, false,
                                 configState.isHeaderFuzzerEnabled(),
                                 configState.isCookieFuzzerEnabled(),
                                 configState.isOOBParamFuzzerEnabled());
@@ -160,11 +161,10 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             headerIntruderMenu.addSeparator();
         }
 
-        // 3. 单独测试菜单项 - 只添加配置启用的测试
         if (configState.isJsonListerEnabled()) {
             JMenuItem JsonListerTest = createTestMenuItem("JsonLister Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false, false, false);
+                        SwitchState jsonListerOnlyState = new SwitchState(false, true, false, false, false, false, false, false, false);
                         return valueReplacer.unifiedTestForContextAsync(request, jsonListerOnlyState, messageId);
                     });
             headerIntruderMenu.add(JsonListerTest);
@@ -173,7 +173,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (configState.isRouteFuzzerEnabled()) {
             JMenuItem routeFuzzerTest = createTestMenuItem("RouteFuzzer Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false, false, false);
+                        SwitchState routeFuzzerOnlyState = new SwitchState(false, false, true, false, false, false, false, false, false);
                         return valueReplacer.unifiedTestForContextAsync(request, routeFuzzerOnlyState, messageId);
                     });
             headerIntruderMenu.add(routeFuzzerTest);
@@ -182,7 +182,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (configState.isParamFuzzerEnabled()) {
             JMenuItem ParamFuzzerTest = createTestMenuItem("ParamFuzzer Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false, false, false);
+                        SwitchState paramFuzzerOnlyState = new SwitchState(false, false, false, true, false, false, false, false, false);
                         return valueReplacer.unifiedTestForContextAsync(request, paramFuzzerOnlyState, messageId);
                     });
             headerIntruderMenu.add(ParamFuzzerTest);
@@ -191,16 +191,26 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (configState.isParamDeleterEnabled()) {
             JMenuItem ParamDeleterTest = createTestMenuItem("ParamDeleter Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false, false, false);
+                        SwitchState paramDeleterOnlyState = new SwitchState(false, false, false, false, true, false, false, false, false);
                         return valueReplacer.unifiedTestForContextAsync(request, paramDeleterOnlyState, messageId);
                     });
             headerIntruderMenu.add(ParamDeleterTest);
         }
 
+        // 新增：ParamAdder测试菜单项
+        if (configState.isParamAdderEnabled()) {
+            JMenuItem ParamAdderTest = createTestMenuItem("ParamAdder Test", finalAllSelectedRequests,
+                    (request, messageId) -> {
+                        SwitchState paramAdderOnlyState = new SwitchState(false, false, false, false, false, true, false, false, false);
+                        return valueReplacer.unifiedTestForContextAsync(request, paramAdderOnlyState, messageId);
+                    });
+            headerIntruderMenu.add(ParamAdderTest);
+        }
+
         if (configState.isHeaderFuzzerEnabled()) {
             JMenuItem HeaderFuzzerTest = createTestMenuItem("HeaderFuzzer Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, true, false, false);
+                        SwitchState headerFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, true, false, false);
                         return valueReplacer.unifiedTestForContextAsync(request, headerFuzzerOnlyState, messageId);
                     });
             headerIntruderMenu.add(HeaderFuzzerTest);
@@ -209,7 +219,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (configState.isCookieFuzzerEnabled()) {
             JMenuItem CookieFuzzerTest = createTestMenuItem("CookieFuzzer Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState cookieFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, true, false);
+                        SwitchState cookieFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, false, true, false);
                         return valueReplacer.unifiedTestForContextAsync(request, cookieFuzzerOnlyState, messageId);
                     });
             headerIntruderMenu.add(CookieFuzzerTest);
@@ -218,7 +228,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (configState.isOOBParamFuzzerEnabled()) {
             JMenuItem OOBParamFuzzerTest = createTestMenuItem("OOBParamFuzzer Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState oobParamFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, false, true);
+                        SwitchState oobParamFuzzerOnlyState = new SwitchState(false, false, false, false, false, false, false, false, true);
                         return valueReplacer.unifiedTestForContextAsync(request, oobParamFuzzerOnlyState, messageId);
                     });
             headerIntruderMenu.add(OOBParamFuzzerTest);
@@ -236,6 +246,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
     private boolean hasAnyTestEnabled(PluginConfigManager.SwitchConfigState configState) {
         return configState.isJsonListerEnabled() || configState.isRouteFuzzerEnabled() ||
                 configState.isParamFuzzerEnabled() || configState.isParamDeleterEnabled() ||
+                configState.isParamAdderEnabled() || // 新增
                 configState.isHeaderFuzzerEnabled() || configState.isCookieFuzzerEnabled() ||
                 configState.isOOBParamFuzzerEnabled();
     }
@@ -266,6 +277,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                 enableAll && configState.isRouteFuzzerEnabled(),
                 enableAll && configState.isParamFuzzerEnabled(),
                 enableAll && configState.isParamDeleterEnabled(),
+                enableAll && configState.isParamAdderEnabled(), // 新增
                 enableAll && configState.isHeaderFuzzerEnabled(),
                 enableAll && configState.isCookieFuzzerEnabled(),
                 enableAll && configState.isOOBParamFuzzerEnabled()

@@ -21,7 +21,7 @@ public class HistoryPanel extends JPanel {
     private final TableModel tableModel;
     private final BiConsumer<OriginalRequestResponse, ModifiedRequestResponse> selectionCallback;
     private JTabbedPane tabbedPane;
-    private JTable currentTable; // 保存当前活动的表格
+    private JTable currentTable;
 
     public HistoryPanel(TableModel tableModel,
                         BiConsumer<OriginalRequestResponse, ModifiedRequestResponse> selectionCallback) {
@@ -35,25 +35,26 @@ public class HistoryPanel extends JPanel {
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
-        // 为每个标签页创建独立的表格 - 现在有9个标签页
+        // 为每个标签页创建独立的表格 - 现在有11个标签页
         JTable allTable = createTable();
         JTable jsonTable = createTable();
         JTable paramTable = createTable();
+        JTable paramAddTable = createTable();  // 新增：PARAM ADD表格
+        JTable paramDelTable = createTable();
         JTable route1Table = createTable();
         JTable route2Table = createTable();
-        JTable paramDelTable = createTable();  // PARAM DEL表格
-        JTable oobparamTable = createTable();  // 新增OOBPARAM表格
-        JTable cookieTable = createTable();    // 新增COOKIE表格
-        JTable headerTable = createTable();    // 新增HEADER表格
+        JTable oobparamTable = createTable();
+        JTable cookieTable = createTable();
+        JTable headerTable = createTable();
 
-        // 设置初始的当前表格
         currentTable = allTable;
         tableModel.setAssociatedTable(currentTable);
 
-        // 添加标签页，每个标签页使用独立的滚动面板
+        // 添加标签页 - PARAM ADD 放在 JSON 和 PARAM DEL 之间
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
         tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
+        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));  // 新增
         tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));
         tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));
         tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));
@@ -79,22 +80,25 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("PARAM");
                     break;
                 case 3:
-                    tableModel.setFilter("PARAM_DELETE");
+                    tableModel.setFilter("PARAM-ADD");  // 新增
                     break;
                 case 4:
-                    tableModel.setFilter("ROUTE1");
+                    tableModel.setFilter("PARAM_DELETE");
                     break;
                 case 5:
-                    tableModel.setFilter("ROUTE2");
+                    tableModel.setFilter("ROUTE1");
                     break;
                 case 6:
-                    tableModel.setFilter("PARAM-OOB");      // 新增OOBPARAM过滤器
+                    tableModel.setFilter("ROUTE2");
                     break;
                 case 7:
-                    tableModel.setFilter("COOKIE");         // 新增COOKIE过滤器
+                    tableModel.setFilter("PARAM-OOB");
                     break;
                 case 8:
-                    tableModel.setFilter("HEADER");         // 新增HEADER过滤器
+                    tableModel.setFilter("COOKIE");
+                    break;
+                case 9:
+                    tableModel.setFilter("HEADER");
                     break;
             }
         });

@@ -6,23 +6,23 @@ public class SwitchManager {
     private boolean routefuzzerSwitch;
     private boolean paramfuzzerSwitch;
     private boolean paramdeleterSwitch;
+    private boolean paramadderSwitch; // 新增：ParamAdder开关
     private boolean headerfuzzerSwitch;
     private boolean cookiefuzzerSwitch;
-    private boolean oobparamfuzzerSwitch; // 新增：OOBParamFuzzer开关
+    private boolean oobparamfuzzerSwitch;
 
-    // 单例模式
     private static SwitchManager instance;
 
     private SwitchManager() {
-        // 默认值设置
         this.masterSwitch = true;
         this.jsonListerSwitch = false;
         this.routefuzzerSwitch = false;
         this.paramfuzzerSwitch = false;
         this.paramdeleterSwitch = false;
+        this.paramadderSwitch = false; // 新增，默认关闭
         this.headerfuzzerSwitch = false;
         this.cookiefuzzerSwitch = false;
-        this.oobparamfuzzerSwitch = false; // 新增，默认关闭
+        this.oobparamfuzzerSwitch = false;
     }
 
     public static synchronized SwitchManager getInstance() {
@@ -73,6 +73,15 @@ public class SwitchManager {
         this.paramdeleterSwitch = paramdeleterSwitch;
     }
 
+    // 新增：ParamAdder相关方法
+    public boolean isParamadderSwitch() {
+        return paramadderSwitch;
+    }
+
+    public void setParamadderSwitch(boolean paramadderSwitch) {
+        this.paramadderSwitch = paramadderSwitch;
+    }
+
     public boolean isHeaderfuzzerSwitch() {
         return headerfuzzerSwitch;
     }
@@ -106,9 +115,10 @@ public class SwitchManager {
                 routefuzzerSwitch,
                 paramfuzzerSwitch,
                 paramdeleterSwitch,
+                paramadderSwitch, // 新增
                 headerfuzzerSwitch,
                 cookiefuzzerSwitch,
-                oobparamfuzzerSwitch // 新增
+                oobparamfuzzerSwitch
         );
     }
 }

@@ -26,6 +26,7 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox collectedSwitch;
     private final JCheckBox suspiciousSwitch;
     private final JCheckBox paramDeleterSwitch;
+    private final JCheckBox paramAdderSwitch; // 新增：ParamAdder开关
     private final JCheckBox headerFuzzerSwitch;
     private final JCheckBox cookieFuzzerSwitch;
     private final JCheckBox oobParamFuzzerSwitch;
@@ -115,6 +116,12 @@ public class SwitchPanel extends JPanel {
                 selected -> switchManager.setParamdeleterSwitch(selected));
         paramDeleterSwitch.setEnabled(configState.isParamDeleterEnabled());
 
+        // 新增：ParamAdder开关
+        paramAdderSwitch = createSwitch("ParamAdder 测试开关",
+                switchManager.isParamadderSwitch(),
+                selected -> switchManager.setParamadderSwitch(selected));
+        paramAdderSwitch.setEnabled(configState.isParamAdderEnabled());
+
         headerFuzzerSwitch = createSwitch("HeaderFuzzer 测试开关",
                 switchManager.isHeaderfuzzerSwitch(),
                 selected -> switchManager.setHeaderfuzzerSwitch(selected));
@@ -142,6 +149,9 @@ public class SwitchPanel extends JPanel {
         }
         if (!configState.isParamDeleterEnabled()) {
             paramDeleterSwitch.setVisible(false);
+        }
+        if (!configState.isParamAdderEnabled()) {
+            paramAdderSwitch.setVisible(false); // 新增
         }
         if (!configState.isHeaderFuzzerEnabled()) {
             headerFuzzerSwitch.setVisible(false);
@@ -470,6 +480,11 @@ public class SwitchPanel extends JPanel {
             switchesPanel.add(Box.createVerticalStrut(5));
             switchesPanel.add(paramDeleterSwitch);
         }
+        // 新增：添加 ParamAdder 开关
+        if (configState.isParamAdderEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(paramAdderSwitch);
+        }
         if (configState.isHeaderFuzzerEnabled()) {
             switchesPanel.add(Box.createVerticalStrut(5));
             switchesPanel.add(headerFuzzerSwitch);
@@ -519,6 +534,10 @@ public class SwitchPanel extends JPanel {
         }
         if (configState.isParamDeleterEnabled()) {
             paramDeleterSwitch.setEnabled(masterState);
+        }
+        // 新增：ParamAdder开关状态更新
+        if (configState.isParamAdderEnabled()) {
+            paramAdderSwitch.setEnabled(masterState);
         }
         if (configState.isHeaderFuzzerEnabled()) {
             headerFuzzerSwitch.setEnabled(masterState);

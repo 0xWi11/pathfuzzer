@@ -747,7 +747,11 @@ public class NettyManager {
 
         // 设置必要的headers
         request.headers().set(HttpHeaderNames.HOST, info.host);
-        if (content.readableBytes() > 0) {
+
+        // 修改：对于可能有 body 的方法，总是设置 Content-Length（即使为0）
+        String method = burpRequest.method().toUpperCase();
+        if (method.equals("POST") || method.equals("PUT") || method.equals("PATCH") ||
+                method.equals("DELETE") || content.readableBytes() > 0) {
             request.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
         }
 

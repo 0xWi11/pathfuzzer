@@ -15,10 +15,11 @@ import pzfzr.config.SwitchState;
 import pzfzr.fuzzer.JsonLister;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
+import pzfzr.fuzzer.ParamAdder; // 新增：ParamAdder导入
 import pzfzr.fuzzer.RouteFuzzer;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
+import pzfzr.fuzzer.OOBParamFuzzer;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -29,7 +30,6 @@ public class ValueReplacer {
     private final TableModel tableModel;
     private final ConfigManager configManager;
     private volatile boolean isShuttingDown = false;
-    // 添加关闭状态跟踪
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
     private volatile boolean forceShutdownRequested = false;
 
@@ -41,11 +41,11 @@ public class ValueReplacer {
     private final RouteFuzzer routeFuzzer;
     private final ParamFuzzer paramFuzzer;
     private final ParamDeleter paramDeleter;
+    private final ParamAdder paramAdder; // 新增：ParamAdder字段
     private final HeaderFuzzer headerFuzzer;
     private final CookieFuzzer cookieFuzzer;
-    private final OOBParamFuzzer oobParamFuzzer; // 新增：OOBParamFuzzer字段
+    private final OOBParamFuzzer oobParamFuzzer;
 
-    // 添加专门用于异步执行的线程池
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
 
     public ValueReplacer(MontoyaApi api, TableModel tableModel, ConfigManager configManager,
@@ -62,9 +62,10 @@ public class ValueReplacer {
         this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+        this.paramAdder = new ParamAdder(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增：初始化ParamAdder
         this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.cookieFuzzer = new CookieFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
-        this.oobParamFuzzer = new OOBParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增：初始化OOBParamFuzzer
+        this.oobParamFuzzer = new OOBParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
     }
 
     public ParamFuzzer getParamFuzzer() {
@@ -73,6 +74,11 @@ public class ValueReplacer {
 
     public ParamDeleter getParamDeleter() {
         return this.paramDeleter;
+    }
+
+    // 新增：ParamAdder的getter方法
+    public ParamAdder getParamAdder() {
+        return this.paramAdder;
     }
 
     public HeaderFuzzer getHeaderFuzzer() {
@@ -138,6 +144,11 @@ public class ValueReplacer {
                 paramDeleter.processRequest(originalRequest, messageId, host);
             }
 
+            // 新增：ParamAdder支持
+            if (switchState.isParamadderSwitch()) {
+                paramAdder.processRequest(originalRequest, messageId, host);
+            }
+
             if (switchState.isHeaderfuzzerSwitch()) {
                 headerFuzzer.processRequest(originalRequest, messageId, host);
             }
@@ -180,6 +191,11 @@ public class ValueReplacer {
                 paramDeleter.processRequest(originalRequest, messageId, host);
             }
 
+            // 新增：ParamAdder支持
+            if (switchState.isParamadderSwitch()) {
+                paramAdder.processRequest(originalRequest, messageId, host);
+            }
+
             if (switchState.isHeaderfuzzerSwitch()) {
                 headerFuzzer.processRequest(originalRequest, messageId, host);
             }
@@ -195,7 +211,7 @@ public class ValueReplacer {
 
             host = null;
         } catch (Exception e) {
-            // api.logging().logToError("Error in unifiedTestForContext: " + e.getMessage());
+            // Silent error handling
         }
     }
 
@@ -255,6 +271,18 @@ public class ValueReplacer {
                     }
                 }, asyncExecutor);
                 futures.add(paramDeleterFuture);
+            }
+
+            // 新增：ParamAdder异步支持
+            if (switchState.isParamadderSwitch()) {
+                CompletableFuture<Void> paramAdderFuture = CompletableFuture.runAsync(() -> {
+                    try {
+                        paramAdder.processRequest(originalRequest, messageId, host);
+                    } catch (Exception e) {
+                        api.logging().logToError("Error in ParamAdder async execution: " + e.getMessage());
+                    }
+                }, asyncExecutor);
+                futures.add(paramAdderFuture);
             }
 
             if (switchState.isHeaderfuzzerSwitch()) {
@@ -376,6 +404,17 @@ public class ValueReplacer {
                 }
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] Error shutting down ParamDeleter: " + e.getMessage());
+            }
+        }));
+
+        // 新增：ParamAdder关闭
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
+            try {
+                if (paramAdder != null) {
+                    paramAdder.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] Error shutting down ParamAdder: " + e.getMessage());
             }
         }));
 
