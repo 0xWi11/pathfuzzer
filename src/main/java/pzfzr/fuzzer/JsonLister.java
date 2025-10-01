@@ -368,7 +368,11 @@ public class JsonLister {
                 // 新增：多个9变体
                 variants.addAll(generatePathIdNinesVariants(originalPath, pathId));
 
-                // 修改：空格变体在路径中使用+编码
+                // 修改：空格变体在路径中使用+编码，添加原始ID的变体
+                // 新增：原始ID的空格变体
+                variants.add(createPathVariant(originalPath, pathId, originalId + "+", originalId + "+"));
+                variants.add(createPathVariant(originalPath, pathId, "+" + originalId, "+" + originalId));
+
                 if (originalId > 4) {
                     variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "+", (originalId - 4) + "+"));
                     variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 4), "+" + (originalId - 4)));
@@ -381,6 +385,9 @@ public class JsonLister {
                     variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "+", (originalId - 100) + "+"));
                     variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 100), "+" + (originalId - 100)));
                 }
+
+                // 新增：原始ID的Unicode CRLF变体
+                variants.add(createPathVariant(originalPath, pathId, originalId + "%5cu000D%5cu000A", originalId + "%5cu000D%5cu000A"));
 
                 if (originalId > 4) {
                     variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "%5cu000D%5cu000A", (originalId - 4) + "%5cu000D%5cu000A"));
@@ -458,6 +465,10 @@ public class JsonLister {
         List<PathIdVariant> variants = new ArrayList<>();
         try {
             long originalId = Long.parseLong(idStr);
+
+            // 新增：原始ID的斜杠后缀
+            variants.add(createPathVariant(originalPath, pathId, originalId + "/", originalId + "/"));
+
             if (originalId > 4) {
                 variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "/", (originalId - 4) + "/"));
             }
@@ -469,6 +480,9 @@ public class JsonLister {
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(idStr)) {
+                // 新增：原始ID的斜杠后缀
+                variants.add(createPathVariant(originalPath, pathId, idStr + "/", idStr + "/"));
+
                 String dec4 = decrementStringNumber(idStr, 4);
                 String dec10 = decrementStringNumber(idStr, 10);
                 String dec100 = decrementStringNumber(idStr, 100);
@@ -525,6 +539,10 @@ public class JsonLister {
         List<PathIdVariant> variants = new ArrayList<>();
         try {
             long originalId = Long.parseLong(idStr);
+
+            // 新增：原始ID的%23后缀
+            variants.add(createPathVariant(originalPath, pathId, originalId + "%23", originalId + "%23"));
+
             if (originalId > 4) {
                 variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "%23", (originalId - 4) + "%23"));
             }
@@ -536,6 +554,9 @@ public class JsonLister {
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(idStr)) {
+                // 新增：原始ID的%23后缀
+                variants.add(createPathVariant(originalPath, pathId, idStr + "%23", idStr + "%23"));
+
                 String dec4 = decrementStringNumber(idStr, 4);
                 String dec10 = decrementStringNumber(idStr, 10);
                 String dec100 = decrementStringNumber(idStr, 100);
@@ -563,6 +584,16 @@ public class JsonLister {
         List<PayloadVariant> variants = new ArrayList<>();
         try {
             long originalId = Long.parseLong(originalIdStr);
+
+            // 新增：原始ID的空格变体
+            if (isQuery) {
+                variants.add(new PayloadVariant(originalId + "+", paramName + "=" + originalId + "+", originalId + "+", false, false, null));
+                variants.add(new PayloadVariant("+" + originalId, paramName + "=+" + originalId, "+" + originalId, false, false, null));
+            } else {
+                variants.add(new PayloadVariant(originalId + " ", paramName + "=" + originalId + " ", originalId + " ", false, false, null));
+                variants.add(new PayloadVariant(" " + originalId, paramName + "= " + originalId, " " + originalId, false, false, null));
+            }
+
             if (isQuery) {
                 if (originalId > 4) {
                     variants.add(new PayloadVariant((originalId - 4) + "+", paramName + "=" + (originalId - 4) + "+", (originalId - 4) + "+", false, false, null));
@@ -592,6 +623,15 @@ public class JsonLister {
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(originalIdStr)) {
+                // 新增：原始ID的空格变体
+                if (isQuery) {
+                    variants.add(new PayloadVariant(originalIdStr + "+", paramName + "=" + originalIdStr + "+", originalIdStr + "+", false, false, null));
+                    variants.add(new PayloadVariant("+" + originalIdStr, paramName + "=+" + originalIdStr, "+" + originalIdStr, false, false, null));
+                } else {
+                    variants.add(new PayloadVariant(originalIdStr + " ", paramName + "=" + originalIdStr + " ", originalIdStr + " ", false, false, null));
+                    variants.add(new PayloadVariant(" " + originalIdStr, paramName + "= " + originalIdStr, " " + originalIdStr, false, false, null));
+                }
+
                 String dec4 = decrementStringNumber(originalIdStr, 4);
                 String dec10 = decrementStringNumber(originalIdStr, 10);
                 String dec100 = decrementStringNumber(originalIdStr, 100);
@@ -653,6 +693,14 @@ public class JsonLister {
         List<PayloadVariant> variants = new ArrayList<>();
         try {
             long originalId = Long.parseLong(originalIdStr);
+
+            // 新增：原始ID的Unicode CRLF变体
+            if (isQuery) {
+                variants.add(new PayloadVariant(originalId + "%5cu000D%5cu000A", paramName + "=" + originalId + "%5cu000D%5cu000A", originalId + "%5cu000D%5cu000A", false, false, null));
+            } else {
+                variants.add(new PayloadVariant(originalId + "\\u000D\\u000A", paramName + "=" + originalId + "\\u000D\\u000A", originalId + "\\u000D\\u000A", false, false, null));
+            }
+
             if (isQuery) {
                 if (originalId > 4) {
                     variants.add(new PayloadVariant((originalId - 4) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 4) + "%5cu000D%5cu000A", (originalId - 4) + "%5cu000D%5cu000A", false, false, null));
@@ -676,6 +724,13 @@ public class JsonLister {
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(originalIdStr)) {
+                // 新增：原始ID的Unicode CRLF变体
+                if (isQuery) {
+                    variants.add(new PayloadVariant(originalIdStr + "%5cu000D%5cu000A", paramName + "=" + originalIdStr + "%5cu000D%5cu000A", originalIdStr + "%5cu000D%5cu000A", false, false, null));
+                } else {
+                    variants.add(new PayloadVariant(originalIdStr + "\\u000D\\u000A", paramName + "=" + originalIdStr + "\\u000D\\u000A", originalIdStr + "\\u000D\\u000A", false, false, null));
+                }
+
                 String dec4 = decrementStringNumber(originalIdStr, 4);
                 String dec10 = decrementStringNumber(originalIdStr, 10);
                 String dec100 = decrementStringNumber(originalIdStr, 100);
@@ -787,6 +842,10 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(originalIdStr);
 
+            // 新增：原始ID的后缀"a"变体
+            String originalWithA = originalId + "a";
+            variants.add(new PayloadVariant(originalWithA, paramName + "=" + originalWithA, "origa", false, false, null));
+
             // 生成后缀"a"变体
             String minus4WithA = (originalId - 4) + "a";
             String minus10WithA = (originalId - 10) + "a";
@@ -798,6 +857,9 @@ public class JsonLister {
         } catch (NumberFormatException e) {
             // 对于超长数字，使用字符串处理
             if (isValidDigitString(originalIdStr)) {
+                // 新增：原始ID的后缀"a"变体
+                variants.add(new PayloadVariant(originalIdStr + "a", paramName + "=" + originalIdStr + "a", "origa", false, false, null));
+
                 String decremented4 = decrementStringNumber(originalIdStr, 4);
                 String decremented10 = decrementStringNumber(originalIdStr, 10);
                 String decremented100 = decrementStringNumber(originalIdStr, 100);
@@ -815,7 +877,6 @@ public class JsonLister {
         }
         return variants;
     }
-
     /**
      * 生成小数点变体
      * @param originalIdStr 原始ID字符串
@@ -829,6 +890,10 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(originalIdStr);
 
+            // 新增：原始ID-1的小数点变体
+            String minus1Decimal = (originalId - 1) + ".99999";
+            variants.add(new PayloadVariant(minus1Decimal, paramName + "=" + minus1Decimal, "-1.99999", false, false, null));
+
             // 生成小数点变体 (-5, -11, -101)
             String minus5Decimal = (originalId - 5) + ".99999";
             String minus11Decimal = (originalId - 11) + ".99999";
@@ -839,6 +904,12 @@ public class JsonLister {
             variants.add(new PayloadVariant(minus101Decimal, paramName + "=" + minus101Decimal, "-101.99999", false, false, null));
         } catch (NumberFormatException e) {
             if (isValidDigitString(originalIdStr)) {
+                // 新增：原始ID-1的小数点变体
+                String decremented1 = decrementStringNumber(originalIdStr, 1);
+                if (decremented1 != null && !decremented1.startsWith("-")) {
+                    variants.add(new PayloadVariant(decremented1 + ".99999", paramName + "=" + decremented1 + ".99999", "-1.99999", false, false, null));
+                }
+
                 String decremented5 = decrementStringNumber(originalIdStr, 5);
                 String decremented11 = decrementStringNumber(originalIdStr, 11);
                 String decremented101 = decrementStringNumber(originalIdStr, 101);
@@ -941,6 +1012,9 @@ public class JsonLister {
         if (originalValue.isInt()) {
             int id = originalValue.asInt();
 
+            // 新增：原始ID的后缀"a"变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "a"), "\"origa\""));
+
             // 数字型转字符串型的后缀"a"变体
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "a"), "\"-4a\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "a"), "\"-10a\""));
@@ -948,6 +1022,9 @@ public class JsonLister {
 
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
+
+            // 新增：原始ID的后缀"a"变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "a"), "\"origa\""));
 
             // 数字型转字符串型的后缀"a"变体
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "a"), "\"-4a\""));
@@ -959,6 +1036,9 @@ public class JsonLister {
             try {
                 long id = Long.parseLong(idStr);
 
+                // 新增：原始ID的后缀"a"变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "a"), "\"origa\""));
+
                 // 字符串型的后缀"a"变体
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "a"), "\"-4a\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "a"), "\"-10a\""));
@@ -967,6 +1047,9 @@ public class JsonLister {
             } catch (NumberFormatException e) {
                 // 处理超长数字
                 if (isValidDigitString(idStr)) {
+                    // 新增：原始ID的后缀"a"变体
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "a"), "\"origa\""));
+
                     String decremented4 = decrementStringNumber(idStr, 4);
                     String decremented10 = decrementStringNumber(idStr, 10);
                     String decremented100 = decrementStringNumber(idStr, 100);
@@ -998,6 +1081,9 @@ public class JsonLister {
         if (originalValue.isInt()) {
             int id = originalValue.asInt();
 
+            // 新增：原始ID-1的小数点变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 1) + 0.99999), "-1.99999"));
+
             // 数字型小数点变体 (-5, -11, -101) - 只生成数字型，不生成字符串型
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 5) + 0.99999), "-5.99999"));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 11) + 0.99999), "-11.99999"));
@@ -1005,6 +1091,9 @@ public class JsonLister {
 
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
+
+            // 新增：原始ID-1的小数点变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 1) + 0.99999), "-1.99999"));
 
             // 数字型小数点变体 (-5, -11, -101) - 只生成数字型，不生成字符串型
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.numberNode((id - 5) + 0.99999), "-5.99999"));
@@ -1016,6 +1105,9 @@ public class JsonLister {
             try {
                 long id = Long.parseLong(idStr);
 
+                // 新增：原始ID-1的小数点变体
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 1) + ".99999"), "\"-1.99999\""));
+
                 // 字符串型小数点变体 (-5, -11, -101)
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 5) + ".99999"), "\"-5.99999\""));
                 variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 11) + ".99999"), "\"-11.99999\""));
@@ -1024,6 +1116,12 @@ public class JsonLister {
             } catch (NumberFormatException e) {
                 // 处理超长数字
                 if (isValidDigitString(idStr)) {
+                    // 新增：原始ID-1的小数点变体
+                    String decremented1 = decrementStringNumber(idStr, 1);
+                    if (decremented1 != null && !decremented1.startsWith("-")) {
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented1 + ".99999"), "\"-1.99999\""));
+                    }
+
                     String decremented5 = decrementStringNumber(idStr, 5);
                     String decremented11 = decrementStringNumber(idStr, 11);
                     String decremented101 = decrementStringNumber(idStr, 101);
@@ -1047,6 +1145,11 @@ public class JsonLister {
         List<JsonPayloadVariant> variants = new ArrayList<>();
         if (originalValue.isInt()) {
             int id = originalValue.asInt();
+
+            // 新增：原始ID的空格变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + " "), "\"" + id + " \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + id), "\" " + id + "\""));
+
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + (id - 4) + " \""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + (id - 10) + " \""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + (id - 100) + " \""));
@@ -1055,6 +1158,11 @@ public class JsonLister {
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + (id - 100) + "\""));
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
+
+            // 新增：原始ID的空格变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + " "), "\"" + id + " \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + id), "\" " + id + "\""));
+
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + (id - 4) + " \""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + (id - 10) + " \""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + (id - 100) + " \""));
@@ -1066,6 +1174,11 @@ public class JsonLister {
             if (isNumericId(idStr)) {
                 try {
                     long id = Long.parseLong(idStr);
+
+                    // 新增：原始ID的空格变体
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + " "), "\"" + idStr + " \""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + idStr), "\" " + idStr + "\""));
+
                     variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + (id - 4) + " \""));
                     variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + (id - 10) + " \""));
                     variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + (id - 100) + " \""));
@@ -1086,12 +1199,20 @@ public class JsonLister {
         List<JsonPayloadVariant> variants = new ArrayList<>();
         if (originalValue.isInt()) {
             int id = originalValue.asInt();
+
+            // 新增：原始ID的Unicode CRLF变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "\\u000D\\u000A"), "\"" + id + "\\\\u000D\\\\u000A\""));
+
             // 修复：expression使用字面字符串 \\u000D\\u000A
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + (id - 4) + "\\\\u000D\\\\u000A\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + (id - 10) + "\\\\u000D\\\\u000A\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + (id - 100) + "\\\\u000D\\\\u000A\""));
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
+
+            // 新增：原始ID的Unicode CRLF变体
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "\\u000D\\u000A"), "\"" + id + "\\\\u000D\\\\u000A\""));
+
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + (id - 4) + "\\\\u000D\\\\u000A\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + (id - 10) + "\\\\u000D\\\\u000A\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + (id - 100) + "\\\\u000D\\\\u000A\""));
@@ -1100,6 +1221,10 @@ public class JsonLister {
             if (isNumericId(idStr)) {
                 try {
                     long id = Long.parseLong(idStr);
+
+                    // 新增：原始ID的Unicode CRLF变体
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "\\u000D\\u000A"), "\"" + idStr + "\\\\u000D\\\\u000A\""));
+
                     variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + (id - 4) + "\\\\u000D\\\\u000A\""));
                     variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + (id - 10) + "\\\\u000D\\\\u000A\""));
                     variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + (id - 100) + "\\\\u000D\\\\u000A\""));
@@ -1252,6 +1377,10 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(idStr);
 
+            // 新增：原始ID的后缀"a"变体
+            String originalWithA = originalId + "a";
+            variants.add(createPathVariant(originalPath, pathId, originalWithA, "origa"));
+
             // 生成后缀"a"变体
             String minus4WithA = (originalId - 4) + "a";
             String minus10WithA = (originalId - 10) + "a";
@@ -1271,6 +1400,9 @@ public class JsonLister {
         } catch (NumberFormatException e) {
             // 处理超长数字
             if (isValidDigitString(idStr)) {
+                // 新增：原始ID的后缀"a"变体
+                variants.add(createPathVariant(originalPath, pathId, idStr + "a", "origa"));
+
                 String decremented4 = decrementStringNumber(idStr, 4);
                 String decremented10 = decrementStringNumber(idStr, 10);
                 String decremented100 = decrementStringNumber(idStr, 100);
@@ -1303,6 +1435,12 @@ public class JsonLister {
         try {
             long originalId = Long.parseLong(idStr);
 
+            // 新增：原始ID-1的小数点变体
+            if (originalId > 1) {
+                String minus1Decimal = (originalId - 1) + ".99999";
+                variants.add(createPathVariant(originalPath, pathId, minus1Decimal, "-1.99999"));
+            }
+
             // 生成小数点变体 (-5, -11, -101)
             String minus5Decimal = (originalId - 5) + ".99999";
             String minus11Decimal = (originalId - 11) + ".99999";
@@ -1322,6 +1460,12 @@ public class JsonLister {
         } catch (NumberFormatException e) {
             // 处理超长数字
             if (isValidDigitString(idStr)) {
+                // 新增：原始ID-1的小数点变体
+                String decremented1 = decrementStringNumber(idStr, 1);
+                if (decremented1 != null && !decremented1.startsWith("-")) {
+                    variants.add(createPathVariant(originalPath, pathId, decremented1 + ".99999", "-1.99999"));
+                }
+
                 String decremented5 = decrementStringNumber(idStr, 5);
                 String decremented11 = decrementStringNumber(idStr, 11);
                 String decremented101 = decrementStringNumber(idStr, 101);
@@ -2042,9 +2186,12 @@ public class JsonLister {
             variants.addAll(generateSuffixAVariants(originalIdStr, paramName, true));
             variants.addAll(generateDecimalVariants(originalIdStr, paramName, true));
             variants.addAll(generateNinesVariant(paramName, true));
-            variants.addAll(generateSpaceVariants(originalIdStr, paramName, true));
-            variants.addAll(generateUnicodeCRLFVariants(originalIdStr, paramName, true));
+            variants.addAll(generateSpaceVariants(originalIdStr, paramName, false));
+            variants.addAll(generateUnicodeCRLFVariants(originalIdStr, paramName, false));
             variants.addAll(generateJsonSuffixVariants(originalIdStr, paramName, true));
+
+            // 新增：原始ID的斜杠后缀
+            variants.add(new PayloadVariant(originalId + "/", paramName + "=" + originalId + "/", originalId + "/", false, false, null));
 
             if (originalId > 4) {
                 variants.add(new PayloadVariant((originalId - 4) + "/", paramName + "=" + (originalId - 4) + "/", (originalId - 4) + "/", false, false, null));
@@ -2069,6 +2216,9 @@ public class JsonLister {
                 variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
             }
 
+            // 新增：原始ID的CRLF
+            variants.add(new PayloadVariant(originalId + "%0D%0A", paramName + "=" + originalId + "%0D%0A", originalId + "%0D%0A", false, false, null));
+
             if (originalId > 4) {
                 variants.add(new PayloadVariant((originalId - 4) + "%0D%0A", paramName + "=" + (originalId - 4) + "%0D%0A", (originalId - 4) + "%0D%0A", false, false, null));
             }
@@ -2078,6 +2228,9 @@ public class JsonLister {
             if (originalId > 100) {
                 variants.add(new PayloadVariant((originalId - 100) + "%0D%0A", paramName + "=" + (originalId - 100) + "%0D%0A", (originalId - 100) + "%0D%0A", false, false, null));
             }
+
+            // 新增：原始ID的%23后缀
+            variants.add(new PayloadVariant(originalId + "%23", paramName + "=" + originalId + "%23", originalId + "%23", false, false, null));
 
             if (originalId > 4) {
                 variants.add(new PayloadVariant((originalId - 4) + "%23", paramName + "=" + (originalId - 4) + "%23", (originalId - 4) + "%23", false, false, null));
@@ -2137,6 +2290,9 @@ public class JsonLister {
                 variants.addAll(generateNinesVariant(paramName, true));
                 variants.addAll(generateJsonSuffixVariants(originalIdStr, paramName, true));
 
+                // 新增：原始ID的斜杠后缀
+                variants.add(new PayloadVariant(originalIdStr + "/", paramName + "=" + originalIdStr + "/", originalIdStr + "/", false, false, null));
+
                 if (decremented4 != null && !decremented4.startsWith("-")) {
                     variants.add(new PayloadVariant(decremented4 + "/", paramName + "=" + decremented4 + "/", decremented4 + "/", false, false, null));
                     variants.add(new PayloadVariant(originalIdStr + "," + decremented4, paramName + "=" + originalIdStr + "," + decremented4, originalIdStr + "," + decremented4, false, false, null));
@@ -2155,6 +2311,12 @@ public class JsonLister {
                     variants.add(new PayloadVariant(decremented100 + "%0D%0A", paramName + "=" + decremented100 + "%0D%0A", decremented100 + "%0D%0A", false, false, null));
                     variants.add(new PayloadVariant(decremented100 + "%23", paramName + "=" + decremented100 + "%23", decremented100 + "%23", false, false, null));
                 }
+
+                // 新增：原始ID的CRLF
+                variants.add(new PayloadVariant(originalIdStr + "%0D%0A", paramName + "=" + originalIdStr + "%0D%0A", originalIdStr + "%0D%0A", false, false, null));
+
+                // 新增：原始ID的%23后缀
+                variants.add(new PayloadVariant(originalIdStr + "%23", paramName + "=" + originalIdStr + "%23", originalIdStr + "%23", false, false, null));
 
                 if (decremented4 != null && !decremented4.startsWith("-")) {
                     variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented4, "pollute-4", true, false, decremented4));
@@ -2231,8 +2393,13 @@ public class JsonLister {
 
             // 新增：多个9变体
             variants.addAll(generateNinesVariant(paramName, false));
+            variants.addAll(generateSpaceVariants(originalIdStr, paramName, true));
+            variants.addAll(generateUnicodeCRLFVariants(originalIdStr, paramName, true));
 
-            // 修改：斜杠后缀的expression
+            // 新增：原始ID的斜杠后缀（URL编码）
+            String encodedOrigSlash = URLEncoder.encode(originalId + "/", StandardCharsets.UTF_8.name());
+            variants.add(new PayloadVariant(encodedOrigSlash, paramName + "=" + encodedOrigSlash, originalId + "/", false, false, null));
+
             if (originalId > 4) {
                 String encodedValue = URLEncoder.encode((originalId - 4) + "/", StandardCharsets.UTF_8.name());
                 variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, (originalId - 4) + "/", false, false, null));
@@ -2259,6 +2426,9 @@ public class JsonLister {
                 variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
             }
 
+            // 新增：原始ID的CRLF
+            variants.add(new PayloadVariant(originalId + "%0D%0A", paramName + "=" + originalId + "%0D%0A", originalId + "%0D%0A", false, false, null));
+
             if (originalId > 4) {
                 variants.add(new PayloadVariant((originalId - 4) + "%0D%0A", paramName + "=" + (originalId - 4) + "%0D%0A", (originalId - 4) + "%0D%0A", false, false, null));
             }
@@ -2268,6 +2438,9 @@ public class JsonLister {
             if (originalId > 100) {
                 variants.add(new PayloadVariant((originalId - 100) + "%0D%0A", paramName + "=" + (originalId - 100) + "%0D%0A", (originalId - 100) + "%0D%0A", false, false, null));
             }
+
+            // 新增：原始ID的%23后缀
+            variants.add(new PayloadVariant(originalId + "%23", paramName + "=" + originalId + "%23", originalId + "%23", false, false, null));
 
             if (originalId > 4) {
                 variants.add(new PayloadVariant((originalId - 4) + "%23", paramName + "=" + (originalId - 4) + "%23", (originalId - 4) + "%23", false, false, null));
@@ -2326,6 +2499,10 @@ public class JsonLister {
                 variants.addAll(generateNinesVariant(paramName, false));
 
                 try {
+                    // 新增：原始ID的斜杠后缀
+                    String encodedOrigSlash = URLEncoder.encode(originalIdStr + "/", StandardCharsets.UTF_8.name());
+                    variants.add(new PayloadVariant(encodedOrigSlash, paramName + "=" + originalIdStr + "/", originalIdStr + "/", false, false, null));
+
                     if (decremented4 != null && !decremented4.startsWith("-")) {
                         String encodedSlash = URLEncoder.encode(decremented4 + "/", StandardCharsets.UTF_8.name());
                         variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented4 + "/", decremented4 + "/", false, false, null));
@@ -2350,6 +2527,12 @@ public class JsonLister {
                 } catch (Exception ex) {
                     logging.logToOutput("URL encoding error: " + ex.getMessage());
                 }
+
+                // 新增：原始ID的CRLF
+                variants.add(new PayloadVariant(originalIdStr + "%0D%0A", paramName + "=" + originalIdStr + "%0D%0A", originalIdStr + "%0D%0A", false, false, null));
+
+                // 新增：原始ID的%23后缀
+                variants.add(new PayloadVariant(originalIdStr + "%23", paramName + "=" + originalIdStr + "%23", originalIdStr + "%23", false, false, null));
 
                 if (decremented4 != null && !decremented4.startsWith("-")) {
                     variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented4, "pollute-4", true, false, decremented4));
