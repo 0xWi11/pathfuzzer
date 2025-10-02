@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.http.message.params.HttpParameter;
-import burp.api.montoya.http.message.params.HttpParameterType;
 import burp.api.montoya.http.message.HttpHeader;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
@@ -14,6 +13,7 @@ import pzfzr.core.CookieChanger;
 import pzfzr.core.NettyManager;
 import pzfzr.core.NettyHelper;
 import pzfzr.core.RateLimiter;
+import pzfzr.core.ParamCollector;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -21,10 +21,11 @@ import pzfzr.model.TableModel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 /**
  * ParamAdder - 参数添加器
- * 用于给请求的各种位置添加测试参数：URL参数、POST Body参数、JSON参数
+ * 从ParamCollector读取参数，分批次添加到GET/POST/JSON位置
  */
 public class ParamAdder {
     private final AtomicInteger nextModifiedId;
@@ -35,6 +36,7 @@ public class ParamAdder {
     private final Logging logging;
     private final RateLimiter rateLimiter;
     private final CookieChanger cookieChanger;
+    private final ParamCollector paramCollector;
 
     // 使用NettyManager
     private final NettyManager nettyManager;
@@ -42,14 +44,14 @@ public class ParamAdder {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 要添加的参数（可配置）
-    private static final String PARAM_NAME_1 = "page";
-    private static final String PARAM_VALUE_1 = "88";
-    private static final String PARAM_NAME_2 = "size";
-    private static final String PARAM_VALUE_2 = "88";
+    // 批次大小配置
+    private static final int GET_BATCH_SIZE = 100;
+    private static final int POST_BATCH_SIZE = 250;
+    private static final int JSON_BATCH_SIZE = 250;
+    private static final int MAX_JSON_DEPTH = 4;
 
     public ParamAdder(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
-                      RateLimiter rateLimiter, AtomicInteger nextModifiedId) {
+                      RateLimiter rateLimiter, AtomicInteger nextModifiedId, ParamCollector paramCollector) {
         this.api = api;
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
@@ -57,6 +59,7 @@ public class ParamAdder {
         this.rateLimiter = rateLimiter;
         this.cookieChanger = CookieChanger.getInstance();
         this.nextModifiedId = nextModifiedId;
+        this.paramCollector = paramCollector;
 
         // 使用NettyManager
         this.nettyManager = NettyManager.getInstance();
@@ -74,30 +77,35 @@ public class ParamAdder {
         }
 
         try {
+            // 从ParamCollector获取所有参数
+            Map<String, ParamCollector.ParamEntry> allParams = paramCollector.getAllParams();
+
+            // 如果没有参数，直接返回
+            if (allParams == null || allParams.isEmpty()) {
+                logging.logToOutput("[ParamAdder] No parameters found in ParamCollector, skipping");
+                return;
+            }
+
+            // 转换为List方便分批处理
+            List<ParamCollector.ParamEntry> paramList = new ArrayList<>(allParams.values());
+
+            logging.logToOutput(String.format("[ParamAdder] Starting to add %d parameters", paramList.size()));
+
             String method = originalRequest.method().toUpperCase();
+            String contentType = originalRequest.headerValue("Content-Type");
 
-            if ("GET".equals(method)) {
-                // GET请求：只添加URL参数
-                addUrlParameters(originalRequest, messageId, host);
-            } else if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
-                // POST/PUT/PATCH请求：根据Content-Type决定
-                String contentType = originalRequest.headerValue("Content-Type");
+            // 添加GET参数（所有请求类型都尝试）
+            addGetParametersBatch(originalRequest, paramList, messageId, host);
 
+            // 根据请求类型添加POST参数
+            if ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) {
                 if (contentType != null && contentType.toLowerCase().contains("application/json")) {
-                    // JSON格式：添加URL参数 + JSON参数
-                    addUrlParameters(originalRequest, messageId, host);
-                    addJsonParameters(originalRequest, messageId, host);
+                    // JSON格式：添加JSON参数
+                    addJsonParametersBatch(originalRequest, paramList, messageId, host);
                 } else if (contentType != null && contentType.toLowerCase().contains("application/x-www-form-urlencoded")) {
-                    // 表单格式：添加URL参数 + Body参数
-                    addUrlParameters(originalRequest, messageId, host);
-                    addBodyParameters(originalRequest, messageId, host);
-                } else {
-                    // 其他情况：只添加URL参数
-                    addUrlParameters(originalRequest, messageId, host);
+                    // 表单格式：添加POST参数
+                    addPostParametersBatch(originalRequest, paramList, messageId, host);
                 }
-            } else {
-                // 其他HTTP方法：只添加URL参数
-                addUrlParameters(originalRequest, messageId, host);
             }
 
         } catch (Exception e) {
@@ -106,65 +114,102 @@ public class ParamAdder {
     }
 
     /**
-     * 添加URL参数
+     * 分批添加GET参数
      */
-    private void addUrlParameters(HttpRequest originalRequest, int messageId, String host) {
+    private void addGetParametersBatch(HttpRequest originalRequest, List<ParamCollector.ParamEntry> paramList,
+                                       int messageId, String host) {
         if (isShuttingDown) {
             return;
         }
 
         try {
-            // 创建两个URL参数
-            HttpParameter param1 = HttpParameter.urlParameter(PARAM_NAME_1, PARAM_VALUE_1);
-            HttpParameter param2 = HttpParameter.urlParameter(PARAM_NAME_2, PARAM_VALUE_2);
+            int totalParams = paramList.size();
+            int batchCount = (int) Math.ceil((double) totalParams / GET_BATCH_SIZE);
 
-            // 添加参数到请求
-            HttpRequest modifiedRequest = originalRequest
-                    .withAddedParameters(param1, param2);
+            for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+                if (isShuttingDown) {
+                    break;
+                }
 
-            // 构建expression
-            String expression = PARAM_NAME_1 + "=" + PARAM_VALUE_1 + "&" + PARAM_NAME_2 + "=" + PARAM_VALUE_2;
+                int startIndex = batchIndex * GET_BATCH_SIZE;
+                int endIndex = Math.min(startIndex + GET_BATCH_SIZE, totalParams);
+                List<ParamCollector.ParamEntry> batchParams = paramList.subList(startIndex, endIndex);
 
-            // 发送请求
-            sendTestRequest(modifiedRequest, messageId, host, expression, "URL");
+                // 创建请求副本并添加参数
+                HttpRequest modifiedRequest = originalRequest;
+                List<HttpParameter> parametersToAdd = new ArrayList<>();
+
+                for (ParamCollector.ParamEntry entry : batchParams) {
+                    HttpParameter param = HttpParameter.urlParameter(entry.getKey(), entry.getValue());
+                    parametersToAdd.add(param);
+                }
+
+                modifiedRequest = modifiedRequest.withAddedParameters(parametersToAdd);
+
+                // 发送请求
+                String payloadAlias = String.format("GET-batch-%d", batchIndex + 1);
+                sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
+
+                logging.logToOutput(String.format("[ParamAdder] Sent GET batch %d/%d with %d parameters",
+                        batchIndex + 1, batchCount, batchParams.size()));
+            }
 
         } catch (Exception e) {
-            logging.logToError("[ParamAdder] addUrlParameters error: " + e.getMessage());
+            logging.logToError("[ParamAdder] addGetParametersBatch error: " + e.getMessage());
         }
     }
 
     /**
-     * 添加POST Body参数（表单格式）
+     * 分批添加POST表单参数
      */
-    private void addBodyParameters(HttpRequest originalRequest, int messageId, String host) {
+    private void addPostParametersBatch(HttpRequest originalRequest, List<ParamCollector.ParamEntry> paramList,
+                                        int messageId, String host) {
         if (isShuttingDown) {
             return;
         }
 
         try {
-            // 创建两个Body参数
-            HttpParameter param1 = HttpParameter.bodyParameter(PARAM_NAME_1, PARAM_VALUE_1);
-            HttpParameter param2 = HttpParameter.bodyParameter(PARAM_NAME_2, PARAM_VALUE_2);
+            int totalParams = paramList.size();
+            int batchCount = (int) Math.ceil((double) totalParams / POST_BATCH_SIZE);
 
-            // 添加参数到请求
-            HttpRequest modifiedRequest = originalRequest
-                    .withAddedParameters(param1, param2);
+            for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+                if (isShuttingDown) {
+                    break;
+                }
 
-            // 构建expression
-            String expression = PARAM_NAME_1 + "=" + PARAM_VALUE_1 + "&" + PARAM_NAME_2 + "=" + PARAM_VALUE_2;
+                int startIndex = batchIndex * POST_BATCH_SIZE;
+                int endIndex = Math.min(startIndex + POST_BATCH_SIZE, totalParams);
+                List<ParamCollector.ParamEntry> batchParams = paramList.subList(startIndex, endIndex);
 
-            // 发送请求
-            sendTestRequest(modifiedRequest, messageId, host, expression, "BODY");
+                // 创建请求副本并添加参数
+                HttpRequest modifiedRequest = originalRequest;
+                List<HttpParameter> parametersToAdd = new ArrayList<>();
+
+                for (ParamCollector.ParamEntry entry : batchParams) {
+                    HttpParameter param = HttpParameter.bodyParameter(entry.getKey(), entry.getValue());
+                    parametersToAdd.add(param);
+                }
+
+                modifiedRequest = modifiedRequest.withAddedParameters(parametersToAdd);
+
+                // 发送请求
+                String payloadAlias = String.format("POST-batch-%d", batchIndex + 1);
+                sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
+
+                logging.logToOutput(String.format("[ParamAdder] Sent POST batch %d/%d with %d parameters",
+                        batchIndex + 1, batchCount, batchParams.size()));
+            }
 
         } catch (Exception e) {
-            logging.logToError("[ParamAdder] addBodyParameters error: " + e.getMessage());
+            logging.logToError("[ParamAdder] addPostParametersBatch error: " + e.getMessage());
         }
     }
 
     /**
-     * 添加JSON参数
+     * 分批添加JSON参数
      */
-    private void addJsonParameters(HttpRequest originalRequest, int messageId, String host) {
+    private void addJsonParametersBatch(HttpRequest originalRequest, List<ParamCollector.ParamEntry> paramList,
+                                        int messageId, String host) {
         if (isShuttingDown) {
             return;
         }
@@ -172,36 +217,266 @@ public class ParamAdder {
         try {
             String bodyString = originalRequest.bodyToString();
             if (bodyString == null || bodyString.trim().isEmpty()) {
-                return;
+                bodyString = "{}"; // 如果body为空,创建空对象
             }
 
             // 解析JSON
             JsonNode rootNode = objectMapper.readTree(bodyString);
 
-            // 只处理最外层是对象的情况
-            if (!rootNode.isObject()) {
+            // 如果根节点是数组,不处理
+            if (rootNode.isArray()) {
+                logging.logToOutput("[ParamAdder] Root node is array, skipping JSON parameter addition");
                 return;
             }
 
-            // 添加参数到JSON对象
-            ObjectNode modifiedJson = (ObjectNode) rootNode.deepCopy();
-            modifiedJson.put(PARAM_NAME_1, Integer.parseInt(PARAM_VALUE_1));
-            modifiedJson.put(PARAM_NAME_2, Integer.parseInt(PARAM_VALUE_2));
+            // 如果根节点不是对象,不处理
+            if (!rootNode.isObject()) {
+                logging.logToOutput("[ParamAdder] Root node is not object, skipping JSON parameter addition");
+                return;
+            }
 
-            // 转换回字符串
-            String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
+            // 找到所有符合条件的对象位置
+            List<JsonObjectLocation> objectLocations = findAllObjectLocations(rootNode);
 
-            // 创建修改后的请求
-            HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
+            if (objectLocations.isEmpty()) {
+                logging.logToOutput("[ParamAdder] No valid object locations found in JSON");
+                return;
+            }
 
-            // 构建expression（JSON格式）
-            String expression = "\"" + PARAM_NAME_1 + "\":" + PARAM_VALUE_1 + ",\"" + PARAM_NAME_2 + "\":" + PARAM_VALUE_2;
+            logging.logToOutput(String.format("[ParamAdder] Found %d object locations in JSON", objectLocations.size()));
 
-            // 发送请求
-            sendTestRequest(modifiedRequest, messageId, host, expression, "JSON");
+            // 计算批次数
+            int totalParams = paramList.size();
+            int batchCount = (int) Math.ceil((double) totalParams / JSON_BATCH_SIZE);
+
+            // 对每个Object位置和每个批次组合生成请求
+            for (JsonObjectLocation location : objectLocations) {
+                if (isShuttingDown) {
+                    break;
+                }
+
+                for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+                    if (isShuttingDown) {
+                        break;
+                    }
+
+                    int startIndex = batchIndex * JSON_BATCH_SIZE;
+                    int endIndex = Math.min(startIndex + JSON_BATCH_SIZE, totalParams);
+                    List<ParamCollector.ParamEntry> batchParams = paramList.subList(startIndex, endIndex);
+
+                    // 创建JSON副本并插入参数
+                    JsonNode modifiedJson = rootNode.deepCopy();
+                    ObjectNode targetObject = locateAndGetObject(modifiedJson, location);
+
+                    if (targetObject != null) {
+                        // 添加参数到目标对象
+                        for (ParamCollector.ParamEntry entry : batchParams) {
+                            addParamToJsonObject(targetObject, entry);
+                        }
+
+                        // 转换回字符串
+                        String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
+
+                        // 创建修改后的请求
+                        HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
+
+                        // 发送请求
+                        String payloadAlias = String.format("JSON-batch-%d", batchIndex + 1);
+                        sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
+
+                        logging.logToOutput(String.format("[ParamAdder] Sent JSON batch %d/%d to location %s with %d parameters",
+                                batchIndex + 1, batchCount, location.getPath(), batchParams.size()));
+                    }
+                }
+            }
 
         } catch (Exception e) {
-            logging.logToError("[ParamAdder] addJsonParameters error: " + e.getMessage());
+            logging.logToError("[ParamAdder] addJsonParametersBatch error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * JSON对象位置类
+     */
+    private static class JsonObjectLocation {
+        private final List<PathSegment> path;
+        private final int depth;
+
+        public JsonObjectLocation(List<PathSegment> path, int depth) {
+            this.path = new ArrayList<>(path);
+            this.depth = depth;
+        }
+
+        public List<PathSegment> getPath() {
+            return path;
+        }
+
+        public int getDepth() {
+            return depth;
+        }
+
+        public String getPathString() {
+            StringBuilder sb = new StringBuilder();
+            for (PathSegment segment : path) {
+                if (segment.isArrayElement) {
+                    sb.append("[0]");
+                } else {
+                    if (sb.length() > 0) {
+                        sb.append(".");
+                    }
+                    sb.append(segment.key);
+                }
+            }
+            return sb.toString();
+        }
+    }
+
+    /**
+     * 路径片段
+     */
+    private static class PathSegment {
+        final String key;
+        final boolean isArrayElement;
+
+        public PathSegment(String key, boolean isArrayElement) {
+            this.key = key;
+            this.isArrayElement = isArrayElement;
+        }
+    }
+
+    /**
+     * 找到所有符合条件的对象位置
+     */
+    private List<JsonObjectLocation> findAllObjectLocations(JsonNode rootNode) {
+        List<JsonObjectLocation> locations = new ArrayList<>();
+        findObjectLocationsRecursive(rootNode, new ArrayList<>(), 1, locations);
+        return locations;
+    }
+
+    /**
+     * 递归查找对象位置
+     */
+    private void findObjectLocationsRecursive(JsonNode node, List<PathSegment> currentPath, int currentDepth,
+                                              List<JsonObjectLocation> locations) {
+        // 超过最大深度，停止
+        if (currentDepth > MAX_JSON_DEPTH) {
+            return;
+        }
+
+        if (node.isObject()) {
+            // 记录当前对象位置（包括空对象）
+            locations.add(new JsonObjectLocation(currentPath, currentDepth));
+
+            // 继续遍历对象的字段
+            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                String key = field.getKey();
+                JsonNode value = field.getValue();
+
+                List<PathSegment> newPath = new ArrayList<>(currentPath);
+                newPath.add(new PathSegment(key, false));
+
+                if (value.isArray()) {
+                    // 数组本身不算层级，处理数组第一个元素
+                    processArrayForObjectLocations(value, newPath, currentDepth + 1, locations);
+                } else if (value.isObject()) {
+                    // 递归处理对象，层级+1
+                    findObjectLocationsRecursive(value, newPath, currentDepth + 1, locations);
+                }
+                // 其他类型（基本类型）不处理
+            }
+        }
+    }
+
+    /**
+     * 处理数组寻找对象位置
+     */
+    private void processArrayForObjectLocations(JsonNode arrayNode, List<PathSegment> currentPath, int currentDepth,
+                                                List<JsonObjectLocation> locations) {
+        if (arrayNode.size() == 0) {
+            // 空数组，跳过
+            return;
+        }
+
+        JsonNode firstElement = arrayNode.get(0);
+
+        // 如果第一个元素还是数组，直接跳过（嵌套数组）
+        if (firstElement.isArray()) {
+            return;
+        }
+
+        // 如果第一个元素不是对象，跳过
+        if (!firstElement.isObject()) {
+            return;
+        }
+
+        // 第一个元素是对象，继续处理
+        List<PathSegment> newPath = new ArrayList<>(currentPath);
+        newPath.add(new PathSegment("", true)); // 标记为数组元素
+        findObjectLocationsRecursive(firstElement, newPath, currentDepth, locations);
+    }
+
+    /**
+     * 根据路径定位并获取对象节点
+     */
+    private ObjectNode locateAndGetObject(JsonNode rootNode, JsonObjectLocation location) {
+        JsonNode current = rootNode;
+
+        for (PathSegment segment : location.getPath()) {
+            if (segment.isArrayElement) {
+                // 数组元素
+                if (current.isArray() && current.size() > 0) {
+                    current = current.get(0);
+                } else {
+                    return null;
+                }
+            } else {
+                // 对象字段
+                if (current.isObject() && current.has(segment.key)) {
+                    current = current.get(segment.key);
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        return current.isObject() ? (ObjectNode) current : null;
+    }
+
+    /**
+     * 添加参数到JSON对象，根据type进行类型转换
+     */
+    private void addParamToJsonObject(ObjectNode targetObject, ParamCollector.ParamEntry entry) {
+        String key = entry.getKey();
+        String value = entry.getValue();
+        String type = entry.getType();
+
+        // 根据type进行类型转换
+        switch (type.toLowerCase()) {
+            case "number":
+                try {
+                    // 尝试解析为数字
+                    if (value.contains(".")) {
+                        targetObject.put(key, Double.parseDouble(value));
+                    } else {
+                        targetObject.put(key, Long.parseLong(value));
+                    }
+                } catch (NumberFormatException e) {
+                    // 解析失败，作为字符串
+                    targetObject.put(key, value);
+                }
+                break;
+            case "boolean":
+                targetObject.put(key, Boolean.parseBoolean(value));
+                break;
+            case "null":
+                targetObject.putNull(key);
+                break;
+            case "string":
+            default:
+                targetObject.put(key, value);
+                break;
         }
     }
 
@@ -209,7 +484,7 @@ public class ParamAdder {
      * 发送测试请求
      */
     private void sendTestRequest(HttpRequest modifiedRequest, int messageId, String host,
-                                 String expression, String paramType) {
+                                 String expression, String payloadAlias) {
         if (isShuttingDown) {
             return;
         }
@@ -235,8 +510,8 @@ public class ParamAdder {
                     tempID,
                     messageId,
                     "PARAM-ADD",           // testType
-                    expression,            // expression: 当前新增的参数和值
-                    paramType,             // payloadAlias: URL/BODY/JSON
+                    expression,            // expression: 暂不设置
+                    payloadAlias,          // payloadAlias: GET-batch-1, POST-batch-2, JSON-batch-3等
                     "",                    // parameterName: 留空
                     requestResponseSaver,
                     logging
@@ -297,10 +572,6 @@ public class ParamAdder {
 
         if (shuttingDown) {
             logging.logToOutput("[ParamAdder] Starting shutdown...");
-
-            // NettyManager会自动处理连接关闭
-            // 不需要额外的清理工作
-
             logging.logToOutput("[ParamAdder] Shutdown completed");
         }
     }

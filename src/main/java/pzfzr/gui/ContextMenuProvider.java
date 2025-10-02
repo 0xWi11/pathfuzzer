@@ -49,7 +49,7 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         this.configManager = ConfigManager.getInstance();
         this.pluginConfigManager = PluginConfigManager.getInstance();
         this.taskManager = new TaskManager(api, 5);
-        this.paramCollector = paramCollector; // 新增
+        this.paramCollector = paramCollector;
     }
 
     @Override
@@ -421,42 +421,23 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         });
     }
     private void collectParameters(List<HttpRequestResponse> requests) {
-        // 显示确认对话框
-        int result = JOptionPane.showConfirmDialog(
-                null,
-                String.format("开始收集 %d 个请求的参数？\n这可能需要一些时间。", requests.size()),
-                "确认收集参数",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE
-        );
-
-        if (result == JOptionPane.YES_OPTION) {
-            // 异步执行收集
-            paramCollector.collectParamsAsync(requests).thenRun(() -> {
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(
-                            null,
-                            String.format("参数收集完成！\n总共收集了 %d 个参数。", paramCollector.getParamCount()),
-                            "收集完成",
-                            JOptionPane.INFORMATION_MESSAGE
-                    );
-                });
-            }).exceptionally(ex -> {
-                api.logging().logToError("[ContextMenu] Error collecting parameters: " + ex.getMessage());
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(
-                            null,
-                            "参数收集时发生错误: " + ex.getMessage(),
-                            "错误",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                });
-                return null;
+        // 异步执行收集
+        paramCollector.collectParamsAsync(requests).exceptionally(ex -> {
+            api.logging().logToError("[ContextMenu] Error collecting parameters: " + ex.getMessage());
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(
+                        null,
+                        "参数收集时发生错误: " + ex.getMessage(),
+                        "错误",
+                        JOptionPane.ERROR_MESSAGE
+                );
             });
+            return null;
+        });
 
-            api.logging().logToOutput(String.format("[ContextMenu] Started collecting parameters from %d requests", requests.size()));
-        }
+        api.logging().logToOutput(String.format("[ContextMenu] Started collecting parameters from %d requests", requests.size()));
     }
+
     public void shutdown() {
         taskManager.shutdown();
         executor.shutdown();

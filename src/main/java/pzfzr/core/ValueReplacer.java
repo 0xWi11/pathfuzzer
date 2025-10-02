@@ -49,7 +49,8 @@ public class ValueReplacer {
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
 
     public ValueReplacer(MontoyaApi api, TableModel tableModel, ConfigManager configManager,
-                         RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter) {
+                         RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
+                         ParamCollector paramCollector) {
         this.api = api;
         this.tableModel = tableModel;
         this.configManager = configManager;
@@ -62,7 +63,7 @@ public class ValueReplacer {
         this.routeFuzzer = new RouteFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramFuzzer = new ParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.paramDeleter = new ParamDeleter(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
-        this.paramAdder = new ParamAdder(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId); // 新增：初始化ParamAdder
+        this.paramAdder = new ParamAdder(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId, paramCollector);
         this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.cookieFuzzer = new CookieFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.oobParamFuzzer = new OOBParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);

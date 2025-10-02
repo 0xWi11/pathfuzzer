@@ -7,11 +7,7 @@ import pzfzr.config.ConfigManager;
 import pzfzr.config.PersistenceManager;
 import pzfzr.config.PluginConfigManager;
 import pzfzr.core.*;
-import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer;
+import pzfzr.fuzzer.*;
 import pzfzr.gui.MainPanel;
 import pzfzr.gui.ContextMenuProvider;
 import pzfzr.model.CSVExporter;
@@ -87,7 +83,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         api.logging().logToOutput(String.format("[%s] Using NEW NettyManager for HTTP requests, Port: %d",
                 pluginConfigManager.getPluginName(), pluginConfigManager.getNettyPort()));
 
-        this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter);
+        this.valueReplacer = new ValueReplacer(api, tableModel, configManager, requestResponseSaver, rateLimiter, paramCollector);
         this.trafficHandler = new TrafficHandler(api, valueReplacer, tableModel, configManager, requestResponseSaver);
 
         // 从ValueReplacer获取所有Fuzzer引用
