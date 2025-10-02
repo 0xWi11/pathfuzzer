@@ -20,13 +20,13 @@ public class SettingsPanel extends JPanel {
     private final SwitchPanel switchPanel;
     private final JTabbedPane listTabPane;
     private final PayloadManagerPanel payloadManagerPanel;
-    private final ParamCollectorPanel paramCollectorPanel; // 可能为 null
+    private final ParamCollectorPanel paramCollectorPanel;
 
     public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel,
                          RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                          TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
                          HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer,
-                         ParamCollector paramCollector) { // 参数可能为 null
+                         ParamCollector paramCollector) {
         setLayout(new BorderLayout());
 
         // 创建主要的水平分割面板（左右结构）
@@ -104,6 +104,15 @@ public class SettingsPanel extends JPanel {
     }
 
     public ParamCollectorPanel getParamCollectorPanel() {
-        return paramCollectorPanel; // 可能返回 null
+        return paramCollectorPanel;
+    }
+
+    /**
+     * 清理资源
+     */
+    public void cleanup() {
+        if (paramCollectorPanel != null) {
+            paramCollectorPanel.cleanup();
+        }
     }
 }

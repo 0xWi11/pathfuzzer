@@ -2,7 +2,7 @@ package pzfzr.gui;
 
 import burp.api.montoya.MontoyaApi;
 import pzfzr.config.ConfigManager;
-import pzfzr.core.ParamCollector; // 新增
+import pzfzr.core.ParamCollector;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.model.RequestResponseSaver;
@@ -25,7 +25,7 @@ public class ControlPanel extends JPanel {
                         RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                         TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
                         HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer,
-                        ParamCollector paramCollector) { // 新增参数
+                        ParamCollector paramCollector) {
         setLayout(new BorderLayout());
 
         // 创建标签页面板
@@ -37,7 +37,7 @@ public class ControlPanel extends JPanel {
         // 初始化设置面板 - 传入 paramCollector
         settingsPanel = new SettingsPanel(configManager, api.logging(), tableModel, requestResponseSaver,
                 rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
-                oobParamFuzzer, paramCollector); // 新增参数
+                oobParamFuzzer, paramCollector);
 
         // 初始化 Cookie 修改器面板
         cookieChangerPanel = new CookieChangerPanel(api);
@@ -56,5 +56,14 @@ public class ControlPanel extends JPanel {
 
     public CookieChangerPanel getCookieChangerPanel() {
         return cookieChangerPanel;
+    }
+
+    /**
+     * 清理资源
+     */
+    public void cleanup() {
+        if (settingsPanel != null) {
+            settingsPanel.cleanup();
+        }
     }
 }

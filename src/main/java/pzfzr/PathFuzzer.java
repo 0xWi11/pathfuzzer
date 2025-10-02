@@ -37,6 +37,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private NettyManager nettyManager;
     private PluginConfigManager pluginConfigManager;
     private ParamCollector paramCollector;
+    private MainPanel mainPanel; // 新增：保存 UI 引用用于清理
 
     // 关闭控制
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
@@ -96,16 +97,16 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer();
         OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer();
 
-        // 注册UI - 传入 paramCollector（可能为null）
-        MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
+        // 注册UI - 保存引用用于后续清理
+        this.mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
                 trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
-                oobParamFuzzer, paramCollector); // paramCollector 可能为 null
+                oobParamFuzzer, paramCollector);
 
         api.userInterface().registerSuiteTab(pluginConfigManager.getPluginName(), mainPanel);
 
         // 注册上下文菜单 - 传入 paramCollector（可能为null）
         contextMenuProvider = new ContextMenuProvider(api, valueReplacer, tableModel,
-                requestResponseSaver, paramCollector); // paramCollector 可能为 null
+                requestResponseSaver, paramCollector);
         api.userInterface().registerContextMenuItemsProvider(contextMenuProvider);
 
         // 注册流量处理器
@@ -155,7 +156,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             enabledModules.append("ParamAdder, ");
         }
         if (configState.isParamCollectorEnabled()) {
-            enabledModules.append("ParamCollector, "); // 新增
+            enabledModules.append("ParamCollector, ");
         }
         if (configState.isHeaderFuzzerEnabled()) {
             enabledModules.append("HeaderFuzzer, ");
@@ -273,6 +274,13 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         // 第五阶段：关闭其他组件
         api.logging().logToOutput(String.format("[%s] Phase 4 - Shutting down remaining components...", pluginConfigManager.getPluginName()));
 
+        // 新增：优先清理 UI 组件（停止所有 Timer）
+        shutdownComponent("UI Components", () -> {
+            if (mainPanel != null) {
+                mainPanel.cleanup();
+            }
+        });
+
         shutdownComponent("RateLimiter", () -> {
             if (rateLimiter != null) {
                 rateLimiter.shutdown();
@@ -346,7 +354,7 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             enabledModules.append("ParamAdder, ");
         }
         if (configState.isParamCollectorEnabled()) {
-            enabledModules.append("ParamCollector, "); // 新增
+            enabledModules.append("ParamCollector, ");
         }
         if (configState.isHeaderFuzzerEnabled()) {
             enabledModules.append("HeaderFuzzer, ");

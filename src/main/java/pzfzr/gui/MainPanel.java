@@ -3,7 +3,7 @@ package pzfzr.gui;
 import burp.api.montoya.MontoyaApi;
 import pzfzr.config.ConfigManager;
 import pzfzr.core.CookieChanger;
-import pzfzr.core.ParamCollector; // 新增
+import pzfzr.core.ParamCollector;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
@@ -27,7 +27,7 @@ public class MainPanel extends JSplitPane {
                      TrafficHandler trafficHandler, CookieChanger cookieChanger,
                      ParamFuzzer paramFuzzer, ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer,
                      CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer,
-                     ParamCollector paramCollector) { // 新增参数
+                     ParamCollector paramCollector) {
         super(JSplitPane.VERTICAL_SPLIT);
         this.api = api;
         this.tableModel = tableModel;
@@ -35,7 +35,7 @@ public class MainPanel extends JSplitPane {
         // 创建控制面板 - 传入 paramCollector
         controlPanel = new ControlPanel(api, configManager, tableModel, requestResponseSaver,
                 rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
-                oobParamFuzzer, paramCollector); // 新增参数
+                oobParamFuzzer, paramCollector);
 
         // 创建历史面板
         historyPanel = new HistoryPanel(tableModel,
@@ -49,5 +49,14 @@ public class MainPanel extends JSplitPane {
         setTopComponent(historyPanel);
         setBottomComponent(controlPanel);
         setResizeWeight(0.67);
+    }
+
+    /**
+     * 清理资源
+     */
+    public void cleanup() {
+        if (controlPanel != null) {
+            controlPanel.cleanup();
+        }
     }
 }

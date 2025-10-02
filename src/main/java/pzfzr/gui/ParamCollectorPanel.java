@@ -4,14 +4,18 @@ import pzfzr.core.ParamCollector;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * ParamCollectorPanel - 参数收集器UI面板（无弹窗版本）
+ * ParamCollectorPanel - 参数收集器UI面板（带资源清理）
  */
 public class ParamCollectorPanel extends JPanel {
     private final ParamCollector paramCollector;
     private final JTextArea textArea;
     private final JLabel countLabel;
+    private final JLabel statusLabel;
+    private final List<Timer> activeTimers = new ArrayList<>(); // 跟踪活动的 Timer
 
     public ParamCollectorPanel(ParamCollector paramCollector) {
         this.paramCollector = paramCollector;
@@ -21,12 +25,12 @@ public class ParamCollectorPanel extends JPanel {
         // 顶部面板 - 显示参数数量和按钮
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
 
-        // 参数数量标签
+        // 左侧：参数数量标签
         countLabel = new JLabel("Collected Parameters: 0");
         countLabel.setFont(countLabel.getFont().deriveFont(Font.BOLD, 14f));
         topPanel.add(countLabel, BorderLayout.WEST);
 
-        // 按钮面板
+        // 右侧：按钮面板
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
 
         JButton syncButton = new JButton("Sync from Memory");
@@ -60,22 +64,28 @@ public class ParamCollectorPanel extends JPanel {
 
         add(scrollPane, BorderLayout.CENTER);
 
-        // 底部面板 - 说明信息
-        JPanel infoPanel = new JPanel(new BorderLayout());
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        // 底部面板 - 说明信息和状态
+        JPanel bottomPanel = new JPanel(new BorderLayout());
 
+        // 状态标签（用于显示错误信息）
+        statusLabel = new JLabel(" ");
+        statusLabel.setForeground(Color.RED);
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        bottomPanel.add(statusLabel, BorderLayout.NORTH);
+
+        // 说明信息
         JTextArea infoArea = new JTextArea(
-                "Position: get, post, post-json, resp-json, cookie\n" +
-                        "Type: string, number, boolean, null\n" +
+                "Position: get, post, post-json, resp-json, cookie | " +
+                        "Type: string, number, boolean, null | " +
                         "Example: post-json,number,id=55"
         );
         infoArea.setEditable(false);
         infoArea.setBackground(getBackground());
         infoArea.setFont(new Font("Monospaced", Font.PLAIN, 10));
         infoArea.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        bottomPanel.add(infoArea, BorderLayout.CENTER);
 
-        infoPanel.add(infoArea, BorderLayout.CENTER);
-        add(infoPanel, BorderLayout.SOUTH);
+        add(bottomPanel, BorderLayout.SOUTH);
 
         // 初始加载
         syncFromMemory();
@@ -89,11 +99,12 @@ public class ParamCollectorPanel extends JPanel {
             String text = paramCollector.getAllParamsAsText();
             textArea.setText(text);
             updateCountLabel();
+            clearStatus();
         });
     }
 
     /**
-     * 从文本区域更新到内存
+     * 从文本区域更新到内存（无弹窗）
      */
     private void updateToMemory() {
         String text = textArea.getText();
@@ -108,7 +119,7 @@ public class ParamCollectorPanel extends JPanel {
                     JOptionPane.ERROR_MESSAGE
             );
         } else {
-            // 更新成功 - 移除成功弹窗，只更新界面
+            // 更新成功，显示状态
             updateCountLabel();
         }
     }
@@ -117,10 +128,12 @@ public class ParamCollectorPanel extends JPanel {
      * 清空所有参数（无确认弹窗）
      */
     private void clearAll() {
-        // 直接清空，无需确认
         textArea.setText("");
         paramCollector.updateFromText("");
         updateCountLabel();
+        showStatus("All parameters cleared");
+        // 2秒后清除消息
+        scheduleStatusClear(2000);
     }
 
     /**
@@ -129,6 +142,46 @@ public class ParamCollectorPanel extends JPanel {
     private void updateCountLabel() {
         int count = paramCollector.getParamCount();
         countLabel.setText("Collected Parameters: " + count);
+    }
+
+    /**
+     * 显示状态信息
+     */
+    private void showStatus(String message) {
+        statusLabel.setText(message);
+    }
+
+    /**
+     * 清除状态信息
+     */
+    private void clearStatus() {
+        statusLabel.setText(" ");
+    }
+
+    /**
+     * 安排延迟清除状态（管理 Timer）
+     */
+    private void scheduleStatusClear(int delayMs) {
+        Timer timer = new Timer(delayMs, e -> {
+            clearStatus();
+            activeTimers.remove(e.getSource()); // 从列表中移除
+        });
+        timer.setRepeats(false);
+        activeTimers.add(timer);
+        timer.start();
+    }
+
+    /**
+     * 清理资源（在插件卸载时调用）
+     */
+    public void cleanup() {
+        // 停止所有活动的 Timer
+        for (Timer timer : activeTimers) {
+            if (timer.isRunning()) {
+                timer.stop();
+            }
+        }
+        activeTimers.clear();
     }
 
     /**
