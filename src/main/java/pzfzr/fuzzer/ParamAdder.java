@@ -46,10 +46,10 @@ public class ParamAdder {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 批次大小配置
-    private static final int GET_BATCH_SIZE = 100;
-    private static final int POST_BATCH_SIZE = 250;
-    private static final int JSON_BATCH_SIZE = 250;
+    // 批次大小配置 - 改为可配置字段
+    private int getBatchSize = 100;
+    private int postBatchSize = 250;
+    private int jsonBatchSize = 250;
     private static final int MAX_JSON_DEPTH = 4;
 
     public ParamAdder(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,
@@ -68,6 +68,57 @@ public class ParamAdder {
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
         logging.logToOutput("[ParamAdder] Initialization completed using NettyManager client");
+    }
+
+    /**
+     * 获取GET批次大小
+     */
+    public int getGetBatchSize() {
+        return getBatchSize;
+    }
+
+    /**
+     * 设置GET批次大小
+     */
+    public void setGetBatchSize(int batchSize) {
+        if (batchSize > 0) {
+            this.getBatchSize = batchSize;
+            logging.logToOutput("[ParamAdder] GET batch size updated to: " + batchSize);
+        }
+    }
+
+    /**
+     * 获取POST批次大小
+     */
+    public int getPostBatchSize() {
+        return postBatchSize;
+    }
+
+    /**
+     * 设置POST批次大小
+     */
+    public void setPostBatchSize(int batchSize) {
+        if (batchSize > 0) {
+            this.postBatchSize = batchSize;
+            logging.logToOutput("[ParamAdder] POST batch size updated to: " + batchSize);
+        }
+    }
+
+    /**
+     * 获取JSON批次大小
+     */
+    public int getJsonBatchSize() {
+        return jsonBatchSize;
+    }
+
+    /**
+     * 设置JSON批次大小
+     */
+    public void setJsonBatchSize(int batchSize) {
+        if (batchSize > 0) {
+            this.jsonBatchSize = batchSize;
+            logging.logToOutput("[ParamAdder] JSON batch size updated to: " + batchSize);
+        }
     }
 
     /**
@@ -116,7 +167,7 @@ public class ParamAdder {
             // 转换为List方便分批处理
             List<ParamCollector.ParamEntry> paramList = new ArrayList<>(allParams.values());
 
-            logging.logToOutput(String.format("[ParamAdder] Starting to add %d parameters", paramList.size()));
+//            logging.logToOutput(String.format("[ParamAdder] Starting to add %d parameters", paramList.size()));
 
             String method = originalRequest.method().toUpperCase();
             String contentType = originalRequest.headerValue("Content-Type");
@@ -151,15 +202,15 @@ public class ParamAdder {
 
         try {
             int totalParams = paramList.size();
-            int batchCount = (int) Math.ceil((double) totalParams / GET_BATCH_SIZE);
+            int batchCount = (int) Math.ceil((double) totalParams / getBatchSize);
 
             for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
                 if (isShuttingDown) {
                     break;
                 }
 
-                int startIndex = batchIndex * GET_BATCH_SIZE;
-                int endIndex = Math.min(startIndex + GET_BATCH_SIZE, totalParams);
+                int startIndex = batchIndex * getBatchSize;
+                int endIndex = Math.min(startIndex + getBatchSize, totalParams);
                 List<ParamCollector.ParamEntry> batchParams = paramList.subList(startIndex, endIndex);
 
                 // 创建请求副本并添加参数
@@ -179,8 +230,8 @@ public class ParamAdder {
                 String payloadAlias = String.format("GET-batch-%d", batchIndex + 1);
                 sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
 
-                logging.logToOutput(String.format("[ParamAdder] Sent GET batch %d/%d with %d parameters",
-                        batchIndex + 1, batchCount, batchParams.size()));
+//                logging.logToOutput(String.format("[ParamAdder] Sent GET batch %d/%d with %d parameters",
+//                        batchIndex + 1, batchCount, batchParams.size()));
             }
 
         } catch (Exception e) {
@@ -199,15 +250,15 @@ public class ParamAdder {
 
         try {
             int totalParams = paramList.size();
-            int batchCount = (int) Math.ceil((double) totalParams / POST_BATCH_SIZE);
+            int batchCount = (int) Math.ceil((double) totalParams / postBatchSize);
 
             for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
                 if (isShuttingDown) {
                     break;
                 }
 
-                int startIndex = batchIndex * POST_BATCH_SIZE;
-                int endIndex = Math.min(startIndex + POST_BATCH_SIZE, totalParams);
+                int startIndex = batchIndex * postBatchSize;
+                int endIndex = Math.min(startIndex + postBatchSize, totalParams);
                 List<ParamCollector.ParamEntry> batchParams = paramList.subList(startIndex, endIndex);
 
                 // 创建请求副本并添加参数
@@ -278,7 +329,7 @@ public class ParamAdder {
 
             // 计算批次数
             int totalParams = paramList.size();
-            int batchCount = (int) Math.ceil((double) totalParams / JSON_BATCH_SIZE);
+            int batchCount = (int) Math.ceil((double) totalParams / jsonBatchSize);
 
             // 对每个Object位置和每个批次组合生成请求
             for (JsonObjectLocation location : objectLocations) {
@@ -291,8 +342,8 @@ public class ParamAdder {
                         break;
                     }
 
-                    int startIndex = batchIndex * JSON_BATCH_SIZE;
-                    int endIndex = Math.min(startIndex + JSON_BATCH_SIZE, totalParams);
+                    int startIndex = batchIndex * jsonBatchSize;
+                    int endIndex = Math.min(startIndex + jsonBatchSize, totalParams);
                     List<ParamCollector.ParamEntry> batchParams = paramList.subList(startIndex, endIndex);
 
                     // 创建JSON副本并插入参数

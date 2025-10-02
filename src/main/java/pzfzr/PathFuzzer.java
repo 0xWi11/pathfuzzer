@@ -89,13 +89,14 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         // 从ValueReplacer获取所有Fuzzer引用
         ParamFuzzer paramFuzzer = valueReplacer.getParamFuzzer();
         ParamDeleter paramDeleter = valueReplacer.getParamDeleter();
+        ParamAdder paramAdder = valueReplacer.getParamAdder();
         HeaderFuzzer headerFuzzer = valueReplacer.getHeaderFuzzer();
         CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer();
         OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer();
 
-        // 注册UI - 保存引用用于后续清理
+        // 注册UI - 保存引用用于后续清理 - 传入 paramAdder
         this.mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
-                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
+                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer,
                 oobParamFuzzer, paramCollector);
 
         api.userInterface().registerSuiteTab(pluginConfigManager.getPluginName(), mainPanel);

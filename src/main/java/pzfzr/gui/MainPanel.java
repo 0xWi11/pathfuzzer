@@ -8,6 +8,7 @@ import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
+import pzfzr.fuzzer.ParamAdder;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
 import pzfzr.fuzzer.OOBParamFuzzer;
@@ -25,16 +26,16 @@ public class MainPanel extends JSplitPane {
     public MainPanel(MontoyaApi api, TableModel tableModel, ConfigManager configManager,
                      RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                      TrafficHandler trafficHandler, CookieChanger cookieChanger,
-                     ParamFuzzer paramFuzzer, ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer,
-                     CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer,
-                     ParamCollector paramCollector) {
+                     ParamFuzzer paramFuzzer, ParamDeleter paramDeleter, ParamAdder paramAdder,
+                     HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer,
+                     OOBParamFuzzer oobParamFuzzer, ParamCollector paramCollector) {
         super(JSplitPane.VERTICAL_SPLIT);
         this.api = api;
         this.tableModel = tableModel;
 
-        // 创建控制面板 - 传入 paramCollector
+        // 创建控制面板 - 传入 paramCollector 和 paramAdder
         controlPanel = new ControlPanel(api, configManager, tableModel, requestResponseSaver,
-                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
+                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer,
                 oobParamFuzzer, paramCollector);
 
         // 创建历史面板

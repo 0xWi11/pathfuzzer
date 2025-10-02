@@ -7,6 +7,7 @@ import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
+import pzfzr.fuzzer.ParamAdder;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
 import pzfzr.fuzzer.OOBParamFuzzer;
@@ -41,6 +42,7 @@ public class SwitchPanel extends JPanel {
     private final RateLimiter rateLimiter;
     private final ParamFuzzer paramFuzzer;
     private final ParamDeleter paramDeleter;
+    private final ParamAdder paramAdder;
     private final HeaderFuzzer headerFuzzer;
     private final CookieFuzzer cookieFuzzer;
     private final OOBParamFuzzer oobParamFuzzer;
@@ -54,6 +56,9 @@ public class SwitchPanel extends JPanel {
     private final JTextField maxParameterCountDeleterTextField;
     private final JTextField maxParameterCountCookieTextField;
     private final JTextField maxParameterCountOOBTextField;
+    private final JTextField getBatchSizeTextField;
+    private final JTextField postBatchSizeTextField;
+    private final JTextField jsonBatchSizeTextField;
     private final JButton setRateLimitButton;
     private final JButton clearTasksButton;
     private final TrafficHandler trafficHandler;
@@ -62,8 +67,8 @@ public class SwitchPanel extends JPanel {
 
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
-                       ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer,
-                       OOBParamFuzzer oobParamFuzzer) {
+                       ParamDeleter paramDeleter, ParamAdder paramAdder, HeaderFuzzer headerFuzzer,
+                       CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer) {
         this.switchManager = SwitchManager.getInstance();
         this.pluginConfigManager = PluginConfigManager.getInstance(); // 新增
         this.logging = logging;
@@ -73,6 +78,7 @@ public class SwitchPanel extends JPanel {
         this.trafficHandler = trafficHandler;
         this.paramFuzzer = paramFuzzer;
         this.paramDeleter = paramDeleter;
+        this.paramAdder = paramAdder;
         this.headerFuzzer = headerFuzzer;
         this.cookieFuzzer = cookieFuzzer;
         this.oobParamFuzzer = oobParamFuzzer;
@@ -331,6 +337,28 @@ public class SwitchPanel extends JPanel {
             maxParameterCountDeleterTextField = new JTextField("0", 5); // 创建隐藏字段
         }
 
+        // 新增：ParamAdder批次大小限制
+        if (configState.isParamAdderEnabled()) {
+            JPanel paramAdderBatchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JLabel getBatchSizeLabel = new JLabel("GET批次大小:");
+            getBatchSizeTextField = new JTextField(String.valueOf(paramAdder.getGetBatchSize()), 5);
+            JLabel postBatchSizeLabel = new JLabel("POST批次大小:");
+            postBatchSizeTextField = new JTextField(String.valueOf(paramAdder.getPostBatchSize()), 5);
+            JLabel jsonBatchSizeLabel = new JLabel("JSON批次大小:");
+            jsonBatchSizeTextField = new JTextField(String.valueOf(paramAdder.getJsonBatchSize()), 5);
+            paramAdderBatchPanel.add(getBatchSizeLabel);
+            paramAdderBatchPanel.add(getBatchSizeTextField);
+            paramAdderBatchPanel.add(postBatchSizeLabel);
+            paramAdderBatchPanel.add(postBatchSizeTextField);
+            paramAdderBatchPanel.add(jsonBatchSizeLabel);
+            paramAdderBatchPanel.add(jsonBatchSizeTextField);
+            maxParameterPanel.add(paramAdderBatchPanel);
+        } else {
+            getBatchSizeTextField = new JTextField("0", 5);
+            postBatchSizeTextField = new JTextField("0", 5);
+            jsonBatchSizeTextField = new JTextField("0", 5);
+        }
+
         // CookieFuzzer参数数量限制
         if (configState.isCookieFuzzerEnabled()) {
             JPanel cookieFuzzerLimitPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -379,6 +407,14 @@ public class SwitchPanel extends JPanel {
                 int newMaxParameterCountOOB = configState.isOOBParamFuzzerEnabled() ?
                         Integer.parseInt(maxParameterCountOOBTextField.getText()) : 0;
 
+                // 新增：获取ParamAdder批次大小参数
+                int newGetBatchSize = configState.isParamAdderEnabled() ?
+                        Integer.parseInt(getBatchSizeTextField.getText()) : 0;
+                int newPostBatchSize = configState.isParamAdderEnabled() ?
+                        Integer.parseInt(postBatchSizeTextField.getText()) : 0;
+                int newJsonBatchSize = configState.isParamAdderEnabled() ?
+                        Integer.parseInt(jsonBatchSizeTextField.getText()) : 0;
+
                 if (newCapacity > 0 && newRefillRate >= 0 && newUrlRateLimit >= 0 &&
                         newUrlExpireTime >= 0 && newRefillInterval > 0 && newMaxHeadersPerBatch > 0) {
 
@@ -397,6 +433,19 @@ public class SwitchPanel extends JPanel {
                     }
                     if (configState.isOOBParamFuzzerEnabled() && newMaxParameterCountOOB > 0) {
                         oobParamFuzzer.setMaxParameterCount(newMaxParameterCountOOB);
+                    }
+
+                    // 新增：更新ParamAdder批次大小
+                    if (configState.isParamAdderEnabled()) {
+                        if (newGetBatchSize > 0) {
+                            paramAdder.setGetBatchSize(newGetBatchSize);
+                        }
+                        if (newPostBatchSize > 0) {
+                            paramAdder.setPostBatchSize(newPostBatchSize);
+                        }
+                        if (newJsonBatchSize > 0) {
+                            paramAdder.setJsonBatchSize(newJsonBatchSize);
+                        }
                     }
 
                     // 更新每小时请求数显示
