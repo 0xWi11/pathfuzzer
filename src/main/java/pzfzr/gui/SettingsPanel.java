@@ -1,7 +1,7 @@
 package pzfzr.gui;
 
-import pzfzr.config.ConfigChangeType;
 import pzfzr.config.ConfigManager;
+import pzfzr.core.ParamCollector;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.model.RequestResponseSaver;
@@ -11,7 +11,7 @@ import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
+import pzfzr.fuzzer.OOBParamFuzzer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,11 +20,13 @@ public class SettingsPanel extends JPanel {
     private final SwitchPanel switchPanel;
     private final JTabbedPane listTabPane;
     private final PayloadManagerPanel payloadManagerPanel;
+    private final ParamCollectorPanel paramCollectorPanel; // 可能为 null
 
     public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel,
                          RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                          TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
-                         HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer) { // 新增：OOBParamFuzzer参数
+                         HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer,
+                         ParamCollector paramCollector) { // 参数可能为 null
         setLayout(new BorderLayout());
 
         // 创建主要的水平分割面板（左右结构）
@@ -34,9 +36,9 @@ public class SettingsPanel extends JPanel {
         JPanel leftPanel = new JPanel(new BorderLayout());
         leftPanel.setBorder(BorderFactory.createTitledBorder("Function Controls"));
 
-        // 创建开关面板 - 传入logging实例和其他必要组件、RateLimiter实例以及所有Fuzzer组件（包括OOBParamFuzzer）
+        // 创建开关面板
         switchPanel = new SwitchPanel(logging, tableModel, requestResponseSaver, rateLimiter, trafficHandler,
-                paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer); // 新增：oobParamFuzzer参数
+                paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer);
 
         // 将switchPanel添加到一个滚动面板中以防内容过多
         JScrollPane switchScrollPane = new JScrollPane(switchPanel);
@@ -54,9 +56,21 @@ public class SettingsPanel extends JPanel {
         // Initialize PayloadManagerPanel
         payloadManagerPanel = new PayloadManagerPanel();
 
-        // Add the new Payload Manager tab
+        // 只在 ParamCollector 启用时才创建 ParamCollectorPanel
+        if (paramCollector != null) {
+            paramCollectorPanel = new ParamCollectorPanel(paramCollector);
+        } else {
+            paramCollectorPanel = null;
+        }
+
+        // Add tabs
         listTabPane.addTab("Payload Manager", payloadManagerPanel);
         listTabPane.addTab("Intercept Filter", new RequestFilterPanel(configManager));
+
+        // 只在 ParamCollector 启用时才添加标签页
+        if (paramCollectorPanel != null) {
+            listTabPane.addTab("Param Collector", paramCollectorPanel);
+        }
 
         rightPanel.add(listTabPane, BorderLayout.CENTER);
 
@@ -80,13 +94,16 @@ public class SettingsPanel extends JPanel {
         add(titleLabel, BorderLayout.NORTH);
     }
 
-    // Getter method to access PayloadManagerPanel if needed
+    // Getter methods
     public PayloadManagerPanel getPayloadManagerPanel() {
         return payloadManagerPanel;
     }
 
-    // Getter method to access SwitchPanel if needed
     public SwitchPanel getSwitchPanel() {
         return switchPanel;
+    }
+
+    public ParamCollectorPanel getParamCollectorPanel() {
+        return paramCollectorPanel; // 可能返回 null
     }
 }

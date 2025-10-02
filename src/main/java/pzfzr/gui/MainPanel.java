@@ -3,13 +3,14 @@ package pzfzr.gui;
 import burp.api.montoya.MontoyaApi;
 import pzfzr.config.ConfigManager;
 import pzfzr.core.CookieChanger;
+import pzfzr.core.ParamCollector; // 新增
 import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
 import pzfzr.fuzzer.HeaderFuzzer;
 import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer; // 新增：OOBParamFuzzer导入
+import pzfzr.fuzzer.OOBParamFuzzer;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 
@@ -25,14 +26,16 @@ public class MainPanel extends JSplitPane {
                      RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                      TrafficHandler trafficHandler, CookieChanger cookieChanger,
                      ParamFuzzer paramFuzzer, ParamDeleter paramDeleter, HeaderFuzzer headerFuzzer,
-                     CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer) { // 修改：添加 OOBParamFuzzer 参数
+                     CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer,
+                     ParamCollector paramCollector) { // 新增参数
         super(JSplitPane.VERTICAL_SPLIT);
         this.api = api;
         this.tableModel = tableModel;
 
-        // 创建控制面板 - 传入必要组件和 RateLimiter 实例，以及所有Fuzzer组件（包括OOBParamFuzzer）
+        // 创建控制面板 - 传入 paramCollector
         controlPanel = new ControlPanel(api, configManager, tableModel, requestResponseSaver,
-                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer); // 新增：oobParamFuzzer参数
+                rateLimiter, trafficHandler, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
+                oobParamFuzzer, paramCollector); // 新增参数
 
         // 创建历史面板
         historyPanel = new HistoryPanel(tableModel,

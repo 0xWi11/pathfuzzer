@@ -5,7 +5,7 @@ import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.extension.ExtensionUnloadingHandler;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.PersistenceManager;
-import pzfzr.config.PluginConfigManager; // 新增
+import pzfzr.config.PluginConfigManager;
 import pzfzr.core.*;
 import pzfzr.fuzzer.ParamFuzzer;
 import pzfzr.fuzzer.ParamDeleter;
@@ -35,7 +35,8 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
     private RateLimiter rateLimiter;
     private CookieChanger cookieChanger;
     private NettyManager nettyManager;
-    private PluginConfigManager pluginConfigManager; // 新增
+    private PluginConfigManager pluginConfigManager;
+    private ParamCollector paramCollector;
 
     // 关闭控制
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
@@ -65,6 +66,17 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         this.requestResponseSaver = new RequestResponseSaver(api.logging(), tableModel);
         this.tableModel.setRequestResponseSaver(requestResponseSaver);
 
+        // 根据配置决定是否初始化 ParamCollector
+        if (pluginConfigManager.isParamCollectorEnabled()) {
+            this.paramCollector = new ParamCollector(api.logging());
+            api.logging().logToOutput(String.format("[%s] ParamCollector initialized (ENABLED)",
+                    pluginConfigManager.getPluginName()));
+        } else {
+            this.paramCollector = null;
+            api.logging().logToOutput(String.format("[%s] ParamCollector not initialized (DISABLED)",
+                    pluginConfigManager.getPluginName()));
+        }
+
         // 初始化CSV导出器
         this.csvExporter = new CSVExporter(api.logging(), tableModel, requestResponseSaver);
         this.rateLimiter = RateLimiter.getInstance(api.logging());
@@ -84,14 +96,16 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer();
         OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer();
 
-        // 注册UI - 使用配置的插件名称
+        // 注册UI - 传入 paramCollector（可能为null）
         MainPanel mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
-                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer, oobParamFuzzer);
+                trafficHandler, cookieChanger, paramFuzzer, paramDeleter, headerFuzzer, cookieFuzzer,
+                oobParamFuzzer, paramCollector); // paramCollector 可能为 null
 
         api.userInterface().registerSuiteTab(pluginConfigManager.getPluginName(), mainPanel);
 
-        // 注册上下文菜单（已支持配置化名称）
-        ContextMenuProvider contextMenuProvider = new ContextMenuProvider(api, valueReplacer, tableModel, requestResponseSaver);
+        // 注册上下文菜单 - 传入 paramCollector（可能为null）
+        contextMenuProvider = new ContextMenuProvider(api, valueReplacer, tableModel,
+                requestResponseSaver, paramCollector); // paramCollector 可能为 null
         api.userInterface().registerContextMenuItemsProvider(contextMenuProvider);
 
         // 注册流量处理器
@@ -136,6 +150,12 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         }
         if (configState.isParamDeleterEnabled()) {
             enabledModules.append("ParamDeleter, ");
+        }
+        if (configState.isParamAdderEnabled()) {
+            enabledModules.append("ParamAdder, ");
+        }
+        if (configState.isParamCollectorEnabled()) {
+            enabledModules.append("ParamCollector, "); // 新增
         }
         if (configState.isHeaderFuzzerEnabled()) {
             enabledModules.append("HeaderFuzzer, ");
@@ -259,6 +279,13 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
             }
         });
 
+        // 只在 ParamCollector 启用时才关闭
+        if (paramCollector != null) {
+            shutdownComponent("ParamCollector", () -> {
+                paramCollector.shutdown();
+            });
+        }
+
         shutdownComponent("ContextMenuProvider", () -> {
             if (contextMenuProvider != null) {
                 contextMenuProvider.shutdown();
@@ -314,6 +341,12 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         }
         if (configState.isParamDeleterEnabled()) {
             enabledModules.append("ParamDeleter, ");
+        }
+        if (configState.isParamAdderEnabled()) {
+            enabledModules.append("ParamAdder, ");
+        }
+        if (configState.isParamCollectorEnabled()) {
+            enabledModules.append("ParamCollector, "); // 新增
         }
         if (configState.isHeaderFuzzerEnabled()) {
             enabledModules.append("HeaderFuzzer, ");

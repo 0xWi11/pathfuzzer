@@ -44,7 +44,8 @@ public class PluginConfigManager {
         properties.setProperty("switch.routefuzzer.enabled", "true");
         properties.setProperty("switch.paramfuzzer.enabled", "true");
         properties.setProperty("switch.paramdeleter.enabled", "true");
-        properties.setProperty("switch.paramadder.enabled", "true"); // 新增：ParamAdder默认启用
+        properties.setProperty("switch.paramadder.enabled", "true");
+        properties.setProperty("switch.paramcollector.enabled", "true"); // 新增：ParamCollector默认启用
         properties.setProperty("switch.headerfuzzer.enabled", "false");
         properties.setProperty("switch.cookiefuzzer.enabled", "false");
         properties.setProperty("switch.oobparamfuzzer.enabled", "false");
@@ -84,9 +85,13 @@ public class PluginConfigManager {
         return Boolean.parseBoolean(properties.getProperty("switch.paramdeleter.enabled", "true"));
     }
 
-    // 新增：ParamAdder配置获取方法
     public boolean isParamAdderEnabled() {
         return Boolean.parseBoolean(properties.getProperty("switch.paramadder.enabled", "true"));
+    }
+
+    // 新增：ParamCollector配置获取方法
+    public boolean isParamCollectorEnabled() {
+        return Boolean.parseBoolean(properties.getProperty("switch.paramcollector.enabled", "true"));
     }
 
     public boolean isHeaderFuzzerEnabled() {
@@ -108,7 +113,8 @@ public class PluginConfigManager {
                 isRouteFuzzerEnabled(),
                 isParamFuzzerEnabled(),
                 isParamDeleterEnabled(),
-                isParamAdderEnabled(), // 新增
+                isParamAdderEnabled(),
+                isParamCollectorEnabled(), // 新增
                 isHeaderFuzzerEnabled(),
                 isCookieFuzzerEnabled(),
                 isOOBParamFuzzerEnabled()
@@ -123,21 +129,23 @@ public class PluginConfigManager {
         private final boolean routeFuzzerEnabled;
         private final boolean paramFuzzerEnabled;
         private final boolean paramDeleterEnabled;
-        private final boolean paramAdderEnabled; // 新增
+        private final boolean paramAdderEnabled;
+        private final boolean paramCollectorEnabled; // 新增
         private final boolean headerFuzzerEnabled;
         private final boolean cookieFuzzerEnabled;
         private final boolean oobParamFuzzerEnabled;
 
         public SwitchConfigState(boolean jsonListerEnabled, boolean routeFuzzerEnabled,
                                  boolean paramFuzzerEnabled, boolean paramDeleterEnabled,
-                                 boolean paramAdderEnabled, // 新增参数
+                                 boolean paramAdderEnabled, boolean paramCollectorEnabled, // 新增参数
                                  boolean headerFuzzerEnabled, boolean cookieFuzzerEnabled,
                                  boolean oobParamFuzzerEnabled) {
             this.jsonListerEnabled = jsonListerEnabled;
             this.routeFuzzerEnabled = routeFuzzerEnabled;
             this.paramFuzzerEnabled = paramFuzzerEnabled;
             this.paramDeleterEnabled = paramDeleterEnabled;
-            this.paramAdderEnabled = paramAdderEnabled; // 新增
+            this.paramAdderEnabled = paramAdderEnabled;
+            this.paramCollectorEnabled = paramCollectorEnabled; // 新增
             this.headerFuzzerEnabled = headerFuzzerEnabled;
             this.cookieFuzzerEnabled = cookieFuzzerEnabled;
             this.oobParamFuzzerEnabled = oobParamFuzzerEnabled;
@@ -148,7 +156,8 @@ public class PluginConfigManager {
         public boolean isRouteFuzzerEnabled() { return routeFuzzerEnabled; }
         public boolean isParamFuzzerEnabled() { return paramFuzzerEnabled; }
         public boolean isParamDeleterEnabled() { return paramDeleterEnabled; }
-        public boolean isParamAdderEnabled() { return paramAdderEnabled; } // 新增
+        public boolean isParamAdderEnabled() { return paramAdderEnabled; }
+        public boolean isParamCollectorEnabled() { return paramCollectorEnabled; } // 新增
         public boolean isHeaderFuzzerEnabled() { return headerFuzzerEnabled; }
         public boolean isCookieFuzzerEnabled() { return cookieFuzzerEnabled; }
         public boolean isOOBParamFuzzerEnabled() { return oobParamFuzzerEnabled; }

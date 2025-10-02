@@ -9,6 +9,7 @@ import pzfzr.config.ConfigManager;
 import pzfzr.config.FilterRule;
 import pzfzr.config.PluginConfigManager;
 import pzfzr.config.SwitchState;
+import pzfzr.core.ParamCollector;
 import pzfzr.core.ValueReplacer;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -36,15 +37,19 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
     // 添加任务管理相关字段
     private final TaskManager taskManager;
     private final AtomicLong taskIdGenerator = new AtomicLong(1);
+    private final ParamCollector paramCollector;
 
-    public ContextMenuProvider(MontoyaApi api, ValueReplacer valueReplacer, TableModel tableModel, RequestResponseSaver requestResponseSaver) {
+
+    public ContextMenuProvider(MontoyaApi api, ValueReplacer valueReplacer, TableModel tableModel,
+                               RequestResponseSaver requestResponseSaver, ParamCollector paramCollector) {
         this.api = api;
         this.valueReplacer = valueReplacer;
         this.tableModel = tableModel;
         this.requestResponseSaver = requestResponseSaver;
         this.configManager = ConfigManager.getInstance();
-        this.pluginConfigManager = PluginConfigManager.getInstance(); // 新增
-        this.taskManager = new TaskManager(api, 5); // 最多同时执行5个批量任务
+        this.pluginConfigManager = PluginConfigManager.getInstance();
+        this.taskManager = new TaskManager(api, 5);
+        this.paramCollector = paramCollector; // 新增
     }
 
     @Override
@@ -128,6 +133,16 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         addFilterItem.addActionListener(e -> addFiltersSync(finalAllSelectedRequests));
         headerIntruderMenu.add(addFilterItem);
         headerIntruderMenu.addSeparator();
+
+        // 只在 ParamCollector 启用时才添加参数收集菜单项
+        if (paramCollector != null) {
+            JMenuItem collectParamsItem = new JMenuItem(String.format("Collect Parameters (%d 个已选择)", finalAllSelectedRequests.size()));
+            collectParamsItem.addActionListener(e -> collectParameters(finalAllSelectedRequests));
+            headerIntruderMenu.add(collectParamsItem);
+        }
+
+        headerIntruderMenu.addSeparator();
+
 
         // 2. 组合测试菜单
         if (isRouteTestAvailable(configState)) {
@@ -405,7 +420,43 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
             JOptionPane.showMessageDialog(null, errorMessage, "错误", JOptionPane.ERROR_MESSAGE);
         });
     }
+    private void collectParameters(List<HttpRequestResponse> requests) {
+        // 显示确认对话框
+        int result = JOptionPane.showConfirmDialog(
+                null,
+                String.format("开始收集 %d 个请求的参数？\n这可能需要一些时间。", requests.size()),
+                "确认收集参数",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
 
+        if (result == JOptionPane.YES_OPTION) {
+            // 异步执行收集
+            paramCollector.collectParamsAsync(requests).thenRun(() -> {
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(
+                            null,
+                            String.format("参数收集完成！\n总共收集了 %d 个参数。", paramCollector.getParamCount()),
+                            "收集完成",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+                });
+            }).exceptionally(ex -> {
+                api.logging().logToError("[ContextMenu] Error collecting parameters: " + ex.getMessage());
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(
+                            null,
+                            "参数收集时发生错误: " + ex.getMessage(),
+                            "错误",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                });
+                return null;
+            });
+
+            api.logging().logToOutput(String.format("[ContextMenu] Started collecting parameters from %d requests", requests.size()));
+        }
+    }
     public void shutdown() {
         taskManager.shutdown();
         executor.shutdown();

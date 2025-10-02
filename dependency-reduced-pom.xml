@@ -114,7 +114,9 @@
       <id>pathfuzzer</id>
       <properties>
         <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
+        <switch.paramadder.enabled>true</switch.paramadder.enabled>
         <switch.paramfuzzer.enabled>true</switch.paramfuzzer.enabled>
+        <switch.paramcollector.enabled>true</switch.paramcollector.enabled>
         <switch.jsonlister.enabled>true</switch.jsonlister.enabled>
         <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>
         <final.jar.name>pathfuzzer</final.jar.name>
@@ -132,7 +134,9 @@
       <id>oobfuzzer</id>
       <properties>
         <switch.cookiefuzzer.enabled>true</switch.cookiefuzzer.enabled>
+        <switch.paramadder.enabled>false</switch.paramadder.enabled>
         <switch.paramfuzzer.enabled>false</switch.paramfuzzer.enabled>
+        <switch.paramcollector.enabled>false</switch.paramcollector.enabled>
         <switch.jsonlister.enabled>false</switch.jsonlister.enabled>
         <switch.oobparamfuzzer.enabled>true</switch.oobparamfuzzer.enabled>
         <final.jar.name>oobfuzzer</final.jar.name>
@@ -149,7 +153,9 @@
   </profiles>
   <properties>
     <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
+    <switch.paramadder.enabled>true</switch.paramadder.enabled>
     <switch.paramfuzzer.enabled>true</switch.paramfuzzer.enabled>
+    <switch.paramcollector.enabled>true</switch.paramcollector.enabled>
     <switch.jsonlister.enabled>true</switch.jsonlister.enabled>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>

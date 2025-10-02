@@ -22,6 +22,8 @@
         <switch.routefuzzer.enabled>true</switch.routefuzzer.enabled>
         <switch.paramfuzzer.enabled>true</switch.paramfuzzer.enabled>
         <switch.paramdeleter.enabled>true</switch.paramdeleter.enabled>
+        <switch.paramadder.enabled>true</switch.paramadder.enabled>
+        <switch.paramcollector.enabled>true</switch.paramcollector.enabled>
         <switch.headerfuzzer.enabled>false</switch.headerfuzzer.enabled>
         <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
         <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>
@@ -47,6 +49,8 @@
                 <switch.routefuzzer.enabled>true</switch.routefuzzer.enabled>
                 <switch.paramfuzzer.enabled>true</switch.paramfuzzer.enabled>
                 <switch.paramdeleter.enabled>true</switch.paramdeleter.enabled>
+                <switch.paramadder.enabled>true</switch.paramadder.enabled>
+                <switch.paramcollector.enabled>true</switch.paramcollector.enabled>
                 <switch.headerfuzzer.enabled>false</switch.headerfuzzer.enabled>
                 <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
                 <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>
@@ -67,6 +71,8 @@
                 <switch.routefuzzer.enabled>false</switch.routefuzzer.enabled>
                 <switch.paramfuzzer.enabled>false</switch.paramfuzzer.enabled>
                 <switch.paramdeleter.enabled>false</switch.paramdeleter.enabled>
+                <switch.paramadder.enabled>false</switch.paramadder.enabled>
+                <switch.paramcollector.enabled>false</switch.paramcollector.enabled>
                 <switch.headerfuzzer.enabled>true</switch.headerfuzzer.enabled>
                 <switch.cookiefuzzer.enabled>true</switch.cookiefuzzer.enabled>
                 <switch.oobparamfuzzer.enabled>true</switch.oobparamfuzzer.enabled>
