@@ -2,6 +2,8 @@ package pzfzr.fuzzer;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import burp.api.montoya.http.message.requests.HttpRequest;
 import burp.api.montoya.http.message.responses.HttpResponse;
@@ -66,6 +68,31 @@ public class ParamAdder {
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
         logging.logToOutput("[ParamAdder] Initialization completed using NettyManager client");
+    }
+
+    /**
+     * URL编码：仅编码会破坏URL/HTTP格式的特殊字符
+     * 保留安全字符：字母、数字、-_.~
+     * 编码特殊字符：空格、&、=、?、#、%、+、/等
+     */
+    private String urlEncodeValue(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+
+        try {
+            // 使用URLEncoder进行完整编码
+            String encoded = URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
+
+            // URLEncoder会把空格编码成+，但在URL中我们更希望用%20
+            // 同时保留一些URL中的安全字符
+            encoded = encoded.replace("+", "%20");
+
+            return encoded;
+        } catch (Exception e) {
+            logging.logToError("[ParamAdder] URL encoding error: " + e.getMessage());
+            return value;
+        }
     }
 
     /**
@@ -140,7 +167,9 @@ public class ParamAdder {
                 List<HttpParameter> parametersToAdd = new ArrayList<>();
 
                 for (ParamCollector.ParamEntry entry : batchParams) {
-                    HttpParameter param = HttpParameter.urlParameter(entry.getKey(), entry.getValue());
+                    // URL编码参数值
+                    String encodedValue = urlEncodeValue(entry.getValue());
+                    HttpParameter param = HttpParameter.urlParameter(entry.getKey(), encodedValue);
                     parametersToAdd.add(param);
                 }
 
@@ -186,7 +215,9 @@ public class ParamAdder {
                 List<HttpParameter> parametersToAdd = new ArrayList<>();
 
                 for (ParamCollector.ParamEntry entry : batchParams) {
-                    HttpParameter param = HttpParameter.bodyParameter(entry.getKey(), entry.getValue());
+                    // URL编码参数值（POST表单也需要URL编码）
+                    String encodedValue = urlEncodeValue(entry.getValue());
+                    HttpParameter param = HttpParameter.bodyParameter(entry.getKey(), encodedValue);
                     parametersToAdd.add(param);
                 }
 
@@ -285,7 +316,7 @@ public class ParamAdder {
                         sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
 
                         logging.logToOutput(String.format("[ParamAdder] Sent JSON batch %d/%d to location %s with %d parameters",
-                                batchIndex + 1, batchCount, location.getPath(), batchParams.size()));
+                                batchIndex + 1, batchCount, location.getPathString(), batchParams.size()));
                     }
                 }
             }
@@ -446,6 +477,7 @@ public class ParamAdder {
 
     /**
      * 添加参数到JSON对象，根据type进行类型转换
+     * JSON中不需要URL编码，因为JSON格式本身会自动转义特殊字符
      */
     private void addParamToJsonObject(ObjectNode targetObject, ParamCollector.ParamEntry entry) {
         String key = entry.getKey();
@@ -475,6 +507,7 @@ public class ParamAdder {
                 break;
             case "string":
             default:
+                // JSON字符串不需要URL编码，Jackson会自动处理转义
                 targetObject.put(key, value);
                 break;
         }

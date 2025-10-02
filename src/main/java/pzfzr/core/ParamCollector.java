@@ -72,13 +72,16 @@ public class ParamCollector {
 
         /**
          * 转换为存储格式：position,type,key=value
+         * 对value进行转义，将特殊字符转换为可见标记
          */
         public String toStorageFormat() {
-            return String.format("%s,%s,%s=%s", position, type, key, value);
+            String escapedValue = escapeSpecialChars(value);
+            return String.format("%s,%s,%s=%s", position, type, key, escapedValue);
         }
 
         /**
          * 从存储格式解析
+         * 对value进行反转义，将标记还原为原始字符
          */
         public static ParamEntry fromStorageFormat(String line) throws IllegalArgumentException {
             if (line == null || line.trim().isEmpty()) {
@@ -97,9 +100,38 @@ public class ParamCollector {
             String position = line.substring(0, firstComma);
             String type = line.substring(firstComma + 1, secondComma);
             String key = line.substring(secondComma + 1, equalSign);
-            String value = line.substring(equalSign + 1);
+            String escapedValue = line.substring(equalSign + 1);
+
+            // 反转义value
+            String value = unescapeSpecialChars(escapedValue);
 
             return new ParamEntry(position, type, key, value);
+        }
+
+        /**
+         * 转义特殊字符为可见标记
+         */
+        private static String escapeSpecialChars(String input) {
+            if (input == null) {
+                return "";
+            }
+            return input
+                    .replace("\r\n", "[EOL]")  // Windows换行
+                    .replace("\n", "[EOL]")     // Unix换行
+                    .replace("\r", "[EOL]")     // Mac换行
+                    .replace("\t", "[TAB]");    // 制表符
+        }
+
+        /**
+         * 反转义：将标记还原为原始字符
+         */
+        private static String unescapeSpecialChars(String input) {
+            if (input == null) {
+                return "";
+            }
+            return input
+                    .replace("[EOL]", "\n")     // 统一还原为\n
+                    .replace("[TAB]", "\t");    // 还原制表符
         }
     }
 
