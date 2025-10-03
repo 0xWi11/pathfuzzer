@@ -8,7 +8,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
-import io.netty.handler.proxy.Socks5ProxyHandler;
+import io.netty.handler.proxy.HttpProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -426,8 +426,8 @@ public class NettyManager {
             protected void initChannel(SocketChannel ch) {
                 ChannelPipeline p = ch.pipeline();
 
-                // SOCKS5代理 - 使用可配置端口
-                p.addLast("socks5", new Socks5ProxyHandler(
+                // HTTP CONNECT代理 - 使用可配置端口
+                p.addLast("httpProxy", new HttpProxyHandler(
                         new InetSocketAddress(PROXY_HOST, PROXY_PORT)));
 
                 // SSL处理
