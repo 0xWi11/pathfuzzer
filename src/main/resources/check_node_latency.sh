@@ -39,7 +39,7 @@ LATENCY=$(( (END_TIME - START_TIME) / 1000000 ))
 rm -f /tmp/curl_result_$$
 
 # 检查结果
-if [ $CURL_EXIT -eq 0 ] && [ $LATENCY -lt 5000 ]; then
+if [ $CURL_EXIT -eq 0 ] && [ $LATENCY -lt 2000 ]; then
     # 健康
     exit 0
 else

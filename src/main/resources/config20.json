@@ -143,6 +143,49 @@
 
     {"tag": "thv2-01-in","port":16991,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
+    {"tag": "hkv3-01-in","port":16601,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "hkv3-02-in","port":16602,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "hkv3-03-in","port":16603,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "hkv3-04-in","port":16604,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "hkv3-05-in","port":16605,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "hkv3-06-in","port":16606,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "twv3-01-in","port":16611,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "twv3-02-in","port":16612,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "twv3-03-in","port":16613,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "twv3-04-in","port":16614,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "twv3-05-in","port":16615,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "sgv3-01-in","port":16621,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "sgv3-02-in","port":16622,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "sgv3-03-in","port":16623,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "sgv3-04-in","port":16624,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "sgv3-05-in","port":16625,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "jpv3-01-in","port":16631,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "jpv3-02-in","port":16632,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "jpv3-03-in","port":16633,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "jpv3-04-in","port":16634,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "jpv3-05-in","port":16635,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "usv3-01-in","port":16641,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "usv3-02-in","port":16642,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "usv3-03-in","port":16643,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "usv3-04-in","port":16644,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "usv3-05-in","port":16645,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "mov3-01-in","port":16651,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "krv3-01-in","port":16661,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "inv3-01-in","port":16671,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "ukv3-01-in","port":16681,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "dev3-01-in","port":16691,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "auv3-01-in","port":16701,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
     {"tag":"api","port":19997,"listen":"127.0.0.1","protocol":"dokodemo-door","settings":{"address":"127.0.0.1"}}
   ],
   "outbounds": [
@@ -263,6 +306,49 @@
     {"tag":"ruv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12075,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
     {"tag":"thv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12076,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"hkv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49500,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv3-02","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49501,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv3-03","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49502,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv3-04","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49503,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv3-05","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49504,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv3-06","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49505,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"twv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49510,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"twv3-02","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49511,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"twv3-03","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49512,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"twv3-04","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49513,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"twv3-05","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49514,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"sgv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49520,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv3-02","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49521,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv3-03","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49522,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv3-04","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49523,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv3-05","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49524,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"jpv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49530,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv3-02","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49531,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv3-03","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49532,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv3-04","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49533,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv3-05","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49534,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"usv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49540,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv3-02","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49542,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv3-03","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49543,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv3-04","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49544,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv3-05","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-singlel5bnt.cherrynetwork.link","port":49545,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"mov3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-unpopul4d.cherrynetwork.link","port":49602,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"krv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-unpopul4d.cherrynetwork.link","port":49601,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"inv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-unpopul4d.cherrynetwork.link","port":49700,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"ukv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-unpopul4d.cherrynetwork.link","port":49558,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"dev3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-unpopul4d.cherrynetwork.link","port":49556,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"auv3-01","protocol":"shadowsocks","settings":{"servers":[{"address":"cn-unpopul4d.cherrynetwork.link","port":49600,"method":"aes-128-gcm","password":"1df33a15-be77-48ad-aac2-867a4fdab200","level":1}]},"streamSettings":{"network":"tcp","security":"none"},"mux":{"enabled":false,"concurrency":-1}},
 
     {"tag":"direct","protocol":"freedom"},
     {"tag":"block","protocol":"blackhole"}
@@ -390,7 +476,50 @@
 
       {"type":"field","inboundTag":["ruv2-01-in"],"outboundTag":"ruv2-01"},
 
-      {"type":"field","inboundTag":["thv2-01-in"],"outboundTag":"thv2-01"}
+      {"type":"field","inboundTag":["thv2-01-in"],"outboundTag":"thv2-01"},
+
+      {"type":"field","inboundTag":["hkv3-01-in"],"outboundTag":"hkv3-01"},
+      {"type":"field","inboundTag":["hkv3-02-in"],"outboundTag":"hkv3-02"},
+      {"type":"field","inboundTag":["hkv3-03-in"],"outboundTag":"hkv3-03"},
+      {"type":"field","inboundTag":["hkv3-04-in"],"outboundTag":"hkv3-04"},
+      {"type":"field","inboundTag":["hkv3-05-in"],"outboundTag":"hkv3-05"},
+      {"type":"field","inboundTag":["hkv3-06-in"],"outboundTag":"hkv3-06"},
+
+      {"type":"field","inboundTag":["twv3-01-in"],"outboundTag":"twv3-01"},
+      {"type":"field","inboundTag":["twv3-02-in"],"outboundTag":"twv3-02"},
+      {"type":"field","inboundTag":["twv3-03-in"],"outboundTag":"twv3-03"},
+      {"type":"field","inboundTag":["twv3-04-in"],"outboundTag":"twv3-04"},
+      {"type":"field","inboundTag":["twv3-05-in"],"outboundTag":"twv3-05"},
+
+      {"type":"field","inboundTag":["sgv3-01-in"],"outboundTag":"sgv3-01"},
+      {"type":"field","inboundTag":["sgv3-02-in"],"outboundTag":"sgv3-02"},
+      {"type":"field","inboundTag":["sgv3-03-in"],"outboundTag":"sgv3-03"},
+      {"type":"field","inboundTag":["sgv3-04-in"],"outboundTag":"sgv3-04"},
+      {"type":"field","inboundTag":["sgv3-05-in"],"outboundTag":"sgv3-05"},
+
+      {"type":"field","inboundTag":["jpv3-01-in"],"outboundTag":"jpv3-01"},
+      {"type":"field","inboundTag":["jpv3-02-in"],"outboundTag":"jpv3-02"},
+      {"type":"field","inboundTag":["jpv3-03-in"],"outboundTag":"jpv3-03"},
+      {"type":"field","inboundTag":["jpv3-04-in"],"outboundTag":"jpv3-04"},
+      {"type":"field","inboundTag":["jpv3-05-in"],"outboundTag":"jpv3-05"},
+
+      {"type":"field","inboundTag":["usv3-01-in"],"outboundTag":"usv3-01"},
+      {"type":"field","inboundTag":["usv3-02-in"],"outboundTag":"usv3-02"},
+      {"type":"field","inboundTag":["usv3-03-in"],"outboundTag":"usv3-03"},
+      {"type":"field","inboundTag":["usv3-04-in"],"outboundTag":"usv3-04"},
+      {"type":"field","inboundTag":["usv3-05-in"],"outboundTag":"usv3-05"},
+
+      {"type":"field","inboundTag":["mov3-01-in"],"outboundTag":"mov3-01"},
+
+      {"type":"field","inboundTag":["krv3-01-in"],"outboundTag":"krv3-01"},
+
+      {"type":"field","inboundTag":["inv3-01-in"],"outboundTag":"inv3-01"},
+
+      {"type":"field","inboundTag":["ukv3-01-in"],"outboundTag":"ukv3-01"},
+
+      {"type":"field","inboundTag":["dev3-01-in"],"outboundTag":"dev3-01"},
+
+      {"type":"field","inboundTag":["auv3-01-in"],"outboundTag":"auv3-01"}
     ]
   },
   "metrics": {"tag":"api"},
