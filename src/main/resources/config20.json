@@ -92,61 +92,56 @@
     {"tag": "hkv2-03-in","port":16803,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "hkv2-04-in","port":16804,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "hkv2-05-in","port":16805,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "hkv2-06-in","port":16806,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "hkv2-07-in","port":16807,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "hkv2-08-in","port":16808,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag": "twv2-01-in","port":16811,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "twv2-02-in","port":16812,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "twv2-03-in","port":16813,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "twv2-04-in","port":16814,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "twv2-05-in","port":16815,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "twv2-06-in","port":16816,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "twv2-07-in","port":16817,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "twv2-08-in","port":16818,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag": "jpv2-01-in","port":16821,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "jpv2-02-in","port":16822,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "jpv2-03-in","port":16823,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "jpv2-04-in","port":16824,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "jpv2-05-in","port":16825,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "jpv2-06-in","port":16826,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "jpv2-07-in","port":16827,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "jpv2-08-in","port":16828,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag": "usv2-01-in","port":16831,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "usv2-02-in","port":16832,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "usv2-03-in","port":16833,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "usv2-04-in","port":16834,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "usv2-05-in","port":16835,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "usv2-06-in","port":16836,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "usv2-07-in","port":16837,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "usv2-08-in","port":16838,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag": "sgv2-01-in","port":16841,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "sgv2-02-in","port":16842,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "sgv2-03-in","port":16843,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "sgv2-04-in","port":16844,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
     {"tag": "sgv2-05-in","port":16845,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "sgv2-06-in","port":16846,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "sgv2-07-in","port":16847,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "sgv2-08-in","port":16848,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag": "krv2-01-in","port":16851,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "krv2-02-in","port":16852,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "krv2-03-in","port":16853,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
-    {"tag": "auv2-01-in","port":16861,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "auv2-02-in","port":16862,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "auv2-03-in","port":16863,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "cav2-01-in","port":16861,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag": "ukv2-01-in","port":16871,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "ukv2-02-in","port":16872,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "ukv2-03-in","port":16873,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
-    {"tag": "aqv2-01-in","port":16881,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "aqv2-02-in","port":16882,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
-    {"tag": "aqv2-03-in","port":16883,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+    {"tag": "idv2-01-in","port":16881,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "chv2-01-in","port":16891,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "trv2-01-in","port":16901,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "phv2-01-in","port":16911,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "myv2-01-in","port":16921,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "dev2-01-in","port":16931,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "fiv2-01-in","port":16941,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "inv2-01-in","port":16951,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "ngv2-01-in","port":16961,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "nlv2-01-in","port":16971,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "ruv2-01-in","port":16981,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
+
+    {"tag": "thv2-01-in","port":16991,"listen":"127.0.0.1","protocol":"mixed","sniffing":{"enabled":false,"destOverride":["http","tls"],"routeOnly":false},"settings":{"auth":"noauth","udp":false,"allowTransparent":false}},
 
     {"tag":"api","port":19997,"listen":"127.0.0.1","protocol":"dokodemo-door","settings":{"address":"127.0.0.1"}}
   ],
@@ -213,66 +208,61 @@
     {"tag":"my-01","protocol":"trojan","settings":{"servers":[{"address":"oss-cn-guangzhou.solidigm-qwer.com","method":"chacha20","ota":false,"password":"FA7C8C42-EF0C-5340-5A4D-E5CB93323A08","port":20070,"level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cos.ap-shanghai.myqcloud.com"}},"mux":{"enabled":false,"concurrency":-1}},
     {"tag":"za-01","protocol":"trojan","settings":{"servers":[{"address":"oss-cn-guangzhou.solidigm-qwer.com","method":"chacha20","ota":false,"password":"FA7C8C42-EF0C-5340-5A4D-E5CB93323A08","port":20071,"level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cos.ap-shanghai.myqcloud.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"hkv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14784,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14785,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24787,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-04","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24788,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-05","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46814,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-06","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46815,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-07","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26613,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"hkv2-08","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26614,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"hkv2-01","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12001,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv2-02","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12002,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv2-03","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12003,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv2-04","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12004,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"hkv2-05","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12005,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"twv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14786,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14790,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24789,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-04","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24790,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-05","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46816,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-06","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46817,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-07","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26615,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"twv2-08","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26616,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"twv2-01","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12011,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"twv2-02","protocol":"trojan","settings":{"servers":[{"address":"548a3f1d.sched.sma-dk.ali-oss.cn","port":12012,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"jpv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14791,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14792,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24791,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-04","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24792,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-05","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46818,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-06","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46819,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-07","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26617,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"jpv2-08","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26618,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"jpv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12031,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv2-02","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12032,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv2-03","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12033,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv2-04","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12034,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"jpv2-05","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12035,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"usv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14787,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14793,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24793,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-04","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24794,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-05","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46820,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-06","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46821,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-07","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26619,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"usv2-08","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26620,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"usv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12051,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv2-02","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12052,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv2-03","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12053,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"usv2-04","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12054,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"sgv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14789,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14795,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24795,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-04","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24796,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-05","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46830,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-06","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46831,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-07","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26621,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"sgv2-08","protocol":"shadowsocks","settings":{"servers":[{"address":"sbida.4waf46.cn","port":26622,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"sgv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12021,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv2-02","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12022,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv2-03","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12023,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv2-04","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12024,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+    {"tag":"sgv2-05","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12025,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"krv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14794,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"krv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24797,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"krv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46824,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"krv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12041,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"auv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14796,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"auv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24798,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"auv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":46826,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"cav2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12077,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"ukv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":47830,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"ukv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":47831,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"ukv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":47832,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"ukv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12069,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
-    {"tag":"aqv2-01","protocol":"shadowsocks","settings":{"servers":[{"address":"zsdrhgbet.4waf46.cn","port":14797,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"aqv2-02","protocol":"shadowsocks","settings":{"servers":[{"address":"azyeupwww.4waf46.cn","port":24799,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
-    {"tag":"aqv2-03","protocol":"shadowsocks","settings":{"servers":[{"address":"idsosuo.4waf46.cn","port":13918,"method":"2022-blake3-aes-128-gcm","password":"MjdlZmY4YWIyZDU0OGNkNw==:YzE4NWE0YzEtMmJlNS00MA==","level":1}]},"streamSettings":{"network":"tcp","security":"none"}},
+    {"tag":"idv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12061,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"chv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12062,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"trv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12064,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"phv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12066,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"myv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12067,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"dev2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12070,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"fiv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12071,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"inv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12072,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"ngv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12073,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"nlv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12074,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"ruv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12075,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
+
+    {"tag":"thv2-01","protocol":"trojan","settings":{"servers":[{"address":"1ab9008c.sched.sma-dk.ali-oss.cn","port":12076,"password":"d2390af9-9141-4985-948d-072ce5f38bdc","level":1}]},"streamSettings":{"network":"tcp","security":"tls","tlsSettings":{"allowInsecure":true,"serverName":"cdn.alibaba.com"}},"mux":{"enabled":false,"concurrency":-1}},
 
     {"tag":"direct","protocol":"freedom"},
     {"tag":"block","protocol":"blackhole"}
@@ -351,53 +341,56 @@
       {"type":"field","inboundTag":["hkv2-03-in"],"outboundTag":"hkv2-03"},
       {"type":"field","inboundTag":["hkv2-04-in"],"outboundTag":"hkv2-04"},
       {"type":"field","inboundTag":["hkv2-05-in"],"outboundTag":"hkv2-05"},
-      {"type":"field","inboundTag":["hkv2-06-in"],"outboundTag":"hkv2-06"},
-      {"type":"field","inboundTag":["hkv2-07-in"],"outboundTag":"hkv2-07"},
-      {"type":"field","inboundTag":["hkv2-08-in"],"outboundTag":"hkv2-08"},
+
       {"type":"field","inboundTag":["twv2-01-in"],"outboundTag":"twv2-01"},
       {"type":"field","inboundTag":["twv2-02-in"],"outboundTag":"twv2-02"},
-      {"type":"field","inboundTag":["twv2-03-in"],"outboundTag":"twv2-03"},
-      {"type":"field","inboundTag":["twv2-04-in"],"outboundTag":"twv2-04"},
-      {"type":"field","inboundTag":["twv2-05-in"],"outboundTag":"twv2-05"},
-      {"type":"field","inboundTag":["twv2-06-in"],"outboundTag":"twv2-06"},
-      {"type":"field","inboundTag":["twv2-07-in"],"outboundTag":"twv2-07"},
-      {"type":"field","inboundTag":["twv2-08-in"],"outboundTag":"twv2-08"},
+
       {"type":"field","inboundTag":["jpv2-01-in"],"outboundTag":"jpv2-01"},
       {"type":"field","inboundTag":["jpv2-02-in"],"outboundTag":"jpv2-02"},
       {"type":"field","inboundTag":["jpv2-03-in"],"outboundTag":"jpv2-03"},
       {"type":"field","inboundTag":["jpv2-04-in"],"outboundTag":"jpv2-04"},
       {"type":"field","inboundTag":["jpv2-05-in"],"outboundTag":"jpv2-05"},
-      {"type":"field","inboundTag":["jpv2-06-in"],"outboundTag":"jpv2-06"},
-      {"type":"field","inboundTag":["jpv2-07-in"],"outboundTag":"jpv2-07"},
-      {"type":"field","inboundTag":["jpv2-08-in"],"outboundTag":"jpv2-08"},
+
       {"type":"field","inboundTag":["usv2-01-in"],"outboundTag":"usv2-01"},
       {"type":"field","inboundTag":["usv2-02-in"],"outboundTag":"usv2-02"},
       {"type":"field","inboundTag":["usv2-03-in"],"outboundTag":"usv2-03"},
       {"type":"field","inboundTag":["usv2-04-in"],"outboundTag":"usv2-04"},
-      {"type":"field","inboundTag":["usv2-05-in"],"outboundTag":"usv2-05"},
-      {"type":"field","inboundTag":["usv2-06-in"],"outboundTag":"usv2-06"},
-      {"type":"field","inboundTag":["usv2-07-in"],"outboundTag":"usv2-07"},
-      {"type":"field","inboundTag":["usv2-08-in"],"outboundTag":"usv2-08"},
+
       {"type":"field","inboundTag":["sgv2-01-in"],"outboundTag":"sgv2-01"},
       {"type":"field","inboundTag":["sgv2-02-in"],"outboundTag":"sgv2-02"},
       {"type":"field","inboundTag":["sgv2-03-in"],"outboundTag":"sgv2-03"},
       {"type":"field","inboundTag":["sgv2-04-in"],"outboundTag":"sgv2-04"},
       {"type":"field","inboundTag":["sgv2-05-in"],"outboundTag":"sgv2-05"},
-      {"type":"field","inboundTag":["sgv2-06-in"],"outboundTag":"sgv2-06"},
-      {"type":"field","inboundTag":["sgv2-07-in"],"outboundTag":"sgv2-07"},
-      {"type":"field","inboundTag":["sgv2-08-in"],"outboundTag":"sgv2-08"},
+
       {"type":"field","inboundTag":["krv2-01-in"],"outboundTag":"krv2-01"},
-      {"type":"field","inboundTag":["krv2-02-in"],"outboundTag":"krv2-02"},
-      {"type":"field","inboundTag":["krv2-03-in"],"outboundTag":"krv2-03"},
-      {"type":"field","inboundTag":["auv2-01-in"],"outboundTag":"auv2-01"},
-      {"type":"field","inboundTag":["auv2-02-in"],"outboundTag":"auv2-02"},
-      {"type":"field","inboundTag":["auv2-03-in"],"outboundTag":"auv2-03"},
+
+      {"type":"field","inboundTag":["cav2-01-in"],"outboundTag":"cav2-01"},
+
       {"type":"field","inboundTag":["ukv2-01-in"],"outboundTag":"ukv2-01"},
-      {"type":"field","inboundTag":["ukv2-02-in"],"outboundTag":"ukv2-02"},
-      {"type":"field","inboundTag":["ukv2-03-in"],"outboundTag":"ukv2-03"},
-      {"type":"field","inboundTag":["aqv2-01-in"],"outboundTag":"aqv2-01"},
-      {"type":"field","inboundTag":["aqv2-02-in"],"outboundTag":"aqv2-02"},
-      {"type":"field","inboundTag":["aqv2-03-in"],"outboundTag":"aqv2-03"}
+
+      {"type":"field","inboundTag":["idv2-01-in"],"outboundTag":"idv2-01"},
+
+      {"type":"field","inboundTag":["chv2-01-in"],"outboundTag":"chv2-01"},
+
+      {"type":"field","inboundTag":["trv2-01-in"],"outboundTag":"trv2-01"},
+
+      {"type":"field","inboundTag":["phv2-01-in"],"outboundTag":"phv2-01"},
+
+      {"type":"field","inboundTag":["myv2-01-in"],"outboundTag":"myv2-01"},
+
+      {"type":"field","inboundTag":["dev2-01-in"],"outboundTag":"dev2-01"},
+
+      {"type":"field","inboundTag":["fiv2-01-in"],"outboundTag":"fiv2-01"},
+
+      {"type":"field","inboundTag":["inv2-01-in"],"outboundTag":"inv2-01"},
+
+      {"type":"field","inboundTag":["ngv2-01-in"],"outboundTag":"ngv2-01"},
+
+      {"type":"field","inboundTag":["nlv2-01-in"],"outboundTag":"nlv2-01"},
+
+      {"type":"field","inboundTag":["ruv2-01-in"],"outboundTag":"ruv2-01"},
+
+      {"type":"field","inboundTag":["thv2-01-in"],"outboundTag":"thv2-01"}
     ]
   },
   "metrics": {"tag":"api"},
