@@ -321,7 +321,7 @@ public class NettyManager {
     }
 
     /**
-     * 处理请求错误 - 新增重试逻辑
+     * 处理请求错误 - 修复版：增加完整的异常处理
      */
     private void handleRequestError(Throwable ex, CompletableFuture<HttpResponse> future,
                                     ResponseCallback callback, long requestId, boolean permitAcquired,
@@ -340,27 +340,42 @@ public class NettyManager {
             logging.logToError("[NettyManager] Request #" + requestId + " failed with retryable error: " +
                     ex.getMessage() + ", will retry after " + RETRY_DELAY_MS + "ms");
 
-            // 延迟后重试
-            CompletableFuture.runAsync(() -> {
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                    // 递归调用重试
-                    CompletableFuture<HttpResponse> retryFuture = sendRequestWithRetry(burpRequest, callback, retryCount + 1);
+            // 延迟后重试 - 修复：添加完整的异常处理
+            try {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                        // 递归调用重试
+                        CompletableFuture<HttpResponse> retryFuture = sendRequestWithRetry(burpRequest, callback, retryCount + 1);
 
-                    // 将重试结果转发到原来的future
-                    retryFuture.whenComplete((response, throwable) -> {
-                        if (throwable != null) {
-                            future.completeExceptionally(throwable);
-                        } else {
-                            future.complete(response);
+                        // 将重试结果转发到原来的future
+                        retryFuture.whenComplete((response, throwable) -> {
+                            if (throwable != null) {
+                                future.completeExceptionally(throwable);
+                            } else {
+                                future.complete(response);
+                            }
+                        });
+
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        // 修复：添加完整的回调通知
+                        logging.logToError("[NettyManager] Request #" + requestId + " retry interrupted");
+                        future.completeExceptionally(ie);
+                        if (callback != null) {
+                            safeExecuteCallback(() -> callback.onError(ie));
                         }
-                    });
-
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    future.completeExceptionally(ie);
+                    }
+                }, businessExecutor);
+            } catch (RejectedExecutionException ree) {
+                // 修复：捕获线程池拒绝异常
+                logging.logToError("[NettyManager] Request #" + requestId + " retry task rejected: " + ree.getMessage());
+                failedRequests.incrementAndGet();
+                future.completeExceptionally(ree);
+                if (callback != null) {
+                    safeExecuteCallback(() -> callback.onError(ree));
                 }
-            }, businessExecutor);
+            }
 
             return; // 不执行下面的失败处理逻辑
         }
@@ -379,10 +394,22 @@ public class NettyManager {
 
         future.completeExceptionally(ex);
         if (callback != null) {
+            safeExecuteCallback(() -> callback.onError(ex));
+        }
+    }
+
+    /**
+     * 安全执行回调 - 新增方法：处理线程池关闭情况
+     */
+    private void safeExecuteCallback(Runnable callback) {
+        try {
+            businessExecutor.execute(callback);
+        } catch (RejectedExecutionException e) {
+            // 线程池已关闭或队列已满，直接在当前线程执行
             try {
-                businessExecutor.execute(() -> callback.onError(ex));
-            } catch (RejectedExecutionException e) {
-                // 线程池已关闭，忽略
+                callback.run();
+            } catch (Exception ex) {
+                logging.logToError("[NettyManager] Callback execution error: " + ex.getMessage());
             }
         }
     }
@@ -501,7 +528,7 @@ public class NettyManager {
     }
 
     /**
-     * 处理Channel错误 - 修改增加重试逻辑
+     * 处理Channel错误 - 修复版：增加完整的异常处理
      */
     private void handleChannelError(Channel channel, Throwable cause, ResponseContext context) {
         // 关闭并移除失败的连接
@@ -522,27 +549,44 @@ public class NettyManager {
 
             logging.logToError("[NettyManager] Request #" + context.requestId + " will retry due to channel error");
 
-            // 延迟后重试
-            CompletableFuture.runAsync(() -> {
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                    // 递归调用重试
-                    CompletableFuture<HttpResponse> retryFuture = sendRequestWithRetry(context.originalRequest, context.callback, context.retryCount + 1);
+            // 延迟后重试 - 修复：添加完整的异常处理
+            try {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                        // 递归调用重试
+                        CompletableFuture<HttpResponse> retryFuture = sendRequestWithRetry(
+                                context.originalRequest, context.callback, context.retryCount + 1);
 
-                    // 将重试结果转发到原来的future
-                    retryFuture.whenComplete((response, throwable) -> {
-                        if (throwable != null) {
-                            context.future.completeExceptionally(throwable);
-                        } else {
-                            context.future.complete(response);
+                        // 将重试结果转发到原来的future
+                        retryFuture.whenComplete((response, throwable) -> {
+                            if (throwable != null) {
+                                context.future.completeExceptionally(throwable);
+                            } else {
+                                context.future.complete(response);
+                            }
+                        });
+
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        // 修复：添加完整的回调通知
+                        logging.logToError("[NettyManager] Request #" + context.requestId + " retry interrupted");
+                        context.future.completeExceptionally(ie);
+                        if (context.callback != null) {
+                            safeExecuteCallback(() -> context.callback.onError(ie));
                         }
-                    });
-
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    context.future.completeExceptionally(ie);
+                    }
+                }, businessExecutor);
+            } catch (RejectedExecutionException ree) {
+                // 修复：捕获线程池拒绝异常
+                logging.logToError("[NettyManager] Request #" + context.requestId +
+                        " retry task rejected: " + ree.getMessage());
+                failedRequests.incrementAndGet();
+                context.future.completeExceptionally(ree);
+                if (context.callback != null) {
+                    safeExecuteCallback(() -> context.callback.onError(ree));
                 }
-            }, businessExecutor);
+            }
 
             return; // 不执行下面的失败处理逻辑
         }
@@ -556,11 +600,7 @@ public class NettyManager {
         context.future.completeExceptionally(cause != null ? cause : new RuntimeException("Channel error"));
         if (context.callback != null) {
             final Throwable error = cause != null ? cause : new RuntimeException("Channel error");
-            try {
-                businessExecutor.execute(() -> context.callback.onError(error));
-            } catch (RejectedExecutionException e) {
-                // 线程池已关闭，忽略
-            }
+            safeExecuteCallback(() -> context.callback.onError(error));
         }
     }
 
@@ -618,11 +658,8 @@ public class NettyManager {
 
                 // 调用回调
                 if (context.callback != null) {
-                    try {
-                        businessExecutor.execute(() -> context.callback.onResponse(burpResponse, responseTime));
-                    } catch (RejectedExecutionException e) {
-                        // 线程池已关闭，忽略
-                    }
+                    final long finalResponseTime = responseTime;
+                    safeExecuteCallback(() -> context.callback.onResponse(burpResponse, finalResponseTime));
                 }
 
             } finally {
@@ -858,6 +895,7 @@ public class NettyManager {
             shutdownLatch.countDown();
         }
     }
+
     /**
      * 关闭监控线程池
      */
