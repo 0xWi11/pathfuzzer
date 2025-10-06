@@ -138,6 +138,7 @@ public class ParamCollector {
     public ParamCollector(Logging logging) {
         this.logging = logging;
         initializeFile();
+        initializeDefaultParams();
     }
 
     /**
@@ -162,7 +163,32 @@ public class ParamCollector {
             logging.logToError("[ParamCollector] Failed to initialize file: " + e.getMessage());
         }
     }
+    /**
+     * 初始化默认参数
+     */
+    private void initializeDefaultParams() {
+        lock.writeLock().lock();
+        try {
+            // 默认参数定义
+            Map<String, String> defaults = new LinkedHashMap<>();
+            defaults.put("size", "88");
+            defaults.put("page", "1");
+            defaults.put("currentPage", "1");
+            defaults.put("pageSize", "88");
 
+            for (Map.Entry<String, String> entry : defaults.entrySet()) {
+                // 固定 position=post-json, type=number
+                ParamEntry param = new ParamEntry("post-json", "number", entry.getKey(), entry.getValue());
+                paramMap.put(entry.getKey(), param);
+            }
+
+            // 写入文件保存
+            writeToFile();
+//            logging.logToOutput("[ParamCollector] Initialized with default params: " + defaults.keySet());
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
     /**
      * 生成随机哈希
      */
