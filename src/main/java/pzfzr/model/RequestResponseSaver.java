@@ -321,6 +321,9 @@ public class RequestResponseSaver {
             if (response.contains("/bin/sh", false)) {
                 detectedTypes.add("LFI");
             }
+            if (response.contains("Message too large to display", false)) {
+                detectedTypes.add("Large");
+            }
             if (response.contains("chaxx123'\">", false)) {
                 detectedTypes.add("RXSS");
             }
