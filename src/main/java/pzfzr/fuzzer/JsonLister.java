@@ -401,7 +401,6 @@ public class JsonLister {
 
                 variants.addAll(generatePathIdSlashSuffixVariants(originalPath, pathId, idStr));
                 variants.addAll(generatePathIdCommaVariants(originalPath, pathId, idStr));
-                variants.add(createPathVariantWithQuery(originalPath, pathId, idStr, "/?size=88", "/?size=88"));
                 variants.addAll(generatePathIdHashVariants(originalPath, pathId, idStr));
 
                 if (originalId > 4) {
