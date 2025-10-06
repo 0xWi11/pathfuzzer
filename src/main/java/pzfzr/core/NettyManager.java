@@ -8,6 +8,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.proxy.HttpProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -35,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * NettyManager - 修改版支持可配置端口
+ * NettyManager - 修改版支持可配置端口和响应大小限制
  */
 public class NettyManager {
     private static volatile NettyManager instance;
@@ -72,6 +73,7 @@ public class NettyManager {
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_SEC = 120;
     private static final int WRITE_TIMEOUT_SEC = 60;
+    private static final int MAX_RESPONSE_SIZE = 30 * 1024 * 1024; // 30MB 响应大小限制
 
     // 重试配置
     private static final int MAX_RETRY_COUNT = 2; // 最大重试次数
@@ -82,6 +84,7 @@ public class NettyManager {
     private final AtomicLong successRequests = new AtomicLong(0);
     private final AtomicLong failedRequests = new AtomicLong(0);
     private final AtomicLong retryRequests = new AtomicLong(0); // 重试请求统计
+    private final AtomicLong oversizedResponses = new AtomicLong(0); // 超大响应统计
     private final AtomicLong connectionCreated = new AtomicLong(0);
     private final AtomicLong connectionReused = new AtomicLong(0);
     private final AtomicLong connectionClosed = new AtomicLong(0);
@@ -149,6 +152,7 @@ public class NettyManager {
         logging.logToOutput("[NettyManager] Initialization complete, EventLoop threads: " +
                 ((NioEventLoopGroup)eventLoopGroup).executorCount() +
                 ", Proxy: " + PROXY_HOST + ":" + PROXY_PORT +
+                ", Max response size: " + (MAX_RESPONSE_SIZE / 1024 / 1024) + "MB" +
                 ", Plugin: " + configManager.getPluginName());
     }
 
@@ -164,7 +168,7 @@ public class NettyManager {
 
             if (DEBUG) {
                 logging.logToOutput(String.format(
-                        "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, Retry: %d, " +
+                        "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, Retry: %d, Oversized: %d, " +
                                 "Connections - Created: %d, Reused: %d, Closed: %d, Pools: %d",
                         requestSemaphore.availablePermits(), 300,
                         activeRequests.get(),
@@ -172,6 +176,7 @@ public class NettyManager {
                         successRequests.get(),
                         failedRequests.get(),
                         retryRequests.get(),
+                        oversizedResponses.get(),
                         connectionCreated.get(),
                         connectionReused.get(),
                         connectionClosed.get(),
@@ -468,7 +473,7 @@ public class NettyManager {
 
                 // HTTP编解码
                 p.addLast("codec", new HttpClientCodec());
-                p.addLast("aggregator", new HttpObjectAggregator(30 * 1024 * 1024));// 30MB
+                p.addLast("aggregator", new HttpObjectAggregator(MAX_RESPONSE_SIZE));
 
                 // 响应处理
                 p.addLast("handler", new ResponseChannelHandler());
@@ -605,7 +610,26 @@ public class NettyManager {
     }
 
     /**
-     * 响应处理器
+     * 创建超大响应的替代响应
+     */
+    private HttpResponse createOversizedResponse(boolean isHttps) {
+        String errorMessage = "Message too large to display (response exceeds " +
+                (MAX_RESPONSE_SIZE / 1024 / 1024) + "MB limit)";
+
+        StringBuilder responseBuilder = new StringBuilder();
+        responseBuilder.append("HTTP/1.1 200 OK\r\n");
+        responseBuilder.append("Content-Type: text/plain; charset=UTF-8\r\n");
+        responseBuilder.append("Content-Length: ").append(errorMessage.length()).append("\r\n");
+        responseBuilder.append("Connection: close\r\n");
+        responseBuilder.append("\r\n");
+        responseBuilder.append(errorMessage);
+
+        byte[] responseBytes = responseBuilder.toString().getBytes(StandardCharsets.UTF_8);
+        return HttpResponse.httpResponse(ByteArray.byteArray(responseBytes));
+    }
+
+    /**
+     * 响应处理器 - 添加响应大小检查
      */
     private class ResponseChannelHandler extends SimpleChannelInboundHandler<FullHttpResponse> {
         @Override
@@ -671,11 +695,67 @@ public class NettyManager {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             ResponseContext context = ctx.channel().attr(AttributeKey.<ResponseContext>valueOf("context")).get();
 
+            // 检查是否为响应过大异常
+            if (cause instanceof TooLongFrameException) {
+                if (context != null) {
+                    handleOversizedResponse(ctx.channel(), context);
+                } else {
+                    logging.logToError("[NettyManager] Response too large but context is null");
+                    ctx.close();
+                }
+                return;
+            }
+
             if (context != null) {
                 handleChannelError(ctx.channel(), cause, context);
             } else {
                 ctx.close();
             }
+        }
+    }
+
+    /**
+     * 处理超大响应 - 新增方法
+     */
+    private void handleOversizedResponse(Channel channel, ResponseContext context) {
+        try {
+            long responseTime = (System.nanoTime() - context.startTime) / 1_000_000;
+
+            oversizedResponses.incrementAndGet();
+
+            logging.logToOutput("[NettyManager] Request #" + context.requestId +
+                    " response exceeds size limit, returning placeholder response");
+
+            // 从channelInfoMap获取isHttps信息
+            ChannelInfo channelInfo = channelInfoMap.get(channel);
+            boolean isHttps = channelInfo != null ? channelInfo.isHttps : false;
+
+            // 创建替代响应
+            HttpResponse burpResponse = createOversizedResponse(isHttps);
+
+            // 释放资源
+            requestSemaphore.release();
+            acquiredPermits.decrementAndGet();
+            activeRequests.decrementAndGet();
+            successRequests.incrementAndGet();
+
+            // 关闭连接（超大响应不复用连接）
+            channel.close();
+            channelInfoMap.remove(channel);
+            connectionClosed.incrementAndGet();
+
+            // 完成Future
+            context.future.complete(burpResponse);
+
+            // 调用回调
+            if (context.callback != null) {
+                final long finalResponseTime = responseTime;
+                safeExecuteCallback(() -> context.callback.onResponse(burpResponse, finalResponseTime));
+            }
+
+        } catch (Exception e) {
+            logging.logToError("[NettyManager] Error handling oversized response: " + e.getMessage());
+            handleChannelError(channel, e, context);
         }
     }
 
@@ -886,8 +966,9 @@ public class NettyManager {
             // 第五步：关闭业务线程池
             shutdownBusinessExecutor();
 
-            logging.logToOutput(String.format("[NettyManager] %s shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d",
-                    configManager.getPluginName(), totalRequests.get(), successRequests.get(), failedRequests.get(), retryRequests.get()));
+            logging.logToOutput(String.format("[NettyManager] %s shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d, Oversized: %d",
+                    configManager.getPluginName(), totalRequests.get(), successRequests.get(),
+                    failedRequests.get(), retryRequests.get(), oversizedResponses.get()));
 
         } catch (Exception e) {
             logging.logToError("[NettyManager] Error occurred during shutdown: " + e.getMessage());
