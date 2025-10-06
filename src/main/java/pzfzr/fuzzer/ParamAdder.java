@@ -278,8 +278,8 @@ public class ParamAdder {
                 String payloadAlias = String.format("POST-batch-%d", batchIndex + 1);
                 sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
 
-                logging.logToOutput(String.format("[ParamAdder] Sent POST batch %d/%d with %d parameters",
-                        batchIndex + 1, batchCount, batchParams.size()));
+//                logging.logToOutput(String.format("[ParamAdder] Sent POST batch %d/%d with %d parameters",
+//                        batchIndex + 1, batchCount, batchParams.size()));
             }
 
         } catch (Exception e) {
@@ -307,13 +307,13 @@ public class ParamAdder {
 
             // 如果根节点是数组,不处理
             if (rootNode.isArray()) {
-                logging.logToOutput("[ParamAdder] Root node is array, skipping JSON parameter addition");
+//                logging.logToOutput("[ParamAdder] Root node is array, skipping JSON parameter addition");
                 return;
             }
 
             // 如果根节点不是对象,不处理
             if (!rootNode.isObject()) {
-                logging.logToOutput("[ParamAdder] Root node is not object, skipping JSON parameter addition");
+//                logging.logToOutput("[ParamAdder] Root node is not object, skipping JSON parameter addition");
                 return;
             }
 
@@ -321,11 +321,11 @@ public class ParamAdder {
             List<JsonObjectLocation> objectLocations = findAllObjectLocations(rootNode);
 
             if (objectLocations.isEmpty()) {
-                logging.logToOutput("[ParamAdder] No valid object locations found in JSON");
+//                logging.logToOutput("[ParamAdder] No valid object locations found in JSON");
                 return;
             }
 
-            logging.logToOutput(String.format("[ParamAdder] Found %d object locations in JSON", objectLocations.size()));
+//            logging.logToOutput(String.format("[ParamAdder] Found %d object locations in JSON", objectLocations.size()));
 
             // 计算批次数
             int totalParams = paramList.size();
@@ -366,8 +366,8 @@ public class ParamAdder {
                         String payloadAlias = String.format("JSON-batch-%d", batchIndex + 1);
                         sendTestRequest(modifiedRequest, messageId, host, "", payloadAlias);
 
-                        logging.logToOutput(String.format("[ParamAdder] Sent JSON batch %d/%d to location %s with %d parameters",
-                                batchIndex + 1, batchCount, location.getPathString(), batchParams.size()));
+//                        logging.logToOutput(String.format("[ParamAdder] Sent JSON batch %d/%d to location %s with %d parameters",
+//                                batchIndex + 1, batchCount, location.getPathString(), batchParams.size()));
                     }
                 }
             }

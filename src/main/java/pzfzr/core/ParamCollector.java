@@ -333,6 +333,11 @@ public class ParamCollector {
      * 添加参数（线程安全）
      */
     private void addParam(String position, String type, String key, String value) {
+        // 如果参数名包含小数点，则跳过
+        if (key != null && key.contains(".")) {
+            return;
+        }
+
         // 检查值长度
         if (value != null && value.length() > MAX_VALUE_LENGTH) {
             return;
