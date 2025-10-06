@@ -222,7 +222,7 @@ public class TableModel extends AbstractTableModel {
             STATUS_COLORS.put(403, new Color(255, 182, 167)); // #FFB6A7 偏橙红，淡化但和404区分
             STATUS_COLORS.put(404, new Color(255, 200, 209)); // #FFC8D1 偏粉红，亮度+25%，更柔和
             STATUS_COLORS.put(405, new Color(255, 204, 204)); // #FFCCCC 浅红粉，柔和，和404/406保持差异
-            STATUS_COLORS.put(406, new Color(255, 179, 179));
+            STATUS_COLORS.put(406, new Color(255, 135, 189));
             STATUS_COLORS.put(409, new Color(255, 182, 193)); // #FFB6C1 浅粉红（比 404 稍淡）
             STATUS_COLORS.put(410, new Color(255, 160, 122)); // #FFA07A 浅鲑鱼色
             STATUS_COLORS.put(422, new Color(255, 188, 217)); // #FFBCD9 淡紫红
