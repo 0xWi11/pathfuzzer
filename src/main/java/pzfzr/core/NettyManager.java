@@ -239,9 +239,11 @@ public class NettyManager {
 
         long requestId = totalRequests.incrementAndGet();
 
-        if (DEBUG || retryCount > 0) {
-            logging.logToError("[NettyManager] Request #" + requestId + " starting" +
-                    (retryCount > 0 ? " (retry " + retryCount + ")" : "") + ", URL: " + burpRequest.url());
+        // 修改：只在DEBUG模式或首次请求时记录到output，重试时不记录error
+        if (DEBUG && retryCount == 0) {
+            logging.logToOutput("[NettyManager] Request #" + requestId + " starting, URL: " + burpRequest.url());
+        } else if (DEBUG && retryCount > 0) {
+            logging.logToOutput("[NettyManager] Request #" + requestId + " retry " + retryCount + ", URL: " + burpRequest.url());
         }
 
         // 异步处理
@@ -326,7 +328,7 @@ public class NettyManager {
     }
 
     /**
-     * 处理请求错误 - 修复版：增加完整的异常处理
+     * 处理请求错误 - 修改：重试过程中不记录error log
      */
     private void handleRequestError(Throwable ex, CompletableFuture<HttpResponse> future,
                                     ResponseCallback callback, long requestId, boolean permitAcquired,
@@ -342,10 +344,13 @@ public class NettyManager {
             activeRequests.decrementAndGet();
             retryRequests.incrementAndGet();
 
-            logging.logToError("[NettyManager] Request #" + requestId + " failed with retryable error: " +
-                    ex.getMessage() + ", will retry after " + RETRY_DELAY_MS + "ms");
+            // 修改：重试信息记录到output而不是error
+            if (DEBUG) {
+                logging.logToOutput("[NettyManager] Request #" + requestId + " encountered retryable error: " +
+                        ex.getMessage() + ", will retry after " + RETRY_DELAY_MS + "ms");
+            }
 
-            // 延迟后重试 - 修复：添加完整的异常处理
+            // 延迟后重试
             try {
                 CompletableFuture.runAsync(() -> {
                     try {
@@ -364,8 +369,10 @@ public class NettyManager {
 
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        // 修复：添加完整的回调通知
-                        logging.logToError("[NettyManager] Request #" + requestId + " retry interrupted");
+                        // 中断也记录到output
+                        if (DEBUG) {
+                            logging.logToOutput("[NettyManager] Request #" + requestId + " retry interrupted");
+                        }
                         future.completeExceptionally(ie);
                         if (callback != null) {
                             safeExecuteCallback(() -> callback.onError(ie));
@@ -373,7 +380,7 @@ public class NettyManager {
                     }
                 }, businessExecutor);
             } catch (RejectedExecutionException ree) {
-                // 修复：捕获线程池拒绝异常
+                // 修改：只有最终失败才记录error
                 logging.logToError("[NettyManager] Request #" + requestId + " retry task rejected: " + ree.getMessage());
                 failedRequests.incrementAndGet();
                 future.completeExceptionally(ree);
@@ -385,7 +392,7 @@ public class NettyManager {
             return; // 不执行下面的失败处理逻辑
         }
 
-        // 不可重试或重试次数已达上限，执行原来的错误处理逻辑
+        // 修改：只有最终失败才记录error log
         if (permitAcquired) {
             requestSemaphore.release();
             acquiredPermits.decrementAndGet();
@@ -404,7 +411,7 @@ public class NettyManager {
     }
 
     /**
-     * 安全执行回调 - 新增方法：处理线程池关闭情况
+     * 安全执行回调 - 新增方法:处理线程池关闭情况
      */
     private void safeExecuteCallback(Runnable callback) {
         try {
@@ -533,7 +540,7 @@ public class NettyManager {
     }
 
     /**
-     * 处理Channel错误 - 修复版：增加完整的异常处理
+     * 处理Channel错误 - 修改：重试过程中不记录error log
      */
     private void handleChannelError(Channel channel, Throwable cause, ResponseContext context) {
         // 关闭并移除失败的连接
@@ -541,8 +548,11 @@ public class NettyManager {
         channelInfoMap.remove(channel);
         connectionClosed.incrementAndGet();
 
-        logging.logToError("[NettyManager] Request #" + context.requestId + " channel error: " +
-                (cause != null ? cause.getMessage() : "unknown error"));
+        // 修改：只在DEBUG模式记录channel错误详情
+        if (DEBUG) {
+            logging.logToOutput("[NettyManager] Request #" + context.requestId + " channel error: " +
+                    (cause != null ? cause.getMessage() : "unknown error"));
+        }
 
         // 检查是否可以重试
         if (context.retryCount < MAX_RETRY_COUNT && isRetryableError(cause) && !isShutdown.get()) {
@@ -552,9 +562,12 @@ public class NettyManager {
             activeRequests.decrementAndGet();
             retryRequests.incrementAndGet();
 
-            logging.logToError("[NettyManager] Request #" + context.requestId + " will retry due to channel error");
+            // 修改：重试信息记录到output
+            if (DEBUG) {
+                logging.logToOutput("[NettyManager] Request #" + context.requestId + " will retry due to channel error");
+            }
 
-            // 延迟后重试 - 修复：添加完整的异常处理
+            // 延迟后重试
             try {
                 CompletableFuture.runAsync(() -> {
                     try {
@@ -574,8 +587,9 @@ public class NettyManager {
 
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        // 修复：添加完整的回调通知
-                        logging.logToError("[NettyManager] Request #" + context.requestId + " retry interrupted");
+                        if (DEBUG) {
+                            logging.logToOutput("[NettyManager] Request #" + context.requestId + " retry interrupted");
+                        }
                         context.future.completeExceptionally(ie);
                         if (context.callback != null) {
                             safeExecuteCallback(() -> context.callback.onError(ie));
@@ -583,7 +597,7 @@ public class NettyManager {
                     }
                 }, businessExecutor);
             } catch (RejectedExecutionException ree) {
-                // 修复：捕获线程池拒绝异常
+                // 修改：只有最终失败才记录error
                 logging.logToError("[NettyManager] Request #" + context.requestId +
                         " retry task rejected: " + ree.getMessage());
                 failedRequests.incrementAndGet();
@@ -596,11 +610,16 @@ public class NettyManager {
             return; // 不执行下面的失败处理逻辑
         }
 
-        // 不可重试或重试次数已达上限
+        // 修改：只有最终失败才记录error log
         requestSemaphore.release();
         acquiredPermits.decrementAndGet();
         activeRequests.decrementAndGet();
         failedRequests.incrementAndGet();
+
+        String errorMsg = "[NettyManager] Request #" + context.requestId + " failed" +
+                (context.retryCount > 0 ? " after " + context.retryCount + " retries" : "") +
+                ": " + (cause != null ? cause.getMessage() : "unknown error");
+        logging.logToError(errorMsg);
 
         context.future.completeExceptionally(cause != null ? cause : new RuntimeException("Channel error"));
         if (context.callback != null) {
