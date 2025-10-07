@@ -318,7 +318,7 @@ public class RequestResponseSaver {
         List<String> detectedTypes = new ArrayList<>();
 
         try {
-            if (response.contains("9768", false)) {
+            if (response.contains("73504", false) || response.contains("91889188918891889188918891889188", false)) {
                 detectedTypes.add("SSTI");
             }
             if (response.contains("/bin/sh", false)) {
