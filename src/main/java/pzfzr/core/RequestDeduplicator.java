@@ -44,10 +44,10 @@ public class RequestDeduplicator {
                 requestHashes.remove(requestHash); // 如果过期则移除，允许再次测试
                 return false; // 不跳过，允许本次请求
             }
-            return true; // 跳过，请求在30分钟内已测试过
+            return true; // 跳过，请求在XX分钟内已测试过
         } else {
-            // 添加新的哈希值，并设置过期时间为30分钟后
-            requestHashes.put(requestHash, Instant.now().plusSeconds(600 * 60).toEpochMilli());
+            // 添加新的哈希值，并设置过期时间为XX分钟后
+            requestHashes.put(requestHash, Instant.now().plusSeconds(6 * 24 * 60).toEpochMilli()); // 6天
             return false; // 不跳过，允许本次请求
         }
     }
