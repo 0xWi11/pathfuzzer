@@ -81,9 +81,9 @@ public class NettyManager {
     private static final int MAX_RESPONSE_SIZE = 30 * 1024 * 1024; // 30MB 响应大小限制
 
     // 超时配置（新增）
-    private static final long OVERALL_REQUEST_TIMEOUT_MS = 180000; // 整体请求超时：3分钟
-    private static final long SSL_HANDSHAKE_TIMEOUT_MS = 30000; // SSL握手超时：30秒
-    private static final long TOTAL_RETRY_TIMEOUT_MS = 300000; // 包含所有重试的总超时：5分钟
+    private static final long OVERALL_REQUEST_TIMEOUT_MS = 300000; // 整体请求超时：5分钟
+    private static final long SSL_HANDSHAKE_TIMEOUT_MS = 60000; // SSL握手超时：60秒
+    private static final long TOTAL_RETRY_TIMEOUT_MS = 600000; // 包含所有重试的总超时：10分钟
 
     // 重试配置
     private static final int MAX_RETRY_COUNT = 4; // 最大重试次数（修改为4，总共尝试5次）
