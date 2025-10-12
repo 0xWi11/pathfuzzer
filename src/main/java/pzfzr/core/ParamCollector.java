@@ -52,18 +52,21 @@ public class ParamCollector {
      * 参数条目
      */
     public static class ParamEntry {
+        private final String url;
         private final String position;
         private final String type;
         private final String key;
         private String value;
 
-        public ParamEntry(String position, String type, String key, String value) {
+        public ParamEntry(String url, String position, String type, String key, String value) {
+            this.url = url;
             this.position = position;
             this.type = type;
             this.key = key;
             this.value = value;
         }
 
+        public String getUrl() { return url; }
         public String getPosition() { return position; }
         public String getType() { return type; }
         public String getKey() { return key; }
@@ -71,12 +74,13 @@ public class ParamCollector {
         public void setValue(String value) { this.value = value; }
 
         /**
-         * 转换为存储格式：position,type,key=value
+         * 转换为存储格式：url,position,type,key=value
          * 对value进行转义，将特殊字符转换为可见标记
          */
         public String toStorageFormat() {
             String escapedValue = escapeSpecialChars(value);
-            return String.format("%s,%s,%s=%s", position, type, key, escapedValue);
+            String escapedUrl = escapeSpecialChars(url);
+            return String.format("%s,%s,%s,%s=%s", escapedUrl, position, type, key, escapedValue);
         }
 
         /**
@@ -88,24 +92,27 @@ public class ParamCollector {
                 throw new IllegalArgumentException("Empty line");
             }
 
-            // 解析格式：position,type,key=value
+            // 解析格式：url,position,type,key=value
             int firstComma = line.indexOf(',');
             int secondComma = line.indexOf(',', firstComma + 1);
-            int equalSign = line.indexOf('=', secondComma + 1);
+            int thirdComma = line.indexOf(',', secondComma + 1);
+            int equalSign = line.indexOf('=', thirdComma + 1);
 
-            if (firstComma == -1 || secondComma == -1 || equalSign == -1) {
+            if (firstComma == -1 || secondComma == -1 || thirdComma == -1 || equalSign == -1) {
                 throw new IllegalArgumentException("Invalid format: " + line);
             }
 
-            String position = line.substring(0, firstComma);
-            String type = line.substring(firstComma + 1, secondComma);
-            String key = line.substring(secondComma + 1, equalSign);
+            String escapedUrl = line.substring(0, firstComma);
+            String position = line.substring(firstComma + 1, secondComma);
+            String type = line.substring(secondComma + 1, thirdComma);
+            String key = line.substring(thirdComma + 1, equalSign);
             String escapedValue = line.substring(equalSign + 1);
 
-            // 反转义value
+            // 反转义url和value
+            String url = unescapeSpecialChars(escapedUrl);
             String value = unescapeSpecialChars(escapedValue);
 
-            return new ParamEntry(position, type, key, value);
+            return new ParamEntry(url, position, type, key, value);
         }
 
         /**
@@ -119,7 +126,8 @@ public class ParamCollector {
                     .replace("\r\n", "[EOL]")  // Windows换行
                     .replace("\n", "[EOL]")     // Unix换行
                     .replace("\r", "[EOL]")     // Mac换行
-                    .replace("\t", "[TAB]");    // 制表符
+                    .replace("\t", "[TAB]")     // 制表符
+                    .replace(",", "[COMMA]");   // 逗号（新增，避免与分隔符冲突）
         }
 
         /**
@@ -131,7 +139,8 @@ public class ParamCollector {
             }
             return input
                     .replace("[EOL]", "\n")     // 统一还原为\n
-                    .replace("[TAB]", "\t");    // 还原制表符
+                    .replace("[TAB]", "\t")     // 还原制表符
+                    .replace("[COMMA]", ",");   // 还原逗号
         }
     }
 
@@ -163,6 +172,7 @@ public class ParamCollector {
             logging.logToError("[ParamCollector] Failed to initialize file: " + e.getMessage());
         }
     }
+
     /**
      * 初始化默认参数
      */
@@ -178,8 +188,8 @@ public class ParamCollector {
             defaults.put("limit", "null");
 
             for (Map.Entry<String, String> entry : defaults.entrySet()) {
-                // 固定 position=post-json, type=number
-                ParamEntry param = new ParamEntry("post-json", "number", entry.getKey(), entry.getValue());
+                // 固定 url=default, position=post-json, type=number
+                ParamEntry param = new ParamEntry("default", "post-json", "number", entry.getKey(), entry.getValue());
                 paramMap.put(entry.getKey(), param);
             }
 
@@ -190,6 +200,7 @@ public class ParamCollector {
             lock.writeLock().unlock();
         }
     }
+
     /**
      * 生成随机哈希
      */
@@ -216,11 +227,19 @@ public class ParamCollector {
 
             for (HttpRequestResponse reqRes : requestResponses) {
                 try {
+                    // 获取 URL
+                    String url = "";
+                    try {
+                        url = reqRes.request().url();
+                    } catch (Exception e) {
+                        logging.logToError("[ParamCollector] Failed to get URL: " + e.getMessage());
+                    }
+
                     if (reqRes.request() != null) {
-                        collectFromRequest(reqRes.request());
+                        collectFromRequest(reqRes.request(), url);
                     }
                     if (reqRes.hasResponse() && reqRes.response() != null) {
-                        collectFromResponse(reqRes.response());
+                        collectFromResponse(reqRes.response(), url);
                     }
                 } catch (Exception e) {
                     logging.logToError("[ParamCollector] Error collecting from request: " + e.getMessage());
@@ -247,19 +266,19 @@ public class ParamCollector {
     /**
      * 从请求中收集参数
      */
-    private void collectFromRequest(HttpRequest request) {
+    private void collectFromRequest(HttpRequest request, String url) {
         // 收集 GET 参数
         for (HttpParameter param : request.parameters()) {
             if (param.type() == HttpParameterType.URL) {
                 String type = isNumeric(param.value()) ? "number" : "string";
-                addParam("get", type, param.name(), param.value());
+                addParam(url, "get", type, param.name(), param.value());
             }
         }
 
         // 收集 COOKIE 参数
         for (HttpParameter param : request.parameters()) {
             if (param.type() == HttpParameterType.COOKIE) {
-                addParam("cookie", "string", param.name(), param.value());
+                addParam(url, "cookie", "string", param.name(), param.value());
             }
         }
 
@@ -270,7 +289,7 @@ public class ParamCollector {
                 for (HttpParameter param : request.parameters()) {
                     if (param.type() == HttpParameterType.BODY) {
                         String type = isNumeric(param.value()) ? "number" : "string";
-                        addParam("post", type, param.name(), param.value());
+                        addParam(url, "post", type, param.name(), param.value());
                     }
                 }
             } else if (contentType.toLowerCase().contains("application/json")) {
@@ -279,7 +298,7 @@ public class ParamCollector {
                     String body = request.bodyToString();
                     if (body != null && !body.trim().isEmpty()) {
                         JsonNode rootNode = objectMapper.readTree(body);
-                        collectFromJsonNode(rootNode, "post-json");
+                        collectFromJsonNode(rootNode, "post-json", url);
                     }
                 } catch (Exception e) {
                     logging.logToError("[ParamCollector] JSON parse error in request: " + e.getMessage());
@@ -291,14 +310,14 @@ public class ParamCollector {
     /**
      * 从响应中收集参数
      */
-    private void collectFromResponse(HttpResponse response) {
+    private void collectFromResponse(HttpResponse response, String url) {
         String contentType = response.headerValue("Content-Type");
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
             try {
                 String body = response.bodyToString();
                 if (body != null && !body.trim().isEmpty()) {
                     JsonNode rootNode = objectMapper.readTree(body);
-                    collectFromJsonNode(rootNode, "resp-json");
+                    collectFromJsonNode(rootNode, "resp-json", url);
                 }
             } catch (Exception e) {
                 logging.logToError("[ParamCollector] JSON parse error in response: " + e.getMessage());
@@ -309,7 +328,7 @@ public class ParamCollector {
     /**
      * 从 JSON 节点递归收集参数
      */
-    private void collectFromJsonNode(JsonNode node, String position) {
+    private void collectFromJsonNode(JsonNode node, String position, String url) {
         if (node.isObject()) {
             Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
             while (fields.hasNext()) {
@@ -319,15 +338,15 @@ public class ParamCollector {
 
                 if (value.isObject() || value.isArray()) {
                     // 递归处理嵌套结构
-                    collectFromJsonNode(value, position);
+                    collectFromJsonNode(value, position, url);
                 } else {
                     // 叶子节点，收集参数
-                    collectLeafNode(key, value, position);
+                    collectLeafNode(key, value, position, url);
                 }
             }
         } else if (node.isArray()) {
             for (JsonNode element : node) {
-                collectFromJsonNode(element, position);
+                collectFromJsonNode(element, position, url);
             }
         }
     }
@@ -335,7 +354,7 @@ public class ParamCollector {
     /**
      * 收集叶子节点
      */
-    private void collectLeafNode(String key, JsonNode value, String position) {
+    private void collectLeafNode(String key, JsonNode value, String position, String url) {
         String type;
         String valueStr;
 
@@ -353,13 +372,13 @@ public class ParamCollector {
             valueStr = value.asText();
         }
 
-        addParam(position, type, key, valueStr);
+        addParam(url, position, type, key, valueStr);
     }
 
     /**
      * 添加参数（线程安全）
      */
-    private void addParam(String position, String type, String key, String value) {
+    private void addParam(String url, String position, String type, String key, String value) {
         // 如果参数名包含小数点，则跳过
         if (key != null && key.contains(".")) {
             return;
@@ -375,9 +394,14 @@ public class ParamCollector {
             value = "";
         }
 
+        // 处理空URL
+        if (url == null) {
+            url = "";
+        }
+
         lock.writeLock().lock();
         try {
-            ParamEntry entry = new ParamEntry(position, type, key, value);
+            ParamEntry entry = new ParamEntry(url, position, type, key, value);
             paramMap.put(key, entry); // 如果key已存在，会被覆盖（保留最新值）
         } finally {
             lock.writeLock().unlock();

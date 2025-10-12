@@ -60,7 +60,7 @@ public class ParamCollectorPanel extends JPanel {
         textArea.setWrapStyleWord(false);
 
         JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Parameters (Format: position,type,key=value)"));
+        scrollPane.setBorder(BorderFactory.createTitledBorder("Parameters (Format: url,position,type,key=value)"));
 
         add(scrollPane, BorderLayout.CENTER);
 
@@ -75,9 +75,10 @@ public class ParamCollectorPanel extends JPanel {
 
         // 说明信息
         JTextArea infoArea = new JTextArea(
-                "Position: get, post, post-json, resp-json, cookie | " +
+                "Format: url,position,type,key=value | " +
+                        "Position: get, post, post-json, resp-json, cookie | " +
                         "Type: string, number, boolean, null | " +
-                        "Example: post-json,number,id=55"
+                        "Example: https://example.com/api,post-json,number,id=55"
         );
         infoArea.setEditable(false);
         infoArea.setBackground(getBackground());
