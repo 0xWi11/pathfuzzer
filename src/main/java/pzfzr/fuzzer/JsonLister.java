@@ -370,33 +370,33 @@ public class JsonLister {
 
                 // 修改：空格变体在路径中使用+编码，添加原始ID的变体
                 // 新增：原始ID的空格变体
-                variants.add(createPathVariant(originalPath, pathId, originalId + "+", originalId + "+"));
-                variants.add(createPathVariant(originalPath, pathId, "+" + originalId, "+" + originalId));
+                variants.add(createPathVariant(originalPath, pathId, originalId + "+", "orig+"));
+                variants.add(createPathVariant(originalPath, pathId, "+" + originalId, "+orig"));
 
                 if (originalId > 4) {
-                    variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "+", (originalId - 4) + "+"));
-                    variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 4), "+" + (originalId - 4)));
+                    variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "+", "orig-4+"));
+                    variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 4), "+orig-4"));
                 }
                 if (originalId > 10) {
-                    variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "+", (originalId - 10) + "+"));
-                    variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 10), "+" + (originalId - 10)));
+                    variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "+", "orig-10+"));
+                    variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 10), "+orig-10"));
                 }
                 if (originalId > 100) {
-                    variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "+", (originalId - 100) + "+"));
-                    variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 100), "+" + (originalId - 100)));
+                    variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "+", "orig-100+"));
+                    variants.add(createPathVariant(originalPath, pathId, "+" + (originalId - 100), "+orig-100"));
                 }
 
                 // 新增：原始ID的Unicode CRLF变体
-                variants.add(createPathVariant(originalPath, pathId, originalId + "%5cu000D%5cu000A", originalId + "%5cu000D%5cu000A"));
+                variants.add(createPathVariant(originalPath, pathId, originalId + "%5cu000D%5cu000A", "orig%5cu000D%5cu000A"));
 
                 if (originalId > 4) {
-                    variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "%5cu000D%5cu000A", (originalId - 4) + "%5cu000D%5cu000A"));
+                    variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "%5cu000D%5cu000A", "orig-4%5cu000D%5cu000A"));
                 }
                 if (originalId > 10) {
-                    variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "%5cu000D%5cu000A", (originalId - 10) + "%5cu000D%5cu000A"));
+                    variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "%5cu000D%5cu000A", "orig-10%5cu000D%5cu000A"));
                 }
                 if (originalId > 100) {
-                    variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "%5cu000D%5cu000A", (originalId - 100) + "%5cu000D%5cu000A"));
+                    variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "%5cu000D%5cu000A", "orig-100%5cu000D%5cu000A"));
                 }
 
                 variants.addAll(generatePathIdSlashSuffixVariants(originalPath, pathId, idStr));
@@ -430,30 +430,30 @@ public class JsonLister {
         List<PathIdVariant> variants = new ArrayList<>();
         try {
             long originalId = Long.parseLong(idStr);
-            variants.add(createPathVariant(originalPath, pathId, originalId + ".json", originalId + ".json"));
+            variants.add(createPathVariant(originalPath, pathId, originalId + ".json", "orig.json"));
             if (originalId > 4) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + ".json", (originalId - 4) + ".json"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + ".json", "orig-4.json"));
             }
             if (originalId > 10) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + ".json", (originalId - 10) + ".json"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + ".json", "orig-10.json"));
             }
             if (originalId > 100) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + ".json", (originalId - 100) + ".json"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + ".json", "orig-100.json"));
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(idStr)) {
-                variants.add(createPathVariant(originalPath, pathId, idStr + ".json", idStr + ".json"));
+                variants.add(createPathVariant(originalPath, pathId, idStr + ".json", "orig.json"));
                 String dec4 = decrementStringNumber(idStr, 4);
                 String dec10 = decrementStringNumber(idStr, 10);
                 String dec100 = decrementStringNumber(idStr, 100);
                 if (dec4 != null && !dec4.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec4 + ".json", dec4 + ".json"));
+                    variants.add(createPathVariant(originalPath, pathId, dec4 + ".json", "orig-4.json"));
                 }
                 if (dec10 != null && !dec10.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec10 + ".json", dec10 + ".json"));
+                    variants.add(createPathVariant(originalPath, pathId, dec10 + ".json", "orig-10.json"));
                 }
                 if (dec100 != null && !dec100.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec100 + ".json", dec100 + ".json"));
+                    variants.add(createPathVariant(originalPath, pathId, dec100 + ".json", "orig-100.json"));
                 }
             }
         }
@@ -466,33 +466,33 @@ public class JsonLister {
             long originalId = Long.parseLong(idStr);
 
             // 新增：原始ID的斜杠后缀
-            variants.add(createPathVariant(originalPath, pathId, originalId + "/", originalId + "/"));
+            variants.add(createPathVariant(originalPath, pathId, originalId + "/", "orig/"));
 
             if (originalId > 4) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "/", (originalId - 4) + "/"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "/", "orig-4/"));
             }
             if (originalId > 10) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "/", (originalId - 10) + "/"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "/", "orig-10/"));
             }
             if (originalId > 100) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "/", (originalId - 100) + "/"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "/", "orig-100/"));
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(idStr)) {
                 // 新增：原始ID的斜杠后缀
-                variants.add(createPathVariant(originalPath, pathId, idStr + "/", idStr + "/"));
+                variants.add(createPathVariant(originalPath, pathId, idStr + "/", "orig/"));
 
                 String dec4 = decrementStringNumber(idStr, 4);
                 String dec10 = decrementStringNumber(idStr, 10);
                 String dec100 = decrementStringNumber(idStr, 100);
                 if (dec4 != null && !dec4.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec4 + "/", dec4 + "/"));
+                    variants.add(createPathVariant(originalPath, pathId, dec4 + "/", "orig-4/"));
                 }
                 if (dec10 != null && !dec10.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec10 + "/", dec10 + "/"));
+                    variants.add(createPathVariant(originalPath, pathId, dec10 + "/", "orig-10/"));
                 }
                 if (dec100 != null && !dec100.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec100 + "/", dec100 + "/"));
+                    variants.add(createPathVariant(originalPath, pathId, dec100 + "/", "orig-100/"));
                 }
             }
         }
@@ -505,15 +505,15 @@ public class JsonLister {
             long originalId = Long.parseLong(idStr);
             if (originalId > 4) {
                 String commaValue = originalId + "," + (originalId - 4);
-                variants.add(createPathVariant(originalPath, pathId, commaValue, commaValue));
+                variants.add(createPathVariant(originalPath, pathId, commaValue, "orig,orig-4"));
             }
             if (originalId > 10) {
                 String commaValue = originalId + "," + (originalId - 10);
-                variants.add(createPathVariant(originalPath, pathId, commaValue, commaValue));
+                variants.add(createPathVariant(originalPath, pathId, commaValue, "orig,orig-10"));
             }
             if (originalId > 100) {
                 String commaValue = originalId + "," + (originalId - 100);
-                variants.add(createPathVariant(originalPath, pathId, commaValue, commaValue));
+                variants.add(createPathVariant(originalPath, pathId, commaValue, "orig,orig-100"));
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(idStr)) {
@@ -521,13 +521,13 @@ public class JsonLister {
                 String dec10 = decrementStringNumber(idStr, 10);
                 String dec100 = decrementStringNumber(idStr, 100);
                 if (dec4 != null && !dec4.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, idStr + "," + dec4, idStr + "," + dec4));
+                    variants.add(createPathVariant(originalPath, pathId, idStr + "," + dec4, "orig,orig-4"));
                 }
                 if (dec10 != null && !dec10.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, idStr + "," + dec10, idStr + "," + dec10));
+                    variants.add(createPathVariant(originalPath, pathId, idStr + "," + dec10, "orig,orig-10"));
                 }
                 if (dec100 != null && !dec100.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, idStr + "," + dec100, idStr + "," + dec100));
+                    variants.add(createPathVariant(originalPath, pathId, idStr + "," + dec100, "orig,orig-100"));
                 }
             }
         }
@@ -540,33 +540,33 @@ public class JsonLister {
             long originalId = Long.parseLong(idStr);
 
             // 新增：原始ID的%23后缀
-            variants.add(createPathVariant(originalPath, pathId, originalId + "%23", originalId + "%23"));
+            variants.add(createPathVariant(originalPath, pathId, originalId + "%23", "orig%23"));
 
             if (originalId > 4) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "%23", (originalId - 4) + "%23"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 4) + "%23", "orig-4%23"));
             }
             if (originalId > 10) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "%23", (originalId - 10) + "%23"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 10) + "%23", "orig-10%23"));
             }
             if (originalId > 100) {
-                variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "%23", (originalId - 100) + "%23"));
+                variants.add(createPathVariant(originalPath, pathId, (originalId - 100) + "%23", "orig-100%23"));
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(idStr)) {
                 // 新增：原始ID的%23后缀
-                variants.add(createPathVariant(originalPath, pathId, idStr + "%23", idStr + "%23"));
+                variants.add(createPathVariant(originalPath, pathId, idStr + "%23", "orig%23"));
 
                 String dec4 = decrementStringNumber(idStr, 4);
                 String dec10 = decrementStringNumber(idStr, 10);
                 String dec100 = decrementStringNumber(idStr, 100);
                 if (dec4 != null && !dec4.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec4 + "%23", dec4 + "%23"));
+                    variants.add(createPathVariant(originalPath, pathId, dec4 + "%23", "orig-4%23"));
                 }
                 if (dec10 != null && !dec10.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec10 + "%23", dec10 + "%23"));
+                    variants.add(createPathVariant(originalPath, pathId, dec10 + "%23", "orig-10%23"));
                 }
                 if (dec100 != null && !dec100.startsWith("-")) {
-                    variants.add(createPathVariant(originalPath, pathId, dec100 + "%23", dec100 + "%23"));
+                    variants.add(createPathVariant(originalPath, pathId, dec100 + "%23", "orig-100%23"));
                 }
             }
         }
@@ -586,49 +586,49 @@ public class JsonLister {
 
             // 新增：原始ID的空格变体
             if (isQuery) {
-                variants.add(new PayloadVariant(originalId + "+", paramName + "=" + originalId + "+", originalId + "+", false, false, null));
-                variants.add(new PayloadVariant("+" + originalId, paramName + "=+" + originalId, "+" + originalId, false, false, null));
+                variants.add(new PayloadVariant(originalId + "+", paramName + "=" + originalId + "+", "orig+", false, false, null));
+                variants.add(new PayloadVariant("+" + originalId, paramName + "=+" + originalId, "+orig", false, false, null));
             } else {
-                variants.add(new PayloadVariant(originalId + " ", paramName + "=" + originalId + " ", originalId + " ", false, false, null));
-                variants.add(new PayloadVariant(" " + originalId, paramName + "= " + originalId, " " + originalId, false, false, null));
+                variants.add(new PayloadVariant(originalId + " ", paramName + "=" + originalId + " ", "orig ", false, false, null));
+                variants.add(new PayloadVariant(" " + originalId, paramName + "= " + originalId, " orig", false, false, null));
             }
 
             if (isQuery) {
                 if (originalId > 4) {
-                    variants.add(new PayloadVariant((originalId - 4) + "+", paramName + "=" + (originalId - 4) + "+", (originalId - 4) + "+", false, false, null));
-                    variants.add(new PayloadVariant("+" + (originalId - 4), paramName + "=+" + (originalId - 4), "+" + (originalId - 4), false, false, null));
+                    variants.add(new PayloadVariant((originalId - 4) + "+", paramName + "=" + (originalId - 4) + "+", "orig-4+", false, false, null));
+                    variants.add(new PayloadVariant("+" + (originalId - 4), paramName + "=+" + (originalId - 4), "+orig-4", false, false, null));
                 }
                 if (originalId > 10) {
-                    variants.add(new PayloadVariant((originalId - 10) + "+", paramName + "=" + (originalId - 10) + "+", (originalId - 10) + "+", false, false, null));
-                    variants.add(new PayloadVariant("+" + (originalId - 10), paramName + "=+" + (originalId - 10), "+" + (originalId - 10), false, false, null));
+                    variants.add(new PayloadVariant((originalId - 10) + "+", paramName + "=" + (originalId - 10) + "+", "orig-10+", false, false, null));
+                    variants.add(new PayloadVariant("+" + (originalId - 10), paramName + "=+" + (originalId - 10), "+orig-10", false, false, null));
                 }
                 if (originalId > 100) {
-                    variants.add(new PayloadVariant((originalId - 100) + "+", paramName + "=" + (originalId - 100) + "+", (originalId - 100) + "+", false, false, null));
-                    variants.add(new PayloadVariant("+" + (originalId - 100), paramName + "=+" + (originalId - 100), "+" + (originalId - 100), false, false, null));
+                    variants.add(new PayloadVariant((originalId - 100) + "+", paramName + "=" + (originalId - 100) + "+", "orig-100+", false, false, null));
+                    variants.add(new PayloadVariant("+" + (originalId - 100), paramName + "=+" + (originalId - 100), "+orig-100", false, false, null));
                 }
             } else {
                 if (originalId > 4) {
-                    variants.add(new PayloadVariant((originalId - 4) + " ", paramName + "=" + (originalId - 4) + " ", (originalId - 4) + " ", false, false, null));
-                    variants.add(new PayloadVariant(" " + (originalId - 4), paramName + "= " + (originalId - 4), " " + (originalId - 4), false, false, null));
+                    variants.add(new PayloadVariant((originalId - 4) + " ", paramName + "=" + (originalId - 4) + " ", "orig-4 ", false, false, null));
+                    variants.add(new PayloadVariant(" " + (originalId - 4), paramName + "= " + (originalId - 4), " orig-4", false, false, null));
                 }
                 if (originalId > 10) {
-                    variants.add(new PayloadVariant((originalId - 10) + " ", paramName + "=" + (originalId - 10) + " ", (originalId - 10) + " ", false, false, null));
-                    variants.add(new PayloadVariant(" " + (originalId - 10), paramName + "= " + (originalId - 10), " " + (originalId - 10), false, false, null));
+                    variants.add(new PayloadVariant((originalId - 10) + " ", paramName + "=" + (originalId - 10) + " ", "orig-10 ", false, false, null));
+                    variants.add(new PayloadVariant(" " + (originalId - 10), paramName + "= " + (originalId - 10), " orig-10", false, false, null));
                 }
                 if (originalId > 100) {
-                    variants.add(new PayloadVariant((originalId - 100) + " ", paramName + "=" + (originalId - 100) + " ", (originalId - 100) + " ", false, false, null));
-                    variants.add(new PayloadVariant(" " + (originalId - 100), paramName + "= " + (originalId - 100), " " + (originalId - 100), false, false, null));
+                    variants.add(new PayloadVariant((originalId - 100) + " ", paramName + "=" + (originalId - 100) + " ", "orig-100 ", false, false, null));
+                    variants.add(new PayloadVariant(" " + (originalId - 100), paramName + "= " + (originalId - 100), " orig-100", false, false, null));
                 }
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(originalIdStr)) {
                 // 新增：原始ID的空格变体
                 if (isQuery) {
-                    variants.add(new PayloadVariant(originalIdStr + "+", paramName + "=" + originalIdStr + "+", originalIdStr + "+", false, false, null));
-                    variants.add(new PayloadVariant("+" + originalIdStr, paramName + "=+" + originalIdStr, "+" + originalIdStr, false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + "+", paramName + "=" + originalIdStr + "+", "orig+", false, false, null));
+                    variants.add(new PayloadVariant("+" + originalIdStr, paramName + "=+" + originalIdStr, "+orig", false, false, null));
                 } else {
-                    variants.add(new PayloadVariant(originalIdStr + " ", paramName + "=" + originalIdStr + " ", originalIdStr + " ", false, false, null));
-                    variants.add(new PayloadVariant(" " + originalIdStr, paramName + "= " + originalIdStr, " " + originalIdStr, false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + " ", paramName + "=" + originalIdStr + " ", "orig ", false, false, null));
+                    variants.add(new PayloadVariant(" " + originalIdStr, paramName + "= " + originalIdStr, " orig", false, false, null));
                 }
 
                 String dec4 = decrementStringNumber(originalIdStr, 4);
@@ -636,29 +636,29 @@ public class JsonLister {
                 String dec100 = decrementStringNumber(originalIdStr, 100);
                 if (isQuery) {
                     if (dec4 != null && !dec4.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec4 + "+", paramName + "=" + dec4 + "+", dec4 + "+", false, false, null));
-                        variants.add(new PayloadVariant("+" + dec4, paramName + "=+" + dec4, "+" + dec4, false, false, null));
+                        variants.add(new PayloadVariant(dec4 + "+", paramName + "=" + dec4 + "+", "orig-4+", false, false, null));
+                        variants.add(new PayloadVariant("+" + dec4, paramName + "=+" + dec4, "+orig-4", false, false, null));
                     }
                     if (dec10 != null && !dec10.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec10 + "+", paramName + "=" + dec10 + "+", dec10 + "+", false, false, null));
-                        variants.add(new PayloadVariant("+" + dec10, paramName + "=+" + dec10, "+" + dec10, false, false, null));
+                        variants.add(new PayloadVariant(dec10 + "+", paramName + "=" + dec10 + "+", "orig-10+", false, false, null));
+                        variants.add(new PayloadVariant("+" + dec10, paramName + "=+" + dec10, "+orig-10", false, false, null));
                     }
                     if (dec100 != null && !dec100.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec100 + "+", paramName + "=" + dec100 + "+", dec100 + "+", false, false, null));
-                        variants.add(new PayloadVariant("+" + dec100, paramName + "=+" + dec100, "+" + dec100, false, false, null));
+                        variants.add(new PayloadVariant(dec100 + "+", paramName + "=" + dec100 + "+", "orig-100+", false, false, null));
+                        variants.add(new PayloadVariant("+" + dec100, paramName + "=+" + dec100, "+orig-100", false, false, null));
                     }
                 } else {
                     if (dec4 != null && !dec4.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec4 + " ", paramName + "=" + dec4 + " ", dec4 + " ", false, false, null));
-                        variants.add(new PayloadVariant(" " + dec4, paramName + "= " + dec4, " " + dec4, false, false, null));
+                        variants.add(new PayloadVariant(dec4 + " ", paramName + "=" + dec4 + " ", "orig-4 ", false, false, null));
+                        variants.add(new PayloadVariant(" " + dec4, paramName + "= " + dec4, " orig-4", false, false, null));
                     }
                     if (dec10 != null && !dec10.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec10 + " ", paramName + "=" + dec10 + " ", dec10 + " ", false, false, null));
-                        variants.add(new PayloadVariant(" " + dec10, paramName + "= " + dec10, " " + dec10, false, false, null));
+                        variants.add(new PayloadVariant(dec10 + " ", paramName + "=" + dec10 + " ", "orig-10 ", false, false, null));
+                        variants.add(new PayloadVariant(" " + dec10, paramName + "= " + dec10, " orig-10", false, false, null));
                     }
                     if (dec100 != null && !dec100.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec100 + " ", paramName + "=" + dec100 + " ", dec100 + " ", false, false, null));
-                        variants.add(new PayloadVariant(" " + dec100, paramName + "= " + dec100, " " + dec100, false, false, null));
+                        variants.add(new PayloadVariant(dec100 + " ", paramName + "=" + dec100 + " ", "orig-100 ", false, false, null));
+                        variants.add(new PayloadVariant(" " + dec100, paramName + "= " + dec100, " orig-100", false, false, null));
                     }
                 }
             }
@@ -695,39 +695,39 @@ public class JsonLister {
 
             // 新增：原始ID的Unicode CRLF变体
             if (isQuery) {
-                variants.add(new PayloadVariant(originalId + "%5cu000D%5cu000A", paramName + "=" + originalId + "%5cu000D%5cu000A", originalId + "%5cu000D%5cu000A", false, false, null));
+                variants.add(new PayloadVariant(originalId + "%5cu000D%5cu000A", paramName + "=" + originalId + "%5cu000D%5cu000A", "orig%5cu000D%5cu000A", false, false, null));
             } else {
-                variants.add(new PayloadVariant(originalId + "\\u000D\\u000A", paramName + "=" + originalId + "\\u000D\\u000A", originalId + "\\u000D\\u000A", false, false, null));
+                variants.add(new PayloadVariant(originalId + "\\u000D\\u000A", paramName + "=" + originalId + "\\u000D\\u000A", "orig\\u000D\\u000A", false, false, null));
             }
 
             if (isQuery) {
                 if (originalId > 4) {
-                    variants.add(new PayloadVariant((originalId - 4) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 4) + "%5cu000D%5cu000A", (originalId - 4) + "%5cu000D%5cu000A", false, false, null));
+                    variants.add(new PayloadVariant((originalId - 4) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 4) + "%5cu000D%5cu000A", "orig-4%5cu000D%5cu000A", false, false, null));
                 }
                 if (originalId > 10) {
-                    variants.add(new PayloadVariant((originalId - 10) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 10) + "%5cu000D%5cu000A", (originalId - 10) + "%5cu000D%5cu000A", false, false, null));
+                    variants.add(new PayloadVariant((originalId - 10) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 10) + "%5cu000D%5cu000A", "orig-10%5cu000D%5cu000A", false, false, null));
                 }
                 if (originalId > 100) {
-                    variants.add(new PayloadVariant((originalId - 100) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 100) + "%5cu000D%5cu000A", (originalId - 100) + "%5cu000D%5cu000A", false, false, null));
+                    variants.add(new PayloadVariant((originalId - 100) + "%5cu000D%5cu000A", paramName + "=" + (originalId - 100) + "%5cu000D%5cu000A", "orig-100%5cu000D%5cu000A", false, false, null));
                 }
             } else {
                 if (originalId > 4) {
-                    variants.add(new PayloadVariant((originalId - 4) + "\\u000D\\u000A", paramName + "=" + (originalId - 4) + "\\u000D\\u000A", (originalId - 4) + "\\u000D\\u000A", false, false, null));
+                    variants.add(new PayloadVariant((originalId - 4) + "\\u000D\\u000A", paramName + "=" + (originalId - 4) + "\\u000D\\u000A", "orig-4\\u000D\\u000A", false, false, null));
                 }
                 if (originalId > 10) {
-                    variants.add(new PayloadVariant((originalId - 10) + "\\u000D\\u000A", paramName + "=" + (originalId - 10) + "\\u000D\\u000A", (originalId - 10) + "\\u000D\\u000A", false, false, null));
+                    variants.add(new PayloadVariant((originalId - 10) + "\\u000D\\u000A", paramName + "=" + (originalId - 10) + "\\u000D\\u000A", "orig-10\\u000D\\u000A", false, false, null));
                 }
                 if (originalId > 100) {
-                    variants.add(new PayloadVariant((originalId - 100) + "\\u000D\\u000A", paramName + "=" + (originalId - 100) + "\\u000D\\u000A", (originalId - 100) + "\\u000D\\u000A", false, false, null));
+                    variants.add(new PayloadVariant((originalId - 100) + "\\u000D\\u000A", paramName + "=" + (originalId - 100) + "\\u000D\\u000A", "orig-100\\u000D\\u000A", false, false, null));
                 }
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(originalIdStr)) {
                 // 新增：原始ID的Unicode CRLF变体
                 if (isQuery) {
-                    variants.add(new PayloadVariant(originalIdStr + "%5cu000D%5cu000A", paramName + "=" + originalIdStr + "%5cu000D%5cu000A", originalIdStr + "%5cu000D%5cu000A", false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + "%5cu000D%5cu000A", paramName + "=" + originalIdStr + "%5cu000D%5cu000A", "orig%5cu000D%5cu000A", false, false, null));
                 } else {
-                    variants.add(new PayloadVariant(originalIdStr + "\\u000D\\u000A", paramName + "=" + originalIdStr + "\\u000D\\u000A", originalIdStr + "\\u000D\\u000A", false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + "\\u000D\\u000A", paramName + "=" + originalIdStr + "\\u000D\\u000A", "orig\\u000D\\u000A", false, false, null));
                 }
 
                 String dec4 = decrementStringNumber(originalIdStr, 4);
@@ -735,23 +735,23 @@ public class JsonLister {
                 String dec100 = decrementStringNumber(originalIdStr, 100);
                 if (isQuery) {
                     if (dec4 != null && !dec4.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec4 + "%5cu000D%5cu000A", paramName + "=" + dec4 + "%5cu000D%5cu000A", dec4 + "%5cu000D%5cu000A", false, false, null));
+                        variants.add(new PayloadVariant(dec4 + "%5cu000D%5cu000A", paramName + "=" + dec4 + "%5cu000D%5cu000A", "orig-4%5cu000D%5cu000A", false, false, null));
                     }
                     if (dec10 != null && !dec10.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec10 + "%5cu000D%5cu000A", paramName + "=" + dec10 + "%5cu000D%5cu000A", dec10 + "%5cu000D%5cu000A", false, false, null));
+                        variants.add(new PayloadVariant(dec10 + "%5cu000D%5cu000A", paramName + "=" + dec10 + "%5cu000D%5cu000A", "orig-10%5cu000D%5cu000A", false, false, null));
                     }
                     if (dec100 != null && !dec100.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec100 + "%5cu000D%5cu000A", paramName + "=" + dec100 + "%5cu000D%5cu000A", dec100 + "%5cu000D%5cu000A", false, false, null));
+                        variants.add(new PayloadVariant(dec100 + "%5cu000D%5cu000A", paramName + "=" + dec100 + "%5cu000D%5cu000A", "orig-100%5cu000D%5cu000A", false, false, null));
                     }
                 } else {
                     if (dec4 != null && !dec4.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec4 + "\\u000D\\u000A", paramName + "=" + dec4 + "\\u000D\\u000A", dec4 + "\\u000D\\u000A", false, false, null));
+                        variants.add(new PayloadVariant(dec4 + "\\u000D\\u000A", paramName + "=" + dec4 + "\\u000D\\u000A", "orig-4\\u000D\\u000A", false, false, null));
                     }
                     if (dec10 != null && !dec10.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec10 + "\\u000D\\u000A", paramName + "=" + dec10 + "\\u000D\\u000A", dec10 + "\\u000D\\u000A", false, false, null));
+                        variants.add(new PayloadVariant(dec10 + "\\u000D\\u000A", paramName + "=" + dec10 + "\\u000D\\u000A", "orig-10\\u000D\\u000A", false, false, null));
                     }
                     if (dec100 != null && !dec100.startsWith("-")) {
-                        variants.add(new PayloadVariant(dec100 + "\\u000D\\u000A", paramName + "=" + dec100 + "\\u000D\\u000A", dec100 + "\\u000D\\u000A", false, false, null));
+                        variants.add(new PayloadVariant(dec100 + "\\u000D\\u000A", paramName + "=" + dec100 + "\\u000D\\u000A", "orig-100\\u000D\\u000A", false, false, null));
                     }
                 }
             }
@@ -763,30 +763,30 @@ public class JsonLister {
         List<PayloadVariant> variants = new ArrayList<>();
         try {
             long originalId = Long.parseLong(originalIdStr);
-            variants.add(new PayloadVariant(originalId + ".json", paramName + "=" + originalId + ".json", originalId + ".json", false, false, null));
+            variants.add(new PayloadVariant(originalId + ".json", paramName + "=" + originalId + ".json", "orig.json", false, false, null));
             if (originalId > 4) {
-                variants.add(new PayloadVariant((originalId - 4) + ".json", paramName + "=" + (originalId - 4) + ".json", (originalId - 4) + ".json", false, false, null));
+                variants.add(new PayloadVariant((originalId - 4) + ".json", paramName + "=" + (originalId - 4) + ".json", "orig-4.json", false, false, null));
             }
             if (originalId > 10) {
-                variants.add(new PayloadVariant((originalId - 10) + ".json", paramName + "=" + (originalId - 10) + ".json", (originalId - 10) + ".json", false, false, null));
+                variants.add(new PayloadVariant((originalId - 10) + ".json", paramName + "=" + (originalId - 10) + ".json", "orig-10.json", false, false, null));
             }
             if (originalId > 100) {
-                variants.add(new PayloadVariant((originalId - 100) + ".json", paramName + "=" + (originalId - 100) + ".json", (originalId - 100) + ".json", false, false, null));
+                variants.add(new PayloadVariant((originalId - 100) + ".json", paramName + "=" + (originalId - 100) + ".json", "orig-100.json", false, false, null));
             }
         } catch (NumberFormatException e) {
             if (isValidDigitString(originalIdStr)) {
-                variants.add(new PayloadVariant(originalIdStr + ".json", paramName + "=" + originalIdStr + ".json", originalIdStr + ".json", false, false, null));
+                variants.add(new PayloadVariant(originalIdStr + ".json", paramName + "=" + originalIdStr + ".json", "orig.json", false, false, null));
                 String dec4 = decrementStringNumber(originalIdStr, 4);
                 String dec10 = decrementStringNumber(originalIdStr, 10);
                 String dec100 = decrementStringNumber(originalIdStr, 100);
                 if (dec4 != null && !dec4.startsWith("-")) {
-                    variants.add(new PayloadVariant(dec4 + ".json", paramName + "=" + dec4 + ".json", dec4 + ".json", false, false, null));
+                    variants.add(new PayloadVariant(dec4 + ".json", paramName + "=" + dec4 + ".json", "orig-4.json", false, false, null));
                 }
                 if (dec10 != null && !dec10.startsWith("-")) {
-                    variants.add(new PayloadVariant(dec10 + ".json", paramName + "=" + dec10 + ".json", dec10 + ".json", false, false, null));
+                    variants.add(new PayloadVariant(dec10 + ".json", paramName + "=" + dec10 + ".json", "orig-10.json", false, false, null));
                 }
                 if (dec100 != null && !dec100.startsWith("-")) {
-                    variants.add(new PayloadVariant(dec100 + ".json", paramName + "=" + dec100 + ".json", dec100 + ".json", false, false, null));
+                    variants.add(new PayloadVariant(dec100 + ".json", paramName + "=" + dec100 + ".json", "orig-100.json", false, false, null));
                 }
             }
         }
@@ -2190,55 +2190,55 @@ public class JsonLister {
             variants.addAll(generateJsonSuffixVariants(originalIdStr, paramName, true));
 
             // 新增：原始ID的斜杠后缀
-            variants.add(new PayloadVariant(originalId + "/", paramName + "=" + originalId + "/", originalId + "/", false, false, null));
+            variants.add(new PayloadVariant(originalId + "/", paramName + "=" + originalId + "/", "orig/", false, false, null));
 
             if (originalId > 4) {
-                variants.add(new PayloadVariant((originalId - 4) + "/", paramName + "=" + (originalId - 4) + "/", (originalId - 4) + "/", false, false, null));
+                variants.add(new PayloadVariant((originalId - 4) + "/", paramName + "=" + (originalId - 4) + "/", "orig-4/", false, false, null));
             }
             if (originalId > 10) {
-                variants.add(new PayloadVariant((originalId - 10) + "/", paramName + "=" + (originalId - 10) + "/", (originalId - 10) + "/", false, false, null));
+                variants.add(new PayloadVariant((originalId - 10) + "/", paramName + "=" + (originalId - 10) + "/", "orig-10/", false, false, null));
             }
             if (originalId > 100) {
-                variants.add(new PayloadVariant((originalId - 100) + "/", paramName + "=" + (originalId - 100) + "/", (originalId - 100) + "/", false, false, null));
+                variants.add(new PayloadVariant((originalId - 100) + "/", paramName + "=" + (originalId - 100) + "/", "orig-100/", false, false, null));
             }
 
             if (originalId > 4) {
                 String commaValue = originalId + "," + (originalId - 4);
-                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
+                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, "orig,orig-4", false, false, null));
             }
             if (originalId > 10) {
                 String commaValue = originalId + "," + (originalId - 10);
-                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
+                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, "orig,orig-10", false, false, null));
             }
             if (originalId > 100) {
                 String commaValue = originalId + "," + (originalId - 100);
-                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
+                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, "orig,orig-100", false, false, null));
             }
 
             // 新增：原始ID的CRLF
-            variants.add(new PayloadVariant(originalId + "%0D%0A", paramName + "=" + originalId + "%0D%0A", originalId + "%0D%0A", false, false, null));
+            variants.add(new PayloadVariant(originalId + "%0D%0A", paramName + "=" + originalId + "%0D%0A", "orig%0D%0A", false, false, null));
 
             if (originalId > 4) {
-                variants.add(new PayloadVariant((originalId - 4) + "%0D%0A", paramName + "=" + (originalId - 4) + "%0D%0A", (originalId - 4) + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant((originalId - 4) + "%0D%0A", paramName + "=" + (originalId - 4) + "%0D%0A", "orig-4%0D%0A", false, false, null));
             }
             if (originalId > 10) {
-                variants.add(new PayloadVariant((originalId - 10) + "%0D%0A", paramName + "=" + (originalId - 10) + "%0D%0A", (originalId - 10) + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant((originalId - 10) + "%0D%0A", paramName + "=" + (originalId - 10) + "%0D%0A", "orig-10%0D%0A", false, false, null));
             }
             if (originalId > 100) {
-                variants.add(new PayloadVariant((originalId - 100) + "%0D%0A", paramName + "=" + (originalId - 100) + "%0D%0A", (originalId - 100) + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant((originalId - 100) + "%0D%0A", paramName + "=" + (originalId - 100) + "%0D%0A", "orig-100%0D%0A", false, false, null));
             }
 
             // 新增：原始ID的%23后缀
-            variants.add(new PayloadVariant(originalId + "%23", paramName + "=" + originalId + "%23", originalId + "%23", false, false, null));
+            variants.add(new PayloadVariant(originalId + "%23", paramName + "=" + originalId + "%23", "orig%23", false, false, null));
 
             if (originalId > 4) {
-                variants.add(new PayloadVariant((originalId - 4) + "%23", paramName + "=" + (originalId - 4) + "%23", (originalId - 4) + "%23", false, false, null));
+                variants.add(new PayloadVariant((originalId - 4) + "%23", paramName + "=" + (originalId - 4) + "%23", "orig-4%23", false, false, null));
             }
             if (originalId > 10) {
-                variants.add(new PayloadVariant((originalId - 10) + "%23", paramName + "=" + (originalId - 10) + "%23", (originalId - 10) + "%23", false, false, null));
+                variants.add(new PayloadVariant((originalId - 10) + "%23", paramName + "=" + (originalId - 10) + "%23", "orig-10%23", false, false, null));
             }
             if (originalId > 100) {
-                variants.add(new PayloadVariant((originalId - 100) + "%23", paramName + "=" + (originalId - 100) + "%23", (originalId - 100) + "%23", false, false, null));
+                variants.add(new PayloadVariant((originalId - 100) + "%23", paramName + "=" + (originalId - 100) + "%23", "orig-100%23", false, false, null));
             }
 
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
@@ -2290,32 +2290,32 @@ public class JsonLister {
                 variants.addAll(generateJsonSuffixVariants(originalIdStr, paramName, true));
 
                 // 新增：原始ID的斜杠后缀
-                variants.add(new PayloadVariant(originalIdStr + "/", paramName + "=" + originalIdStr + "/", originalIdStr + "/", false, false, null));
+                variants.add(new PayloadVariant(originalIdStr + "/", paramName + "=" + originalIdStr + "/", "orig/", false, false, null));
 
                 if (decremented4 != null && !decremented4.startsWith("-")) {
-                    variants.add(new PayloadVariant(decremented4 + "/", paramName + "=" + decremented4 + "/", decremented4 + "/", false, false, null));
-                    variants.add(new PayloadVariant(originalIdStr + "," + decremented4, paramName + "=" + originalIdStr + "," + decremented4, originalIdStr + "," + decremented4, false, false, null));
-                    variants.add(new PayloadVariant(decremented4 + "%0D%0A", paramName + "=" + decremented4 + "%0D%0A", decremented4 + "%0D%0A", false, false, null));
-                    variants.add(new PayloadVariant(decremented4 + "%23", paramName + "=" + decremented4 + "%23", decremented4 + "%23", false, false, null));
+                    variants.add(new PayloadVariant(decremented4 + "/", paramName + "=" + decremented4 + "/", "orig-4/", false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + "," + decremented4, paramName + "=" + originalIdStr + "," + decremented4, "orig,orig-4", false, false, null));
+                    variants.add(new PayloadVariant(decremented4 + "%0D%0A", paramName + "=" + decremented4 + "%0D%0A", "orig-4%0D%0A", false, false, null));
+                    variants.add(new PayloadVariant(decremented4 + "%23", paramName + "=" + decremented4 + "%23", "orig-4%23", false, false, null));
                 }
                 if (decremented10 != null && !decremented10.startsWith("-")) {
-                    variants.add(new PayloadVariant(decremented10 + "/", paramName + "=" + decremented10 + "/", decremented10 + "/", false, false, null));
-                    variants.add(new PayloadVariant(originalIdStr + "," + decremented10, paramName + "=" + originalIdStr + "," + decremented10, originalIdStr + "," + decremented10, false, false, null));
-                    variants.add(new PayloadVariant(decremented10 + "%0D%0A", paramName + "=" + decremented10 + "%0D%0A", decremented10 + "%0D%0A", false, false, null));
-                    variants.add(new PayloadVariant(decremented10 + "%23", paramName + "=" + decremented10 + "%23", decremented10 + "%23", false, false, null));
+                    variants.add(new PayloadVariant(decremented10 + "/", paramName + "=" + decremented10 + "/", "orig-10/", false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + "," + decremented10, paramName + "=" + originalIdStr + "," + decremented10, "orig,orig-10", false, false, null));
+                    variants.add(new PayloadVariant(decremented10 + "%0D%0A", paramName + "=" + decremented10 + "%0D%0A", "orig-10%0D%0A", false, false, null));
+                    variants.add(new PayloadVariant(decremented10 + "%23", paramName + "=" + decremented10 + "%23", "orig-10%23", false, false, null));
                 }
                 if (decremented100 != null && !decremented100.startsWith("-")) {
-                    variants.add(new PayloadVariant(decremented100 + "/", paramName + "=" + decremented100 + "/", decremented100 + "/", false, false, null));
-                    variants.add(new PayloadVariant(originalIdStr + "," + decremented100, paramName + "=" + originalIdStr + "," + decremented100, originalIdStr + "," + decremented100, false, false, null));
-                    variants.add(new PayloadVariant(decremented100 + "%0D%0A", paramName + "=" + decremented100 + "%0D%0A", decremented100 + "%0D%0A", false, false, null));
-                    variants.add(new PayloadVariant(decremented100 + "%23", paramName + "=" + decremented100 + "%23", decremented100 + "%23", false, false, null));
+                    variants.add(new PayloadVariant(decremented100 + "/", paramName + "=" + decremented100 + "/", "orig-100/", false, false, null));
+                    variants.add(new PayloadVariant(originalIdStr + "," + decremented100, paramName + "=" + originalIdStr + "," + decremented100, "orig,orig-100", false, false, null));
+                    variants.add(new PayloadVariant(decremented100 + "%0D%0A", paramName + "=" + decremented100 + "%0D%0A", "orig-100%0D%0A", false, false, null));
+                    variants.add(new PayloadVariant(decremented100 + "%23", paramName + "=" + decremented100 + "%23", "orig-100%23", false, false, null));
                 }
 
                 // 新增：原始ID的CRLF
-                variants.add(new PayloadVariant(originalIdStr + "%0D%0A", paramName + "=" + originalIdStr + "%0D%0A", originalIdStr + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant(originalIdStr + "%0D%0A", paramName + "=" + originalIdStr + "%0D%0A", "orig%0D%0A", false, false, null));
 
                 // 新增：原始ID的%23后缀
-                variants.add(new PayloadVariant(originalIdStr + "%23", paramName + "=" + originalIdStr + "%23", originalIdStr + "%23", false, false, null));
+                variants.add(new PayloadVariant(originalIdStr + "%23", paramName + "=" + originalIdStr + "%23", "orig%23", false, false, null));
 
                 if (decremented4 != null && !decremented4.startsWith("-")) {
                     variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented4, "pollute-4", true, false, decremented4));
@@ -2397,58 +2397,58 @@ public class JsonLister {
 
             // 新增：原始ID的斜杠后缀（URL编码）
             String encodedOrigSlash = URLEncoder.encode(originalId + "/", StandardCharsets.UTF_8.name());
-            variants.add(new PayloadVariant(encodedOrigSlash, paramName + "=" + encodedOrigSlash, originalId + "/", false, false, null));
+            variants.add(new PayloadVariant(encodedOrigSlash, paramName + "=" + encodedOrigSlash, "orig/", false, false, null));
 
             if (originalId > 4) {
                 String encodedValue = URLEncoder.encode((originalId - 4) + "/", StandardCharsets.UTF_8.name());
-                variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, (originalId - 4) + "/", false, false, null));
+                variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, "orig-4/", false, false, null));
             }
             if (originalId > 10) {
                 String encodedValue = URLEncoder.encode((originalId - 10) + "/", StandardCharsets.UTF_8.name());
-                variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, (originalId - 10) + "/", false, false, null));
+                variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, "orig-10/", false, false, null));
             }
             if (originalId > 100) {
                 String encodedValue = URLEncoder.encode((originalId - 100) + "/", StandardCharsets.UTF_8.name());
-                variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, (originalId - 100) + "/", false, false, null));
+                variants.add(new PayloadVariant(encodedValue, paramName + "=" + encodedValue, "orig-100/", false, false, null));
             }
 
             if (originalId > 4) {
                 String commaValue = originalId + "," + (originalId - 4);
-                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
+                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, "orig,orig-4", false, false, null));
             }
             if (originalId > 10) {
                 String commaValue = originalId + "," + (originalId - 10);
-                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
+                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, "orig,orig-10", false, false, null));
             }
             if (originalId > 100) {
                 String commaValue = originalId + "," + (originalId - 100);
-                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, commaValue, false, false, null));
+                variants.add(new PayloadVariant(commaValue, paramName + "=" + commaValue, "orig,orig-100", false, false, null));
             }
 
             // 新增：原始ID的CRLF
-            variants.add(new PayloadVariant(originalId + "%0D%0A", paramName + "=" + originalId + "%0D%0A", originalId + "%0D%0A", false, false, null));
+            variants.add(new PayloadVariant(originalId + "%0D%0A", paramName + "=" + originalId + "%0D%0A", "orig%0D%0A", false, false, null));
 
             if (originalId > 4) {
-                variants.add(new PayloadVariant((originalId - 4) + "%0D%0A", paramName + "=" + (originalId - 4) + "%0D%0A", (originalId - 4) + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant((originalId - 4) + "%0D%0A", paramName + "=" + (originalId - 4) + "%0D%0A", "orig-4%0D%0A", false, false, null));
             }
             if (originalId > 10) {
-                variants.add(new PayloadVariant((originalId - 10) + "%0D%0A", paramName + "=" + (originalId - 10) + "%0D%0A", (originalId - 10) + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant((originalId - 10) + "%0D%0A", paramName + "=" + (originalId - 10) + "%0D%0A", "orig-10%0D%0A", false, false, null));
             }
             if (originalId > 100) {
-                variants.add(new PayloadVariant((originalId - 100) + "%0D%0A", paramName + "=" + (originalId - 100) + "%0D%0A", (originalId - 100) + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant((originalId - 100) + "%0D%0A", paramName + "=" + (originalId - 100) + "%0D%0A", "orig-100%0D%0A", false, false, null));
             }
 
             // 新增：原始ID的%23后缀
-            variants.add(new PayloadVariant(originalId + "%23", paramName + "=" + originalId + "%23", originalId + "%23", false, false, null));
+            variants.add(new PayloadVariant(originalId + "%23", paramName + "=" + originalId + "%23", "orig%23", false, false, null));
 
             if (originalId > 4) {
-                variants.add(new PayloadVariant((originalId - 4) + "%23", paramName + "=" + (originalId - 4) + "%23", (originalId - 4) + "%23", false, false, null));
+                variants.add(new PayloadVariant((originalId - 4) + "%23", paramName + "=" + (originalId - 4) + "%23", "orig-4%23", false, false, null));
             }
             if (originalId > 10) {
-                variants.add(new PayloadVariant((originalId - 10) + "%23", paramName + "=" + (originalId - 10) + "%23", (originalId - 10) + "%23", false, false, null));
+                variants.add(new PayloadVariant((originalId - 10) + "%23", paramName + "=" + (originalId - 10) + "%23", "orig-10%23", false, false, null));
             }
             if (originalId > 100) {
-                variants.add(new PayloadVariant((originalId - 100) + "%23", paramName + "=" + (originalId - 100) + "%23", (originalId - 100) + "%23", false, false, null));
+                variants.add(new PayloadVariant((originalId - 100) + "%23", paramName + "=" + (originalId - 100) + "%23", "orig-100%23", false, false, null));
             }
 
             variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + (originalId - 4), "pollute-4", true, false, String.valueOf(originalId - 4)));
@@ -2500,38 +2500,38 @@ public class JsonLister {
                 try {
                     // 新增：原始ID的斜杠后缀
                     String encodedOrigSlash = URLEncoder.encode(originalIdStr + "/", StandardCharsets.UTF_8.name());
-                    variants.add(new PayloadVariant(encodedOrigSlash, paramName + "=" + originalIdStr + "/", originalIdStr + "/", false, false, null));
+                    variants.add(new PayloadVariant(encodedOrigSlash, paramName + "=" + originalIdStr + "/", "orig/", false, false, null));
 
                     if (decremented4 != null && !decremented4.startsWith("-")) {
                         String encodedSlash = URLEncoder.encode(decremented4 + "/", StandardCharsets.UTF_8.name());
-                        variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented4 + "/", decremented4 + "/", false, false, null));
-                        variants.add(new PayloadVariant(originalIdStr + "," + decremented4, paramName + "=" + originalIdStr + "," + decremented4, originalIdStr + "," + decremented4, false, false, null));
-                        variants.add(new PayloadVariant(decremented4 + "%0D%0A", paramName + "=" + decremented4 + "%0D%0A", decremented4 + "%0D%0A", false, false, null));
-                        variants.add(new PayloadVariant(decremented4 + "%23", paramName + "=" + decremented4 + "%23", decremented4 + "%23", false, false, null));
+                        variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented4 + "/", "orig-4/", false, false, null));
+                        variants.add(new PayloadVariant(originalIdStr + "," + decremented4, paramName + "=" + originalIdStr + "," + decremented4, "orig,orig-4", false, false, null));
+                        variants.add(new PayloadVariant(decremented4 + "%0D%0A", paramName + "=" + decremented4 + "%0D%0A", "orig-4%0D%0A", false, false, null));
+                        variants.add(new PayloadVariant(decremented4 + "%23", paramName + "=" + decremented4 + "%23", "orig-4%23", false, false, null));
                     }
                     if (decremented10 != null && !decremented10.startsWith("-")) {
                         String encodedSlash = URLEncoder.encode(decremented10 + "/", StandardCharsets.UTF_8.name());
-                        variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented10 + "/", decremented10 + "/", false, false, null));
-                        variants.add(new PayloadVariant(originalIdStr + "," + decremented10, paramName + "=" + originalIdStr + "," + decremented10, originalIdStr + "," + decremented10, false, false, null));
-                        variants.add(new PayloadVariant(decremented10 + "%0D%0A", paramName + "=" + decremented10 + "%0D%0A", decremented10 + "%0D%0A", false, false, null));
-                        variants.add(new PayloadVariant(decremented10 + "%23", paramName + "=" + decremented10 + "%23", decremented10 + "%23", false, false, null));
+                        variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented10 + "/", "orig-10/", false, false, null));
+                        variants.add(new PayloadVariant(originalIdStr + "," + decremented10, paramName + "=" + originalIdStr + "," + decremented10, "orig,orig-10", false, false, null));
+                        variants.add(new PayloadVariant(decremented10 + "%0D%0A", paramName + "=" + decremented10 + "%0D%0A", "orig-10%0D%0A", false, false, null));
+                        variants.add(new PayloadVariant(decremented10 + "%23", paramName + "=" + decremented10 + "%23", "orig-10%23", false, false, null));
                     }
                     if (decremented100 != null && !decremented100.startsWith("-")) {
                         String encodedSlash = URLEncoder.encode(decremented100 + "/", StandardCharsets.UTF_8.name());
-                        variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented100 + "/", decremented100 + "/", false, false, null));
-                        variants.add(new PayloadVariant(originalIdStr + "," + decremented100, paramName + "=" + originalIdStr + "," + decremented100, originalIdStr + "," + decremented100, false, false, null));
-                        variants.add(new PayloadVariant(decremented100 + "%0D%0A", paramName + "=" + decremented100 + "%0D%0A", decremented100 + "%0D%0A", false, false, null));
-                        variants.add(new PayloadVariant(decremented100 + "%23", paramName + "=" + decremented100 + "%23", decremented100 + "%23", false, false, null));
+                        variants.add(new PayloadVariant(encodedSlash, paramName + "=" + decremented100 + "/", "orig-100/", false, false, null));
+                        variants.add(new PayloadVariant(originalIdStr + "," + decremented100, paramName + "=" + originalIdStr + "," + decremented100, "orig,orig-100", false, false, null));
+                        variants.add(new PayloadVariant(decremented100 + "%0D%0A", paramName + "=" + decremented100 + "%0D%0A", "orig-100%0D%0A", false, false, null));
+                        variants.add(new PayloadVariant(decremented100 + "%23", paramName + "=" + decremented100 + "%23", "orig-100%23", false, false, null));
                     }
                 } catch (Exception ex) {
                     logging.logToOutput("URL encoding error: " + ex.getMessage());
                 }
 
                 // 新增：原始ID的CRLF
-                variants.add(new PayloadVariant(originalIdStr + "%0D%0A", paramName + "=" + originalIdStr + "%0D%0A", originalIdStr + "%0D%0A", false, false, null));
+                variants.add(new PayloadVariant(originalIdStr + "%0D%0A", paramName + "=" + originalIdStr + "%0D%0A", "orig%0D%0A", false, false, null));
 
                 // 新增：原始ID的%23后缀
-                variants.add(new PayloadVariant(originalIdStr + "%23", paramName + "=" + originalIdStr + "%23", originalIdStr + "%23", false, false, null));
+                variants.add(new PayloadVariant(originalIdStr + "%23", paramName + "=" + originalIdStr + "%23", "orig%23", false, false, null));
 
                 if (decremented4 != null && !decremented4.startsWith("-")) {
                     variants.add(new PayloadVariant(originalIdStr, "&" + paramName + "=" + decremented4, "pollute-4", true, false, decremented4));
