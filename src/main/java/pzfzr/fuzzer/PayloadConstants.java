@@ -55,7 +55,7 @@ public class PayloadConstants {
             new PayloadInfo("[[${9188*8}]]", "SSTI4")
 
 
-            );
+    );
 
     /**
      * 参数模糊测试专用的payload列表
@@ -63,8 +63,16 @@ public class PayloadConstants {
      */
     public static final List<PayloadInfo> PARAM_PAYLOAD_INFOS = Arrays.asList(
             new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("0", "\"0\""),
+            new PayloadInfo("-1", "\"-1\""),
+            new PayloadInfo("0", "0"),
+            new PayloadInfo("-1", "-1"),
             new PayloadInfo("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "99999"),
             new PayloadInfo("%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00", "%00%00%00"),
+            new PayloadInfo("true", "true"),
+            new PayloadInfo("false", "false"),
+            new PayloadInfo("true", "\"true\""),
+            new PayloadInfo("false", "\"false\""),
             new PayloadInfo("null", "null"),
             new PayloadInfo("null", "\"null\""),
             new PayloadInfo("\\r\\n", "\\r\\n"),
@@ -74,6 +82,10 @@ public class PayloadConstants {
             new PayloadInfo("*", "*"),
             new PayloadInfo("+", "+"),
             new PayloadInfo(";", ";"),
+            // 字符串形式（适用于GET、POST、JSON字符串）
+            new PayloadInfo("%3f", "?(%3f)"),
+            new PayloadInfo("#", "#"),
+            new PayloadInfo("?", "?"),
             new PayloadInfo("{param}#", "{param}#"),
             new PayloadInfo("{param}&chaxx=xx", "{param}&norandom=xx"),
             new PayloadInfo("{param_url_encoded}", "{url_encoded}"),
@@ -115,6 +127,12 @@ public class PayloadConstants {
             new PayloadInfo("{param}//..//..//..//..//..//..//..//..", "{param}//..X8"),
             new PayloadInfo("{param}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{param}%2f%2f..X8"),
             new PayloadInfo("{param}/..;/..;/..;/..;/..;/..;/..;/..;", "{param}/..;X8")
+
+
+            // JSON字符串特有（不适用于GET、POST）
+
+
+
 
     );
 

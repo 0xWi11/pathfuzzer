@@ -232,7 +232,17 @@ public class ParamFuzzer {
                 if (isShuttingDown) return;
 
                 // URL参数跳过random_8000，参数污染，URL编码，以及"\"null\""
-                if ("{random_8000}".equals(payloadInfo.alias)||"{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)||"\"null\"".equals(payloadInfo.alias)) {
+                // 同时跳过JSON特有的payload: true、false、0、-1（布尔/数字形式）、#、?
+                if ("{random_8000}".equals(payloadInfo.alias)||
+                        "{param}&norandom=xx".equals(payloadInfo.alias)||
+                        "{url_encoded}".equals(payloadInfo.alias)||
+                        "\"null\"".equals(payloadInfo.alias)||
+                        "true".equals(payloadInfo.alias)||
+                        "false".equals(payloadInfo.alias)||
+                        "0".equals(payloadInfo.alias)||
+                        "-1".equals(payloadInfo.alias)||
+                        "#".equals(payloadInfo.alias)||
+                        "?".equals(payloadInfo.alias)) {
                     continue;
                 }
 
@@ -277,7 +287,16 @@ public class ParamFuzzer {
                 if (isShuttingDown) return;
 
                 // PostBody参数跳过参数污染，URL编码，以及"\"null\""
-                if ("{param}&norandom=xx".equals(payloadInfo.alias)||"{url_encoded}".equals(payloadInfo.alias)||"\"null\"".equals(payloadInfo.alias)) {
+                // 同时跳过JSON特有的payload: true、false、0、-1（布尔/数字形式）、#、?
+                if ("{param}&norandom=xx".equals(payloadInfo.alias)||
+                        "{url_encoded}".equals(payloadInfo.alias)||
+                        "\"null\"".equals(payloadInfo.alias)||
+                        "true".equals(payloadInfo.alias)||
+                        "false".equals(payloadInfo.alias)||
+                        "0".equals(payloadInfo.alias)||
+                        "-1".equals(payloadInfo.alias)||
+                        "#".equals(payloadInfo.alias)||
+                        "?".equals(payloadInfo.alias)) {
                     continue;
                 }
                 String processedPayload = processPayload(payloadInfo.payload, paramValue);
@@ -567,7 +586,7 @@ public class ParamFuzzer {
 
     /**
      * 在指定路径修改JSON节点
-     * 针对null payload的特殊处理
+     * 支持多种类型的payload处理：null、布尔、数字、字符串
      */
     private JsonNode modifyJsonNode(JsonNode rootNode, String path, String newValue, String payloadAlias) throws Exception {
         ObjectNode rootCopy = rootNode.deepCopy();
@@ -588,18 +607,47 @@ public class ParamFuzzer {
 
         String lastPart = pathParts[pathParts.length - 1];
 
-        // 根据payloadAlias来区分两种null的处理方式：
-        // 1. alias为"null" -> JSON null值（不带引号）
-        // 2. alias为"\"null\"" -> 字符串"null"（带引号）
+        // 根据payloadAlias确定要设置的值类型
         JsonNode valueToSet;
+
+        // 处理null类型
         if ("null".equals(payloadAlias)) {
             // new PayloadInfo("null", "null") 的情况，设置为JSON null
             valueToSet = NullNode.getInstance();
         } else if ("\"null\"".equals(payloadAlias)) {
             // new PayloadInfo("null", "\"null\"") 的情况，设置为字符串"null"
             valueToSet = new TextNode("null");
-        } else {
-            // 其他情况设置为字符串值
+        }
+        // 处理布尔类型
+        else if ("true".equals(payloadAlias)) {
+            // new PayloadInfo("true", "true") 的情况，设置为JSON布尔true
+            valueToSet = BooleanNode.getTrue();
+        } else if ("false".equals(payloadAlias)) {
+            // new PayloadInfo("false", "false") 的情况，设置为JSON布尔false
+            valueToSet = BooleanNode.getFalse();
+        } else if ("\"true\"".equals(payloadAlias)) {
+            // new PayloadInfo("true", "\"true\"") 的情况，设置为字符串"true"
+            valueToSet = new TextNode("true");
+        } else if ("\"false\"".equals(payloadAlias)) {
+            // new PayloadInfo("false", "\"false\"") 的情况，设置为字符串"false"
+            valueToSet = new TextNode("false");
+        }
+        // 处理数字类型
+        else if ("0".equals(payloadAlias)) {
+            // new PayloadInfo("0", "0") 的情况，设置为JSON数字0
+            valueToSet = new IntNode(0);
+        } else if ("-1".equals(payloadAlias)) {
+            // new PayloadInfo("-1", "-1") 的情况，设置为JSON数字-1
+            valueToSet = new IntNode(-1);
+        } else if ("\"0\"".equals(payloadAlias)) {
+            // new PayloadInfo("0", "\"0\"") 的情况，设置为字符串"0"
+            valueToSet = new TextNode("0");
+        } else if ("\"-1\"".equals(payloadAlias)) {
+            // new PayloadInfo("-1", "\"-1\"") 的情况，设置为字符串"-1"
+            valueToSet = new TextNode("-1");
+        }
+        // 其他情况（包括#、?等）设置为字符串值
+        else {
             valueToSet = new TextNode(newValue);
         }
 
