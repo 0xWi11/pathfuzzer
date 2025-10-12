@@ -6,6 +6,7 @@ import pzfzr.model.TableModel;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.util.function.BiConsumer;
 import javax.swing.table.TableRowSorter;
@@ -114,6 +115,9 @@ public class HistoryPanel extends JPanel {
             }
         };
 
+        // 关闭表格的自动调整模式，使用固定列宽
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+
         // 将表格行高从20像素减少到16像素（4/5）
         table.setRowHeight(16);
 
@@ -198,24 +202,38 @@ public class HistoryPanel extends JPanel {
             }
         });
 
-        // 设置列宽 - 更新为新的列顺序 (ID, Method, URL, Test type, Param, Payload, modif status, Len Diff, modif len(withoutheader), modif len+(withheader), origin len(withoutheader), Modif. Time, Reflect)
+        // 设置列宽 - 使用固定宽度，防止被拉伸
         if (table.getColumnModel().getColumnCount() >= 13) {
-            table.getColumnModel().getColumn(0).setPreferredWidth(35);    // ID
-            table.getColumnModel().getColumn(1).setPreferredWidth(30);    // Method
-            table.getColumnModel().getColumn(2).setPreferredWidth(400);   // URL
-            table.getColumnModel().getColumn(3).setPreferredWidth(40);    // Test Type
-            table.getColumnModel().getColumn(4).setPreferredWidth(100);   // Param
-            table.getColumnModel().getColumn(5).setPreferredWidth(100);   // Payload
-            table.getColumnModel().getColumn(6).setPreferredWidth(30);    // modif status
-            table.getColumnModel().getColumn(7).setPreferredWidth(30);    // Len Diff
-            table.getColumnModel().getColumn(8).setPreferredWidth(30);    // modif len(withoutheader)
-            table.getColumnModel().getColumn(9).setPreferredWidth(30);    // modif len+(withheader)
-            table.getColumnModel().getColumn(10).setPreferredWidth(30);   // origin len(withoutheader)
-            table.getColumnModel().getColumn(11).setPreferredWidth(72);   // Modif. Time
-            table.getColumnModel().getColumn(12).setPreferredWidth(80);   // Reflect
+            // 辅助方法：设置固定列宽
+            setFixedColumnWidth(table, 0, 35);     // ID
+            setFixedColumnWidth(table, 1, 30);     // Method
+            setFixedColumnWidth(table, 2, 400);    // URL
+            setFixedColumnWidth(table, 3, 40);     // Test Type
+            setFixedColumnWidth(table, 4, 113);    // Param - 设置为113像素
+            setFixedColumnWidth(table, 5, 115);    // Payload - 设置为115像素
+            setFixedColumnWidth(table, 6, 30);     // modif status - 保持30像素
+            setFixedColumnWidth(table, 7, 60);     // Len Diff - 设置为60像素
+            setFixedColumnWidth(table, 8, 60);     // modif len(withoutheader) - 设置为60像素
+            setFixedColumnWidth(table, 9, 60);     // modif len+(withheader) - 设置为60像素
+            setFixedColumnWidth(table, 10, 60);    // origin len(withoutheader) - 设置为60像素
+            setFixedColumnWidth(table, 11, 72);    // Modif. Time
+            setFixedColumnWidth(table, 12, 80);    // Reflect
         }
 
         return table;
+    }
+
+    /**
+     * 设置列宽（设置首选宽度和最小宽度，允许用户手动调整）
+     * @param table 表格对象
+     * @param columnIndex 列索引
+     * @param width 宽度（像素）
+     */
+    private void setFixedColumnWidth(JTable table, int columnIndex, int width) {
+        TableColumn column = table.getColumnModel().getColumn(columnIndex);
+        column.setPreferredWidth(width);
+        column.setMinWidth(width);
+        // 不设置 setMaxWidth，允许用户手动拖动调整列宽
     }
 
     private void updateSelection(JTable table) {
