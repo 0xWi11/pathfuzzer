@@ -143,6 +143,33 @@ public class ParamCollector {
                     .replace("[COMMA]", ",");   // 还原逗号
         }
     }
+    private String cleanInvalidUtf8(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        try {
+            // 方法1：使用charset编码/解码来清理无效字符
+            byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
+            return new String(bytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            // 方法2：如果上面失败，逐字符过滤
+            StringBuilder cleaned = new StringBuilder();
+            for (char c : input.toCharArray()) {
+                // 只保留有效的Unicode字符（排除控制字符和无效字符）
+                if (Character.isDefined(c) && !Character.isISOControl(c)) {
+                    cleaned.append(c);
+                } else if (c == '\n' || c == '\r' || c == '\t') {
+                    // 保留常见的空白字符
+                    cleaned.append(c);
+                } else {
+                    // 其他无效字符替换为空格或跳过
+                    cleaned.append(' ');
+                }
+            }
+            return cleaned.toString();
+        }
+    }
 
     public ParamCollector(Logging logging) {
         this.logging = logging;
@@ -398,6 +425,10 @@ public class ParamCollector {
         if (url == null) {
             url = "";
         }
+
+        // 关键修复：清理无效的UTF-8字符
+        value = cleanInvalidUtf8(value);
+        url = cleanInvalidUtf8(url);
 
         lock.writeLock().lock();
         try {
