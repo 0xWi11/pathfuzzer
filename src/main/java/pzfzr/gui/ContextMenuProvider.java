@@ -527,9 +527,9 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                     }
                 }
 
-                // 等待所有任务完成
+                // 等待所有任务完成 - 已移除超时限制，任务将持续运行直到完成
                 CompletableFuture<Void> allTasks = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-                allTasks.get(30, TimeUnit.MINUTES); // 设置30分钟超时
+                allTasks.join(); // 使用 join() 替代 get(timeout)，无超时限制
 
                 // 改为日志输出，不显示弹窗
                 if (!cancelled) {
@@ -537,9 +537,6 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
                             pluginConfigManager.getContextMenuName(), taskId, testName, processedCount, errorCount));
                 }
 
-            } catch (TimeoutException e) {
-                api.logging().logToError(String.format("[%s] [Task %d] %s timed out after 30 minutes",
-                        pluginConfigManager.getContextMenuName(), taskId, testName));
             } catch (Exception e) {
                 api.logging().logToError(String.format("[%s] [Task %d] Error during batch execution: %s",
                         pluginConfigManager.getContextMenuName(), taskId, e.getMessage()));

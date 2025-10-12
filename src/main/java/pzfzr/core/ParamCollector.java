@@ -175,6 +175,7 @@ public class ParamCollector {
             defaults.put("page", "1");
             defaults.put("currentPage", "1");
             defaults.put("pageSize", "88");
+            defaults.put("limit", "null");
 
             for (Map.Entry<String, String> entry : defaults.entrySet()) {
                 // 固定 position=post-json, type=number
