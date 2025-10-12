@@ -397,6 +397,8 @@ public class ParamCollector {
         } else {
             type = "string";
             valueStr = value.asText();
+            // 对从JSON中读取的字符串也进行清理
+            valueStr = cleanInvalidUtf8(valueStr);
         }
 
         addParam(url, position, type, key, valueStr);
