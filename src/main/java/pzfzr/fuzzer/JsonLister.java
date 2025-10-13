@@ -669,11 +669,11 @@ public class JsonLister {
     private List<PayloadVariant> generateNonNumericSpaceVariants(String originalValue, String paramName, boolean isQuery) {
         List<PayloadVariant> variants = new ArrayList<>();
         if (isQuery) {
-            variants.add(new PayloadVariant(originalValue + "+", paramName + "=" + originalValue + "+", originalValue + "+", false, false, null));
-            variants.add(new PayloadVariant("+" + originalValue, paramName + "=+" + originalValue, "+" + originalValue, false, false, null));
+            variants.add(new PayloadVariant(originalValue + "+", paramName + "=" + originalValue + "+", "orig" + "+", false, false, null));
+            variants.add(new PayloadVariant("+" + originalValue, paramName + "=+" + originalValue, "+" + "orig", false, false, null));
         } else {
-            variants.add(new PayloadVariant(originalValue + " ", paramName + "=" + originalValue + " ", originalValue + " ", false, false, null));
-            variants.add(new PayloadVariant(" " + originalValue, paramName + "= " + originalValue, " " + originalValue, false, false, null));
+            variants.add(new PayloadVariant(originalValue + " ", paramName + "=" + originalValue + " ", "orig" + " ", false, false, null));
+            variants.add(new PayloadVariant(" " + originalValue, paramName + "= " + originalValue, " " + "orig", false, false, null));
         }
         return variants;
     }
@@ -681,9 +681,9 @@ public class JsonLister {
     private List<PayloadVariant> generateNonNumericUnicodeCRLFVariants(String originalValue, String paramName, boolean isQuery) {
         List<PayloadVariant> variants = new ArrayList<>();
         if (isQuery) {
-            variants.add(new PayloadVariant(originalValue + "%5cu000D%5cu000A", paramName + "=" + originalValue + "%5cu000D%5cu000A", originalValue + "%5cu000D%5cu000A", false, false, null));
+            variants.add(new PayloadVariant(originalValue + "%5cu000D%5cu000A", paramName + "=" + originalValue + "%5cu000D%5cu000A", "orig" + "%5cu000D%5cu000A", false, false, null));
         } else {
-            variants.add(new PayloadVariant(originalValue + "\\u000D\\u000A", paramName + "=" + originalValue + "\\u000D\\u000A", originalValue + "\\u000D\\u000A", false, false, null));
+            variants.add(new PayloadVariant(originalValue + "\\u000D\\u000A", paramName + "=" + originalValue + "\\u000D\\u000A", "orig" + "\\u000D\\u000A", false, false, null));
         }
         return variants;
     }
@@ -1146,28 +1146,28 @@ public class JsonLister {
             int id = originalValue.asInt();
 
             // 新增：原始ID的空格变体
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + " "), "\"" + id + " \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + " "), "\"" + "orig" + " \""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + id), "\" " + id + "\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + (id - 4) + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + (id - 10) + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + (id - 100) + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 4)), "\" " + (id - 4) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 10)), "\" " + (id - 10) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + (id - 100) + "\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + "orig" + "-4 \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + "orig" + "-10 \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + "orig" + "-100 \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 4)), "\" " + "orig" + "-4\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 10)), "\" " + "orig" + "-10\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + "orig" + "-100\""));
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
 
             // 新增：原始ID的空格变体
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + " "), "\"" + id + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + id), "\" " + id + "\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + " "), "\"" + "orig" + " \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + id), "\" " + "orig" + "\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + (id - 4) + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + (id - 10) + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + (id - 100) + " \""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 4)), "\" " + (id - 4) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 10)), "\" " + (id - 10) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + (id - 100) + "\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + "orig" + "-4 \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + "orig" + "-10 \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + "orig" + "-100 \""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 4)), "\" " + "orig" + "-4\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 10)), "\" " + "orig"+ "-10\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + "orig" + "-400\""));
         } else if (originalValue.isTextual()) {
             String idStr = originalValue.asText();
             if (isNumericId(idStr)) {
@@ -1175,20 +1175,20 @@ public class JsonLister {
                     long id = Long.parseLong(idStr);
 
                     // 新增：原始ID的空格变体
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + " "), "\"" + idStr + " \""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + idStr), "\" " + idStr + "\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + " "), "\"" + "orig" + " \""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + idStr), "\" " + "orig" + "\""));
 
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + (id - 4) + " \""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + (id - 10) + " \""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + (id - 100) + " \""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 4)), "\" " + (id - 4) + "\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 10)), "\" " + (id - 10) + "\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + (id - 100) + "\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + " "), "\"" + "orig" + "-4 \""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + " "), "\"" + "orig" + "-10 \""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + " "), "\"" + "orig" + "-100 \""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 4)), "\" " + "orig" + "-4\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 10)), "\" " + "orig" + "-10\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + (id - 100)), "\" " + "orig" + "-100\""));
                 } catch (NumberFormatException e) {
                 }
             } else {
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + " "), "\"" + idStr + " \""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + idStr), "\" " + idStr + "\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + " "), "\"" + "orig" + " \""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(" " + idStr), "\" " + "orig" + "\""));
             }
         }
         return variants;
@@ -1200,21 +1200,21 @@ public class JsonLister {
             int id = originalValue.asInt();
 
             // 新增：原始ID的Unicode CRLF变体
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "\\u000D\\u000A"), "\"" + id + "\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "\\u000D\\u000A"), "\"" + "orig" + "\\\\u000D\\\\u000A\""));
 
             // 修复：expression使用字面字符串 \\u000D\\u000A
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + (id - 4) + "\\\\u000D\\\\u000A\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + (id - 10) + "\\\\u000D\\\\u000A\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + (id - 100) + "\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + "orig" + "-4\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + "orig" + "-10\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + "orig" + "-100\\\\u000D\\\\u000A\""));
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
 
             // 新增：原始ID的Unicode CRLF变体
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "\\u000D\\u000A"), "\"" + id + "\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "\\u000D\\u000A"), "\"" + "orig" + "\\\\u000D\\\\u000A\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + (id - 4) + "\\\\u000D\\\\u000A\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + (id - 10) + "\\\\u000D\\\\u000A\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + (id - 100) + "\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + "orig" + "-4\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + "orig" + "-10\\\\u000D\\\\u000A\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + "orig" + "-100\\\\u000D\\\\u000A\""));
         } else if (originalValue.isTextual()) {
             String idStr = originalValue.asText();
             if (isNumericId(idStr)) {
@@ -1222,16 +1222,16 @@ public class JsonLister {
                     long id = Long.parseLong(idStr);
 
                     // 新增：原始ID的Unicode CRLF变体
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "\\u000D\\u000A"), "\"" + idStr + "\\\\u000D\\\\u000A\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "\\u000D\\u000A"), "\"" + "orig" + "\\\\u000D\\\\u000A\""));
 
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + (id - 4) + "\\\\u000D\\\\u000A\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + (id - 10) + "\\\\u000D\\\\u000A\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + (id - 100) + "\\\\u000D\\\\u000A\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\\u000D\\u000A"), "\"" + "orig" + "-4\\\\u000D\\\\u000A\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\\u000D\\u000A"), "\"" + "orig" + "-10\\\\u000D\\\\u000A\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\\u000D\\u000A"), "\"" + "orig" + "-100\\\\u000D\\\\u000A\""));
                 } catch (NumberFormatException e) {
                 }
             } else {
                 // 非数字ID
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "\\u000D\\u000A"), "\"" + idStr + "\\\\u000D\\\\u000A\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "\\u000D\\u000A"), "\"" + "orig" + "\\\\u000D\\\\u000A\""));
             }
         }
         return variants;
@@ -1241,44 +1241,44 @@ public class JsonLister {
         List<JsonPayloadVariant> variants = new ArrayList<>();
         if (originalValue.isInt()) {
             int id = originalValue.asInt();
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + ".json"), "\"" + id + ".json\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + ".json"), "\"" + (id - 4) + ".json\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + ".json"), "\"" + (id - 10) + ".json\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + ".json"), "\"" + (id - 100) + ".json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + ".json"), "\"" + "orig" + ".json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + ".json"), "\"" + "orig" + "-4.json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + ".json"), "\"" + "orig" + "-10.json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + ".json"), "\"" + "orig" + "-100.json\""));
         } else if (originalValue.isLong()) {
             long id = originalValue.asLong();
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + ".json"), "\"" + id + ".json\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + ".json"), "\"" + (id - 4) + ".json\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + ".json"), "\"" + (id - 10) + ".json\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + ".json"), "\"" + (id - 100) + ".json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + ".json"), "\"" + "orig" + "-4.json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + ".json"), "\"" + "orig" + "-10.json\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + ".json"), "\"" + "orig" + "-100.json\""));
         } else if (originalValue.isTextual()) {
             String idStr = originalValue.asText();
             if (isNumericId(idStr)) {
                 try {
                     long id = Long.parseLong(idStr);
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + ".json"), "\"" + idStr + ".json\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + ".json"), "\"" + (id - 4) + ".json\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + ".json"), "\"" + (id - 10) + ".json\""));
-                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + ".json"), "\"" + (id - 100) + ".json\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + ".json"), "\"" + "orig" + ".json\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + ".json"), "\"" + "orig" + "-4.json\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + ".json"), "\"" + "orig" + "-10.json\""));
+                    variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + ".json"), "\"" + "orig" + "-100.json\""));
                 } catch (NumberFormatException e) {
                     if (isValidDigitString(idStr)) {
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + ".json"), "\"" + idStr + ".json\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + ".json"), "\"" + "orig" + ".json\""));
                         String dec4 = decrementStringNumber(idStr, 4);
                         String dec10 = decrementStringNumber(idStr, 10);
                         String dec100 = decrementStringNumber(idStr, 100);
                         if (dec4 != null && !dec4.startsWith("-")) {
-                            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(dec4 + ".json"), "\"" + dec4 + ".json\""));
+                            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(dec4 + ".json"), "\"" + "orig" + "-4.json\""));
                         }
                         if (dec10 != null && !dec10.startsWith("-")) {
-                            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(dec10 + ".json"), "\"" + dec10 + ".json\""));
+                            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(dec10 + ".json"), "\"" + "orig" + "-10.json\""));
                         }
                         if (dec100 != null && !dec100.startsWith("-")) {
-                            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(dec100 + ".json"), "\"" + dec100 + ".json\""));
+                            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(dec100 + ".json"), "\"" + "orig" + "-100.json\""));
                         }
                     }
                 }
             } else {
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + ".json"), "\"" + idStr + ".json\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + ".json"), "\"" + "orig" + ".json\""));
             }
         }
         return variants;
@@ -1886,12 +1886,12 @@ public class JsonLister {
                         String jsonValue = originalValue + ".json";
                         HttpParameter newParamJson = HttpParameter.parameter(param.name(), jsonValue, HttpParameterType.BODY);
                         HttpRequest modifiedRequestJson = originalRequest.withUpdatedParameters(newParamJson);
-                        sendModifiedRequest(modifiedRequestJson, messageId, host, param.name() + "=" + jsonValue, originalValue + ".json", param.name());
+                        sendModifiedRequest(modifiedRequestJson, messageId, host, param.name() + "=" + jsonValue, "orig" + ".json", param.name());
 
                         String slashValue = originalValue + "/";
                         HttpParameter newParamSlash = HttpParameter.parameter(param.name(), slashValue, HttpParameterType.BODY);
                         HttpRequest modifiedRequestSlash = originalRequest.withUpdatedParameters(newParamSlash);
-                        sendModifiedRequest(modifiedRequestSlash, messageId, host, param.name() + "=" + slashValue, originalValue + "/", param.name());
+                        sendModifiedRequest(modifiedRequestSlash, messageId, host, param.name() + "=" + slashValue, "orig" + "/", param.name());
 
                         String upperValue = originalValue.toUpperCase();
                         HttpParameter newParam1 = HttpParameter.parameter(param.name(), upperValue, HttpParameterType.BODY);
@@ -1917,13 +1917,13 @@ public class JsonLister {
                         HttpParameter newParam2 = HttpParameter.parameter(param.name(), crlfValue, HttpParameterType.BODY);
                         HttpRequest modifiedRequest2 = originalRequest.withUpdatedParameters(newParam2);
                         String expression2 = param.name() + "=" + originalValue + "%0D%0A";
-                        sendModifiedRequest(modifiedRequest2, messageId, host, expression2, originalValue + "%0D%0A", param.name());
+                        sendModifiedRequest(modifiedRequest2, messageId, host, expression2, "orig" + "%0D%0A", param.name());
 
                         String hashValue = originalValue + "%23";
                         HttpParameter newParam3 = HttpParameter.parameter(param.name(), hashValue, HttpParameterType.BODY);
                         HttpRequest modifiedRequest3 = originalRequest.withUpdatedParameters(newParam3);
                         String expression3 = param.name() + "=" + originalValue + "%23";
-                        sendModifiedRequest(modifiedRequest3, messageId, host, expression3, originalValue + "%23", param.name());
+                        sendModifiedRequest(modifiedRequest3, messageId, host, expression3, "orig" + "%23", param.name());
 
                         HttpParameter newParam4 = HttpParameter.parameter(param.name(), "[]", HttpParameterType.BODY);
                         HttpRequest modifiedRequest4 = originalRequest.withUpdatedParameters(newParam4);
@@ -1992,7 +1992,7 @@ public class JsonLister {
                         String jsonValue = originalValue + ".json";
                         HttpParameter newParamJson = HttpParameter.parameter(param.name(), jsonValue, HttpParameterType.URL);
                         HttpRequest modifiedRequestJson = originalRequest.withUpdatedParameters(newParamJson);
-                        sendModifiedRequest(modifiedRequestJson, messageId, host, param.name() + "=" + jsonValue, originalValue + ".json", param.name());
+                        sendModifiedRequest(modifiedRequestJson, messageId, host, param.name() + "=" + jsonValue, "orig" + ".json", param.name());
 
                         // 非数字ID - 斜杠后缀（修改expression）
                         String slashValue = originalValue + "/";
@@ -2001,7 +2001,7 @@ public class JsonLister {
                             HttpParameter newParamSlash = HttpParameter.parameter(param.name(), encodedSlash, HttpParameterType.URL);
                             HttpRequest modifiedRequestSlash = originalRequest.withUpdatedParameters(newParamSlash);
                             // 修改：expression也显示编码后的
-                            sendModifiedRequest(modifiedRequestSlash, messageId, host, param.name() + "=" + encodedSlash, originalValue + "/", param.name());
+                            sendModifiedRequest(modifiedRequestSlash, messageId, host, param.name() + "=" + encodedSlash, "orig" + "/", param.name());
                         } catch (Exception ex) {
                             logging.logToOutput("URL encoding error: " + ex.getMessage());
                         }
@@ -2030,13 +2030,13 @@ public class JsonLister {
                         HttpParameter newParam2 = HttpParameter.parameter(param.name(), crlfValue, HttpParameterType.URL);
                         HttpRequest modifiedRequest2 = originalRequest.withUpdatedParameters(newParam2);
                         String expression2 = param.name() + "=" + originalValue + "%0D%0A";
-                        sendModifiedRequest(modifiedRequest2, messageId, host, expression2, originalValue + "%0D%0A", param.name());
+                        sendModifiedRequest(modifiedRequest2, messageId, host, expression2, "orig" + "%0D%0A", param.name());
 
                         String hashValue = originalValue + "%23";
                         HttpParameter newParam3 = HttpParameter.parameter(param.name(), hashValue, HttpParameterType.URL);
                         HttpRequest modifiedRequest3 = originalRequest.withUpdatedParameters(newParam3);
                         String expression3 = param.name() + "=" + originalValue + "%23";
-                        sendModifiedRequest(modifiedRequest3, messageId, host, expression3, originalValue + "%23", param.name());
+                        sendModifiedRequest(modifiedRequest3, messageId, host, expression3, "orig" + "%23", param.name());
 
                         HttpParameter newParam4 = HttpParameter.parameter(param.name(), "[]", HttpParameterType.URL);
                         HttpRequest modifiedRequest4 = originalRequest.withUpdatedParameters(newParam4);
@@ -2115,14 +2115,14 @@ public class JsonLister {
                     String expressionSpace1 = "\"" + currentParamName + "\":\"" + currentValue + " \"";
                     String modifiedBodySpace1 = objectMapper.writeValueAsString(newRootSpace1);
                     HttpRequest modifiedRequestSpace1 = originalRequest.withBody(modifiedBodySpace1);
-                    sendModifiedRequest(modifiedRequestSpace1, messageId, host, expressionSpace1, "\"" + currentValue + " \"", currentParamName);
+                    sendModifiedRequest(modifiedRequestSpace1, messageId, host, expressionSpace1, "\"" + "orig" + " \"", currentParamName);
 
                     ObjectNode newRootSpace2 = rootNode.deepCopy();
                     setFieldValue(newRootSpace2, fieldPath, JsonNodeFactory.instance.textNode(" " + currentValue));
                     String expressionSpace2 = "\"" + currentParamName + "\":\" " + currentValue + "\"";
                     String modifiedBodySpace2 = objectMapper.writeValueAsString(newRootSpace2);
                     HttpRequest modifiedRequestSpace2 = originalRequest.withBody(modifiedBodySpace2);
-                    sendModifiedRequest(modifiedRequestSpace2, messageId, host, expressionSpace2, "\" " + currentValue + "\"", currentParamName);
+                    sendModifiedRequest(modifiedRequestSpace2, messageId, host, expressionSpace2, "\" " + "orig" + "\"", currentParamName);
 
                     // Unicode CRLF - 非数字ID
                     ObjectNode newRootUnicode = rootNode.deepCopy();
@@ -2130,7 +2130,7 @@ public class JsonLister {
                     String expressionUnicode = "\"" + currentParamName + "\":\"" + currentValue;
                     String modifiedBodyUnicode = objectMapper.writeValueAsString(newRootUnicode);
                     HttpRequest modifiedRequestUnicode = originalRequest.withBody(modifiedBodyUnicode);
-                    sendModifiedRequest(modifiedRequestUnicode, messageId, host, expressionUnicode, "\"" + currentValue + "\\\\u000D\\\\u000A\"", currentParamName);
+                    sendModifiedRequest(modifiedRequestUnicode, messageId, host, expressionUnicode, "\"" + "orig" + "\\\\u000D\\\\u000A\"", currentParamName);
 
                     // CRLF - 非数字ID
                     String crlfValue = currentValue + "\r\n";
@@ -2139,7 +2139,7 @@ public class JsonLister {
                     String expression2 = "\"" + currentParamName + "\":\"" + currentValue ;
                     String modifiedBody2 = objectMapper.writeValueAsString(newRoot2);
                     HttpRequest modifiedRequest2 = originalRequest.withBody(modifiedBody2);
-                    sendModifiedRequest(modifiedRequest2, messageId, host, expression2, "\"" + currentValue + "\\r\\n\"", currentParamName);
+                    sendModifiedRequest(modifiedRequest2, messageId, host, expression2, "\"" + "orig" + "\\r\\n\"", currentParamName);
 
                     String hashValue = currentValue + "%23";
                     ObjectNode newRoot3 = rootNode.deepCopy();
@@ -2147,7 +2147,7 @@ public class JsonLister {
                     String expression3 = "\"" + currentParamName + "\":\"" + currentValue + "%23\"";
                     String modifiedBody3 = objectMapper.writeValueAsString(newRoot3);
                     HttpRequest modifiedRequest3 = originalRequest.withBody(modifiedBody3);
-                    sendModifiedRequest(modifiedRequest3, messageId, host, expression3, "\"" + currentValue + "%23\"", currentParamName);
+                    sendModifiedRequest(modifiedRequest3, messageId, host, expression3, "\"" + "orig" + "%23\"", currentParamName);
 
                     ObjectNode newRoot4 = rootNode.deepCopy();
                     setFieldValue(newRoot4, fieldPath, JsonNodeFactory.instance.arrayNode());
@@ -2617,17 +2617,17 @@ public class JsonLister {
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "/"), "\"-10/\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "/"), "\"-100/\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 4)), "\"" + id + "," + (id - 4) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 10)), "\"" + id + "," + (id - 10) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 100)), "\"" + id + "," + (id - 100) + "\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 4)), "\"" + "orig" + "," + "orig" + "-4\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 10)), "\"" + "orig" + "," + "orig" + "-10\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 100)), "\"" + "orig" + "," + "orig" + "-100\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\r\n"), "\"" + (id - 4) + "\\r\\n\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\r\n"), "\"" + (id - 10) + "\\r\\n\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\r\n"), "\"" + (id - 100) + "\\r\\n\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\r\n"), "\"" + "orig" + "-4\\r\\n\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\r\n"), "\"" + "orig" + "-10\\r\\n\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\r\n"), "\"" + "orig" + "-100\\r\\n\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "%23"), "\"" + (id - 4) + "%23\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "%23"), "\"" + (id - 10) + "%23\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "%23"), "\"" + (id - 100) + "%23\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "%23"), "\"" + "orig" + "-4%23\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "%23"), "\"" + "orig" + "-10%23\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "%23"), "\"" + "orig" + "-100%23\""));
 
             ArrayNode arrayVariant1 = JsonNodeFactory.instance.arrayNode();
             arrayVariant1.add(id);
@@ -2674,17 +2674,17 @@ public class JsonLister {
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "/"), "\"-10/\""));
             variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "/"), "\"-100/\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 4)), "\"" + id + "," + (id - 4) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 10)), "\"" + id + "," + (id - 10) + "\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 100)), "\"" + id + "," + (id - 100) + "\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 4)), "\"" + "orig" + "," + "orig" + "-4\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 10)), "\"" + "orig" + "," + "orig"+ "-10\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(id + "," + (id - 100)), "\"" + "orig" + "," + "orig" + "-100\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\r\n"), "\"" + (id - 4) + "\\r\\n\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\r\n"), "\"" + (id - 10) + "\\r\\n\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\r\n"), "\"" + (id - 100) + "\\r\\n\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\r\n"), "\"" + "orig" + "-4\\r\\n\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\r\n"), "\"" + "orig" + "-10\\r\\n\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\r\n"), "\"" + "orig" + "-100\\r\\n\""));
 
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "%23"), "\"" + (id - 4) + "%23\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "%23"), "\"" + (id - 10) + "%23\""));
-            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "%23"), "\"" + (id - 100) + "%23\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "%23"), "\"" + "orig" + "-4%23\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "%23"), "\"" + "orig" + "-10%23\""));
+            variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "%23"), "\"" + "orig" + "-100%23\""));
 
             ArrayNode arrayVariant2 = JsonNodeFactory.instance.arrayNode();
             arrayVariant2.add(id);
@@ -2728,21 +2728,21 @@ public class JsonLister {
                 variants.addAll(generateJsonSpaceVariants(originalValue));
                 variants.addAll(generateJsonUnicodeCRLFVariants(originalValue));
 
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "/"), "\"" + (id - 4) + "/\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "/"), "\"" + (id - 10) + "/\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "/"), "\"" + (id - 100) + "/\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "/"), "\"" + "orig" + "-4/\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "/"), "\"" + "orig" + "-10/\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "/"), "\"" + "orig" + "-100/\""));
 
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + (id - 4)), "\"" + idStr + "," + (id - 4) + "\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + (id - 10)), "\"" + idStr + "," + (id - 10) + "\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + (id - 100)), "\"" + idStr + "," + (id - 100) + "\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + (id - 4)), "\"" + "orig" + "," + "orig" + "-4\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + (id - 10)), "\"" + "orig" + "," + "orig" + "-10\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + (id - 100)), "\"" + "orig" + "," + "orig" + "-100\""));
 
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\r\n"), "\"" + (id - 4) + "\\r\\n\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\r\n"), "\"" + (id - 10) + "\\r\\n\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\r\n"), "\"" + (id - 100) + "\\r\\n\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "\r\n"), "\"" + "orig" + "-4\\r\\n\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "\r\n"), "\"" + "orig" + "-10\\r\\n\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "\r\n"), "\"" + "orig" + "-100\\r\\n\""));
 
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "%23"), "\"" + (id - 4) + "%23\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "%23"), "\"" + (id - 10) + "%23\""));
-                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "%23"), "\"" + (id - 100) + "%23\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 4) + "%23"), "\"" + "orig" + "-4%23\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 10) + "%23"), "\"" + "orig" + "-10%23\""));
+                variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode((id - 100) + "%23"), "\"" + "orig" + "-100%23\""));
 
                 ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
                 arrayVariant3.add(idStr);
@@ -2789,22 +2789,22 @@ public class JsonLister {
                     variants.addAll(generateJsonNinesVariants(originalValue));
 
                     if (decremented4 != null && !decremented4.startsWith("-")) {
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "/"), "\"" + decremented4 + "/\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + decremented4), "\"" + idStr + "," + decremented4 + "\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "\r\n"), "\"" + decremented4 + "\\r\\n\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "%23"), "\"" + decremented4 + "%23\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "/"), "\"" + "orig" + "-4/\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + decremented4), "\"" + "orig" + "," + "orig" + "-4\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "\r\n"), "\"" + "orig" + "-4\\r\\n\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented4 + "%23"), "\"" + "orig" + "-4%23\""));
                     }
                     if (decremented10 != null && !decremented10.startsWith("-")) {
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "/"), "\"" + decremented10 + "/\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + decremented10), "\"" + idStr + "," + decremented10 + "\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "\r\n"), "\"" + decremented10 + "\\r\\n\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "%23"), "\"" + decremented10 + "%23\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "/"), "\"" + "orig" + "-10/\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + decremented10), "\"" + "orig" + "," + "orig" + "-10\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "\r\n"), "\"" + "orig" + "-10\\r\\n\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented10 + "%23"), "\"" + "orig" + "-10%23\""));
                     }
                     if (decremented100 != null && !decremented100.startsWith("-")) {
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "/"), "\"" + decremented100 + "/\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + decremented100), "\"" + idStr + "," + decremented100 + "\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "\r\n"), "\"" + decremented100 + "\\r\\n\""));
-                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "%23"), "\"" + decremented100 + "%23\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "/"), "\"" + "orig" + "-100/\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(idStr + "," + decremented100), "\"" + "orig" + "," + "orig" + "-100\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "\r\n"), "\"" + "orig" + "-100\\r\\n\""));
+                        variants.add(new JsonPayloadVariant(JsonNodeFactory.instance.textNode(decremented100 + "%23"), "\"" + "orig" + "-100%23\""));
                     }
 
                     ArrayNode arrayVariant3 = JsonNodeFactory.instance.arrayNode();
