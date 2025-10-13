@@ -319,7 +319,7 @@ public class RequestResponseSaver {
 
         try {
             if (response.contains("73504", false) || response.contains("918891889188", false)) {
-                detectedTypes.add("SSTI");
+                detectedTypes.add("SSTI-73504-9188");
             }
             if (response.contains("/bin/sh", false)) {
                 detectedTypes.add("LFI");
