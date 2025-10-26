@@ -1154,7 +1154,12 @@ public class JsonLister {
                 variantStr = variant.toString();
             }
         } else if (variant.isTextual()) {
-            variantStr = "\"" + variant.asText() + "\"";
+            String text = variant.asText();
+            int idx = text.indexOf("\\u000D\\u000A");
+            if (idx != -1) text = text.substring(0, idx);
+            idx = text.indexOf("\r\n");
+            if (idx != -1) text = text.substring(0, idx);
+            variantStr = "\"" + text ;
         } else {
             variantStr = variant.toString();
         }
