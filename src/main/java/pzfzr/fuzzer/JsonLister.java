@@ -35,11 +35,13 @@ import java.nio.charset.StandardCharsets;
  * JsonLister类 - 重构版本
  * 对HTTP请求中的参数进行替换和污染测试
  * 主要处理邮箱和ID类型的参数替换，支持路径ID fuzz
+ * 支持GraphQL数据类型的特殊处理
  *
  * 重构说明：
  * - 所有payload生成逻辑已移至 JsonListerPayloadGenerator 类
  * - 本类专注于请求处理主流程和与Burp API的交互
  * - 构造函数签名和所有public方法签名保持完全不变
+ * - 新增GraphQL数据类型支持，只测试variables对象下的参数
  */
 public class JsonLister {
     private final MontoyaApi api;
@@ -92,7 +94,7 @@ public class JsonLister {
         // 创建payload生成器实例 - 新增
         this.payloadGenerator = new JsonListerPayloadGenerator(this.objectMapper);
 
-        logging.logToOutput("[JsonLister] Initialization complete, using new NettyManager client with refactored payload generator");
+        logging.logToOutput("[JsonLister] Initialization complete, using new NettyManager client with refactored payload generator and GraphQL support");
     }
 
     /**
@@ -128,6 +130,33 @@ public class JsonLister {
             logging.logToOutput("Exception in processRequest: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 检测GraphQL类型数据（简单检测）
+     * @param bodyString 请求体字符串
+     * @return 如果是GraphQL数据返回根节点，否则返回null
+     */
+    private JsonNode detectGraphQLSimple(String bodyString) {
+        if (bodyString == null || bodyString.isEmpty()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(bodyString);
+            // Batch处理
+            if (root.isArray() && root.size() > 0) {
+                root = root.get(0);
+            }
+            // 只检查三个字段存在即可（不验证内容）
+            if (root.has("operationName") &&
+                    root.has("variables") &&
+                    root.has("query")) {
+                return root;
+            }
+        } catch (Exception e) {
+            // 忽略
+        }
+        return null;
     }
 
     /**
@@ -212,11 +241,86 @@ public class JsonLister {
             String bodyString = originalRequest.bodyToString();
             if (!bodyString.isEmpty()) {
                 if (isJsonFormat(bodyString)) {
-                    // 处理JSON格式的body参数
-                    processJsonEmailReplacements(originalRequest, messageId, host);
+                    // 先检测是否为GraphQL数据
+                    JsonNode graphQLNode = detectGraphQLSimple(bodyString);
+                    if (graphQLNode != null) {
+                        // 处理GraphQL格式的邮箱替换
+                        processGraphQLEmailReplacements(originalRequest, graphQLNode, messageId, host);
+                    } else {
+                        // 处理JSON格式的body参数
+                        processJsonEmailReplacements(originalRequest, messageId, host);
+                    }
                 } else {
                     // 处理URL编码格式的body参数
                     processBodyEmailReplacements(originalRequest, messageId, host);
+                }
+            }
+        } catch (Exception e) {
+            // 静默处理异常
+        }
+    }
+
+    /**
+     * 处理GraphQL格式的邮箱替换 - 只测试variables对象下的参数
+     * @param originalRequest 原始HTTP请求
+     * @param graphQLNode GraphQL根节点
+     * @param messageId 消息ID
+     * @param host 主机名
+     */
+    private void processGraphQLEmailReplacements(HttpRequest originalRequest, JsonNode graphQLNode, int messageId, String host) {
+        if (isShuttingDown) {
+            return;
+        }
+        try {
+            // 只处理variables对象
+            if (!graphQLNode.has("variables") || !graphQLNode.get("variables").isObject()) {
+                return;
+            }
+
+            JsonNode variablesNode = graphQLNode.get("variables");
+            Map<String, JsonNode> emailFields = new HashMap<>();
+            // 只在variables对象下查找邮箱字段
+            findEmailFieldsRecursive(variablesNode, "variables", emailFields);
+
+            for (Map.Entry<String, JsonNode> entry : emailFields.entrySet()) {
+                if (isShuttingDown) {
+                    return;
+                }
+                String fieldPath = entry.getKey();
+                JsonNode originalValue = entry.getValue();
+
+                // 获取原始邮箱值
+                String targetEmail = null;
+                if (originalValue.isTextual()) {
+                    targetEmail = originalValue.asText();
+                } else if (originalValue.isArray() && originalValue.size() > 0) {
+                    // 如果是数组，获取第一个匹配的邮箱
+                    for (JsonNode item : originalValue) {
+                        if (item.isTextual() && payloadGenerator.isTargetEmail(item.asText())) {
+                            targetEmail = item.asText();
+                            break;
+                        }
+                    }
+                }
+
+                if (targetEmail != null && payloadGenerator.isTargetEmail(targetEmail)) {
+                    String attackerEmail = payloadGenerator.generateAttackerEmail(targetEmail);
+                    // 创建新的JSON with email array
+                    ObjectNode newRoot = graphQLNode.deepCopy();
+                    // 创建邮箱数组
+                    ArrayNode emailArray = JsonNodeFactory.instance.arrayNode();
+                    emailArray.add(targetEmail);
+                    emailArray.add(attackerEmail);
+                    // 替换字段值
+                    setFieldValue(newRoot, fieldPath, emailArray);
+                    // 生成 expression
+                    String expression = generateJsonExpression(fieldPath, originalValue, emailArray);
+                    // 提取参数名称（JSON路径的最后一段）
+                    String currentParamName = extractParamNameFromPath(fieldPath);
+                    // 发送修改后的请求
+                    String modifiedBody = objectMapper.writeValueAsString(newRoot);
+                    HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                    sendModifiedRequest(modifiedRequest, messageId, host, expression, "2emails", currentParamName);
                 }
             }
         } catch (Exception e) {
@@ -367,8 +471,15 @@ public class JsonLister {
             String bodyString = originalRequest.bodyToString();
             if (!bodyString.isEmpty()) {
                 if (isJsonFormat(bodyString)) {
-                    // 处理JSON格式的body参数
-                    processJsonIdReplacements(originalRequest, messageId, host);
+                    // 先检测是否为GraphQL数据
+                    JsonNode graphQLNode = detectGraphQLSimple(bodyString);
+                    if (graphQLNode != null) {
+                        // 处理GraphQL格式的ID替换
+                        processGraphQLIdReplacements(originalRequest, graphQLNode, messageId, host);
+                    } else {
+                        // 处理JSON格式的body参数
+                        processJsonIdReplacements(originalRequest, messageId, host);
+                    }
                 } else {
                     // 处理URL编码格式的body参数
                     processBodyIdReplacements(originalRequest, messageId, host);
@@ -376,6 +487,67 @@ public class JsonLister {
             }
         } catch (Exception e) {
             // 静默处理异常
+        }
+    }
+
+    /**
+     * 处理GraphQL格式的ID替换 - 只测试variables对象下的参数
+     * @param originalRequest 原始HTTP请求
+     * @param graphQLNode GraphQL根节点
+     * @param messageId 消息ID
+     * @param host 主机名
+     */
+    private void processGraphQLIdReplacements(HttpRequest originalRequest, JsonNode graphQLNode, int messageId, String host) {
+        if (isShuttingDown) {
+            return;
+        }
+        try {
+            // 只处理variables对象
+            if (!graphQLNode.has("variables") || !graphQLNode.get("variables").isObject()) {
+                return;
+            }
+
+            JsonNode variablesNode = graphQLNode.get("variables");
+            Map<String, JsonNode> idFields = new HashMap<>();
+            // 只在variables对象下查找ID字段
+            findIdFieldsRecursive(variablesNode, "variables", idFields);
+
+            for (Map.Entry<String, JsonNode> entry : idFields.entrySet()) {
+                if (isShuttingDown) {
+                    return;
+                }
+                String fieldPath = entry.getKey();
+                JsonNode originalValue = entry.getValue();
+
+                boolean isNumeric = originalValue.isInt() || originalValue.isLong() ||
+                        (originalValue.isTextual() && payloadGenerator.isNumericId(originalValue.asText()));
+
+                if (isNumeric) {
+                    // 使用payload生成器生成JSON变体
+                    List<JsonListerPayloadGenerator.JsonPayloadVariant> variants =
+                            payloadGenerator.generateJsonIdPayloads(originalValue);
+
+                    for (JsonListerPayloadGenerator.JsonPayloadVariant variant : variants) {
+                        if (isShuttingDown) {
+                            return;
+                        }
+                        ObjectNode newRoot = graphQLNode.deepCopy();
+                        setFieldValue(newRoot, fieldPath, variant.getValue());
+                        String expression = generateJsonExpression(fieldPath, originalValue, variant.getValue());
+                        String currentParamName = extractParamNameFromPath(fieldPath);
+                        String modifiedBody = objectMapper.writeValueAsString(newRoot);
+                        HttpRequest modifiedRequest = originalRequest.withBody(modifiedBody);
+                        sendModifiedRequest(modifiedRequest, messageId, host, expression, variant.getAlias(), currentParamName);
+                    }
+
+                    processJsonDuplicateFieldVariants(originalRequest, fieldPath, originalValue, messageId, host);
+                } else if (originalValue.isTextual()) {
+                    processNonNumericJsonId(originalRequest, graphQLNode, fieldPath, originalValue, messageId, host);
+                }
+            }
+        } catch (Exception e) {
+            logging.logToOutput("Exception in processGraphQLIdReplacements: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -1013,7 +1185,7 @@ public class JsonLister {
             // 保存修改后的请求
             requestResponseSaver.saveModifiedRequest(modifiedRequest, tempID);
 
-            // 保存修改后的请求和响应，传递新的参数
+            // 保存修改后的请求和响应,传递新的参数
             ModifiedRequestResponse modifiedPair = new ModifiedRequestResponse(
                     tempID,
                     messageId,
