@@ -54,9 +54,9 @@ public class HistoryPanel extends JPanel {
         // 添加标签页 - PARAM ADD 放在 JSON 和 PARAM DEL 之间
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
-        tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
-        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));  // 新增
         tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));
+        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));  // 新增
+        tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
         tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));
         tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));
         tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));  // 新增OOBPARAM标签页
