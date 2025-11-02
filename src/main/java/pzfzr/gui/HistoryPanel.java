@@ -78,13 +78,13 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("JSON");
                     break;
                 case 2:
-                    tableModel.setFilter("PARAM");
+                    tableModel.setFilter("PARAM_DELETE");
                     break;
                 case 3:
                     tableModel.setFilter("PARAM-ADD");  // 新增
                     break;
                 case 4:
-                    tableModel.setFilter("PARAM_DELETE");
+                    tableModel.setFilter("PARAM");
                     break;
                 case 5:
                     tableModel.setFilter("ROUTE1");
