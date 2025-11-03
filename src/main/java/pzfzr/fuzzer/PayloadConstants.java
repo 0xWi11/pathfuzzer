@@ -149,6 +149,10 @@ public class PayloadConstants {
             new PayloadInfo("null", "null"),                              // ROUTE12
             // 其他ROUTE类型payload
 //            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
+            new PayloadInfo(".", "."),
+            new PayloadInfo("%23", "#"),
+            new PayloadInfo("%5c", "\\"),
+            new PayloadInfo("%3f", "?"),
             new PayloadInfo("{path}&chaxx=cha", "{param}&chaxx=cha"),
             new PayloadInfo("{path}%26chaxx=cha", "{param}%26chaxx=cha"),
             new PayloadInfo("{path}@{fuzz}.tejq8.zcyy.fun", "{path}@host"),

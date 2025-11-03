@@ -49,7 +49,11 @@ public class RouteFuzzer {
             "ng crlf",
             "ng crlf2",
             "ng crlf3",
-            "{path}CRLF"
+            "{path}CRLF",
+            ".",
+            "#",
+            "\\",
+            "?"
     ));
 
     // 定义ROUTE12类型的payload alias数组
