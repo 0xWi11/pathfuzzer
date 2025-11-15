@@ -350,35 +350,79 @@ public class NettyManager {
     }
 
     /**
-     * 判断是否为可重试的错误（新增超时错误判断）
+     * 判断是否为可重试的错误（增强版 - 优先判断异常类型）
      */
     private boolean isRetryableError(Throwable ex) {
         if (ex == null) return false;
 
-        // 检查是否为超时异常
+        // 优先检查异常类型（不依赖message）
         if (ex instanceof TimeoutException ||
                 ex instanceof ReadTimeoutException ||
-                ex instanceof WriteTimeoutException) {
+                ex instanceof WriteTimeoutException ||
+                ex instanceof java.net.ConnectException ||
+                ex instanceof java.net.SocketTimeoutException ||
+                ex instanceof java.nio.channels.ClosedChannelException ||
+                ex instanceof io.netty.channel.ConnectTimeoutException ||
+                ex instanceof java.io.IOException) {
             return true;
         }
 
+        // 检查Netty特定的异常
+        if (ex.getClass().getName().contains("DecoderException") ||
+                ex.getClass().getName().contains("EncoderException")) {
+            // 解码/编码错误通常不应重试
+            return false;
+        }
+
+        // 检查消息内容（message可能为null，需要安全处理）
         String message = ex.getMessage();
-        if (message == null) return false;
+        if (message != null) {
+            message = message.toLowerCase();
 
-        message = message.toLowerCase();
+            // 检查常见的可重试错误消息
+            return message.contains("handshake timed out") ||
+                    message.contains("connection timeout") ||
+                    message.contains("connect timeout") ||
+                    message.contains("connection reset") ||
+                    message.contains("connection refused") ||
+                    message.contains("timeout") ||
+                    message.contains("timed out") ||
+                    message.contains("broken pipe") ||
+                    message.contains("connection closed") ||
+                    message.contains("remotely closed");
+        }
 
-        // 检查是否为可重试的错误
-        return message.contains("handshake timed out") ||
-                message.contains("connection timeout") ||
-                message.contains("connect timeout") ||
-                message.contains("connection reset") ||
-                message.contains("connection refused") ||
-                message.contains("timeout") ||
-                message.contains("timed out");
+        // 如果message为null但不是已知的可重试类型，保守起见不重试
+        // 但记录警告日志
+        if (DEBUG) {
+            logging.logToOutput("[NettyManager] Unknown error type with null message: " +
+                    ex.getClass().getName());
+        }
+
+        return false;
     }
 
     /**
-     * 处理请求错误 - 修改：重试过程中不记录error log，增加总超时参数
+     * 获取异常的详细描述（用于日志）
+     */
+    private String getErrorDescription(Throwable ex) {
+        if (ex == null) {
+            return "Unknown error (null exception)";
+        }
+
+        String message = ex.getMessage();
+        String exceptionType = ex.getClass().getSimpleName();
+
+        if (message != null && !message.isEmpty()) {
+            return exceptionType + ": " + message;
+        } else {
+            // message为null时，返回异常类型
+            return exceptionType + " (no message)";
+        }
+    }
+
+    /**
+     * 处理请求错误 - 使用增强的错误描述
      */
     private void handleRequestError(Throwable ex, CompletableFuture<HttpResponse> future,
                                     ResponseCallback callback, long requestId, boolean permitAcquired,
@@ -417,10 +461,10 @@ public class NettyManager {
             activeRequests.decrementAndGet();
             retryRequests.incrementAndGet();
 
-            // 修改：重试信息记录到output而不是error
+            // 使用增强的错误描述
             if (DEBUG) {
                 logging.logToOutput("[NettyManager] Request #" + requestId + " encountered retryable error: " +
-                        ex.getMessage() + ", will retry after " + RETRY_DELAY_MS + "ms");
+                        getErrorDescription(ex) + ", will retry (" + (retryCount + 1) + "/" + MAX_RETRY_COUNT + ") after " + RETRY_DELAY_MS + "ms");
             }
 
             // 延迟后重试
@@ -442,7 +486,6 @@ public class NettyManager {
 
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        // 中断也记录到output
                         if (DEBUG) {
                             logging.logToOutput("[NettyManager] Request #" + requestId + " retry interrupted");
                         }
@@ -453,8 +496,7 @@ public class NettyManager {
                     }
                 }, businessExecutor);
             } catch (RejectedExecutionException ree) {
-                // 修改：只有最终失败才记录error
-                logging.logToError("[NettyManager] Request #" + requestId + " retry task rejected: " + ree.getMessage());
+                logging.logToError("[NettyManager] Request #" + requestId + " retry task rejected: " + getErrorDescription(ree));
                 failedRequests.incrementAndGet();
                 future.completeExceptionally(ree);
                 if (callback != null) {
@@ -462,10 +504,10 @@ public class NettyManager {
                 }
             }
 
-            return; // 不执行下面的失败处理逻辑
+            return;
         }
 
-        // 修改：只有最终失败才记录error log
+        // 最终失败 - 使用增强的错误描述
         if (permitAcquired) {
             requestSemaphore.release();
             acquiredPermits.decrementAndGet();
@@ -479,7 +521,7 @@ public class NettyManager {
         }
 
         String errorMsg = "[NettyManager] Request #" + requestId + " failed" +
-                (retryCount > 0 ? " after " + retryCount + " retries" : "") + ": " + ex.getMessage();
+                (retryCount > 0 ? " after " + retryCount + " retries" : "") + ": " + getErrorDescription(ex);
         logging.logToError(errorMsg);
 
         future.completeExceptionally(ex);
@@ -487,6 +529,7 @@ public class NettyManager {
             safeExecuteCallback(() -> callback.onError(ex));
         }
     }
+
 
     /**
      * 安全执行回调 - 新增方法:处理线程池关闭情况
@@ -680,7 +723,7 @@ public class NettyManager {
     }
 
     /**
-     * 处理Channel错误 - 修改：重试过程中不记录error log，增加总超时参数
+     * 处理Channel错误 - 使用增强的错误描述
      */
     private void handleChannelError(Channel channel, Throwable cause, ResponseContext context) {
         // 取消超时任务
@@ -697,7 +740,7 @@ public class NettyManager {
         // 修改：只在DEBUG模式记录channel错误详情
         if (DEBUG) {
             logging.logToOutput("[NettyManager] Request #" + context.requestId + " channel error: " +
-                    (cause != null ? cause.getMessage() : "unknown error"));
+                    getErrorDescription(cause));
         }
 
         // 检查总超时
@@ -730,7 +773,8 @@ public class NettyManager {
 
             // 修改：重试信息记录到output
             if (DEBUG) {
-                logging.logToOutput("[NettyManager] Request #" + context.requestId + " will retry due to channel error");
+                logging.logToOutput("[NettyManager] Request #" + context.requestId +
+                        " will retry due to channel error: " + getErrorDescription(cause));
             }
 
             // 延迟后重试
@@ -765,7 +809,7 @@ public class NettyManager {
             } catch (RejectedExecutionException ree) {
                 // 修改：只有最终失败才记录error
                 logging.logToError("[NettyManager] Request #" + context.requestId +
-                        " retry task rejected: " + ree.getMessage());
+                        " retry task rejected: " + getErrorDescription(ree));
                 failedRequests.incrementAndGet();
                 context.future.completeExceptionally(ree);
                 if (context.callback != null) {
@@ -773,10 +817,10 @@ public class NettyManager {
                 }
             }
 
-            return; // 不执行下面的失败处理逻辑
+            return;
         }
 
-        // 修改：只有最终失败才记录error log
+        // 最终失败
         requestSemaphore.release();
         acquiredPermits.decrementAndGet();
         activeRequests.decrementAndGet();
@@ -789,7 +833,7 @@ public class NettyManager {
 
         String errorMsg = "[NettyManager] Request #" + context.requestId + " failed" +
                 (context.retryCount > 0 ? " after " + context.retryCount + " retries" : "") +
-                ": " + (cause != null ? cause.getMessage() : "unknown error");
+                ": " + getErrorDescription(cause);
         logging.logToError(errorMsg);
 
         context.future.completeExceptionally(cause != null ? cause : new RuntimeException("Channel error"));
