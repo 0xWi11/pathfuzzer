@@ -336,7 +336,9 @@ public class RequestResponseSaver {
             // 检测CRLF漏洞
             for (HttpHeader header : response.headers()) {
                 if (header.name().toLowerCase().contains("c9w") ||
-                        header.name().toLowerCase().contains("v5m")) {
+                        header.name().toLowerCase().contains("v5m") ||
+                        header.name().toLowerCase().contains("wwwwwmmmwwwwwwww") ||
+                        header.value().toLowerCase().contains("wwwwwmmmwwwwwwww")) {
                     detectedTypes.add("CRLF");
                     break;
                 }

