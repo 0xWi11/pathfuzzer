@@ -36,14 +36,15 @@ public class HistoryPanel extends JPanel {
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
-        // 为每个标签页创建独立的表格 - 现在有11个标签页
+        // 为每个标签页创建独立的表格 - 现在有12个标签页
         JTable allTable = createTable();
         JTable jsonTable = createTable();
         JTable paramTable = createTable();
-        JTable paramAddTable = createTable();  // 新增：PARAM ADD表格
+        JTable paramAddTable = createTable();
         JTable paramDelTable = createTable();
         JTable route1Table = createTable();
         JTable route2Table = createTable();
+        JTable generalFuzzTable = createTable();  // 新增：GENERALFUZZ表格
         JTable oobparamTable = createTable();
         JTable cookieTable = createTable();
         JTable headerTable = createTable();
@@ -51,19 +52,20 @@ public class HistoryPanel extends JPanel {
         currentTable = allTable;
         tableModel.setAssociatedTable(currentTable);
 
-        // 添加标签页 - PARAM ADD 放在 JSON 和 PARAM DEL 之间
+        // 添加标签页 - GENERALFUZZ 放在 ROUTE2 之后
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
         tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));
-        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));  // 新增
+        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));
         tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
         tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));
         tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));
-        tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));  // 新增OOBPARAM标签页
-        tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));      // 新增COOKIE标签页
-        tabbedPane.addTab("HEADER", new JScrollPane(headerTable));      // 新增HEADER标签页
+        tabbedPane.addTab("GENERALFUZZ", new JScrollPane(generalFuzzTable));  // 新增
+        tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));
+        tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));
+        tabbedPane.addTab("HEADER", new JScrollPane(headerTable));
 
-        // 添加标签切换监听器 - 更新为9个标签页
+        // 添加标签切换监听器 - 更新为11个标签页
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = tabbedPane.getSelectedIndex();
             // 更新当前表格
@@ -81,7 +83,7 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("PARAM_DELETE");
                     break;
                 case 3:
-                    tableModel.setFilter("PARAM-ADD");  // 新增
+                    tableModel.setFilter("PARAM-ADD");
                     break;
                 case 4:
                     tableModel.setFilter("PARAM");
@@ -93,12 +95,15 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("ROUTE2");
                     break;
                 case 7:
-                    tableModel.setFilter("PARAM-OOB");
+                    tableModel.setFilter("OOB-GENERALFUZZ");  // 新增
                     break;
                 case 8:
-                    tableModel.setFilter("COOKIE");
+                    tableModel.setFilter("PARAM-OOB");
                     break;
                 case 9:
+                    tableModel.setFilter("COOKIE");
+                    break;
+                case 10:
                     tableModel.setFilter("HEADER");
                     break;
             }
