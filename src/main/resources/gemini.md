@@ -64,18 +64,18 @@
 
 ### 已定义版本
 
-| 版本 | 端口范围 | xray-core tag 格式 | haproxy server 格式 | 说明 |
-|------|----------|-------------------|---------------------|------|
+| 版本 | 端口范围                | xray-core tag 格式 | haproxy server 格式 | 说明 |
+|------|---------------------|-------------------|---------------------|------|
 | v1   | 108XX (10801-10899) | `{region}v1-{num}` 如 `hkv1-01` | `lb-{region}v1-{num}` 如 `lb-hkv1-01` | 主订阅源 |
 | v2   | 168XX (16801-16899) | `{region}v2-{num}` 如 `hkv2-01` | `lb-{region}v2-{num}` 如 `lb-hkv2-01` | 订阅源2 |
 | v3   | 166XX (16601-16699) | `{region}v3-{num}` 如 `hkv3-01` | `lb-{region}v3-{num}` 如 `lb-hkv3-01` | 订阅源3 |
 | v4   | 161XX (16101-16299) | `{region}v4-{num}` 如 `hkv4-01` | `lb-{region}v4-{num}` 如 `lb-hkv4-01` | 订阅源4 |
+| v5   | 158XX (15801-15999) | `{region}v5-{num}` 如 `hkv5-01` | `lb-{region}v5-{num}` 如 `lb-hkv5-01` | 订阅源5 |
 
 ### 预留版本（端口待定）
 
 | 版本 | 端口范围 | xray-core tag 格式 | haproxy server 格式 | 说明 |
 |------|----------|-------------------|---------------------|------|
-| v5   | 待定 | `{region}v5-{num}` 如 `hkv5-01` | `lb-{region}v5-{num}` 如 `lb-hkv5-01` | 订阅源5 |
 | v6   | 待定 | `{region}v6-{num}` 如 `hkv6-01` | `lb-{region}v6-{num}` 如 `lb-hkv6-01` | 订阅源6 |
 | v7+  | 待定 | `{region}v{N}-{num}` | `lb-{region}v{N}-{num}` | 未来扩展 |
 
