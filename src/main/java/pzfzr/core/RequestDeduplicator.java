@@ -34,6 +34,11 @@ public class RequestDeduplicator {
 
     // 检查是否应该跳过请求
     public boolean shouldSkipRequest(String method, String url, String re) {
+        // 如果URL包含"graphql"（不区分大小写）且re不等于"RouteFuzzer"，直接返回false（不跳过）
+        if (url.toLowerCase().contains("graphql") && !"RouteFuzzer".equals(re)) {
+            return false;
+        }
+
         // 修改URL处理逻辑，忽略问号后面的部分
         String baseUrl = removeQueryParameters(url);
 
