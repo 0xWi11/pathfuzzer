@@ -24,6 +24,11 @@ public class HistoryPanel extends JPanel {
     private JTabbedPane tabbedPane;
     private JTable currentTable;
 
+    // ============================================
+    // 关键修复：追踪当前选中的条目，避免重复加载
+    // ============================================
+    private Integer lastSelectedModifiedId = null;
+
     public HistoryPanel(TableModel tableModel,
                         BiConsumer<OriginalRequestResponse, ModifiedRequestResponse> selectionCallback) {
         this.tableModel = tableModel;
@@ -70,40 +75,21 @@ public class HistoryPanel extends JPanel {
             currentTable = (JTable) ((JScrollPane) tabbedPane.getSelectedComponent()).getViewport().getView();
             tableModel.setAssociatedTable(currentTable);
 
+            // 切换标签页时重置追踪
+            lastSelectedModifiedId = null;
+
             switch (selectedIndex) {
-                case 0:
-                    tableModel.setFilter("ALL");
-                    break;
-                case 1:
-                    tableModel.setFilter("JSON");
-                    break;
-                case 2:
-                    tableModel.setFilter("PARAM_DELETE");
-                    break;
-                case 3:
-                    tableModel.setFilter("PARAM-ADD");
-                    break;
-                case 4:
-                    tableModel.setFilter("PARAM");
-                    break;
-                case 5:
-                    tableModel.setFilter("ROUTE1");
-                    break;
-                case 6:
-                    tableModel.setFilter("ROUTE2");
-                    break;
-                case 7:
-                    tableModel.setFilter("OOB-GENERALFUZZ");
-                    break;
-                case 8:
-                    tableModel.setFilter("PARAM-OOB");
-                    break;
-                case 9:
-                    tableModel.setFilter("COOKIE");
-                    break;
-                case 10:
-                    tableModel.setFilter("HEADER");
-                    break;
+                case 0: tableModel.setFilter("ALL"); break;
+                case 1: tableModel.setFilter("JSON"); break;
+                case 2: tableModel.setFilter("PARAM_DELETE"); break;
+                case 3: tableModel.setFilter("PARAM-ADD"); break;
+                case 4: tableModel.setFilter("PARAM"); break;
+                case 5: tableModel.setFilter("ROUTE1"); break;
+                case 6: tableModel.setFilter("ROUTE2"); break;
+                case 7: tableModel.setFilter("OOB-GENERALFUZZ"); break;
+                case 8: tableModel.setFilter("PARAM-OOB"); break;
+                case 9: tableModel.setFilter("COOKIE"); break;
+                case 10: tableModel.setFilter("HEADER"); break;
             }
         });
 
@@ -166,9 +152,7 @@ public class HistoryPanel extends JPanel {
                 if (column != -1) {
                     // 切换当前列的排序状态
                     columnStates[column] = (columnStates[column] + 1) % 3;
-
-                    // 根据当前列状态更新排序列表
-                    sortedColumns.remove(Integer.valueOf(column)); // 先移除当前列（如果存在）
+                    sortedColumns.remove(Integer.valueOf(column));
 
                     if (columnStates[column] > 0) {
                         // 如果不是不排序状态，将列添加到排序列表的开头（最高优先级）
@@ -199,13 +183,17 @@ public class HistoryPanel extends JPanel {
         sorter.setMaxSortKeys(tableModel.getColumnCount());
 
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        // ============================================
+        // 关键修复：添加选择监听器，带重复检测
+        // ============================================
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                updateSelection(table);
+                updateSelectionWithDuplicateCheck(table);
             }
         });
 
-        // 设置列宽 - 总列数现在是14列
+        // 设置列宽
         if (table.getColumnModel().getColumnCount() >= 14) {
             setFixedColumnWidth(table, 0, 38);     // ID
             setFixedColumnWidth(table, 1, 68);     // Orig.ID (新增列)
@@ -239,6 +227,42 @@ public class HistoryPanel extends JPanel {
         // 不设置 setMaxWidth，允许用户手动拖动调整列宽
     }
 
+    // ============================================
+    // 关键修复：带重复检测的选择更新方法
+    // ============================================
+    private void updateSelectionWithDuplicateCheck(JTable table) {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow != -1) {
+            // 将视图索引转换为模型索引
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+
+            ModifiedRequestResponse modifiedEntry = tableModel.getModifiedEntry(modelRow);
+            if (modifiedEntry != null) {
+                // ★★★ 关键：检查是否是同一条数据 ★★★
+                Integer currentId = modifiedEntry.getId();
+
+                // 如果选中的是同一条数据，跳过加载
+                if (currentId.equals(lastSelectedModifiedId)) {
+                    return; // 不触发回调，避免重复加载
+                }
+
+                // 更新追踪的 ID
+                lastSelectedModifiedId = currentId;
+
+                // 加载新选中的数据
+                OriginalRequestResponse original =
+                        tableModel.findByMessageId(modifiedEntry.getOriginalMessageId());
+                selectionCallback.accept(original, modifiedEntry);
+            }
+        } else {
+            // 没有选中任何行时，清除追踪
+            lastSelectedModifiedId = null;
+        }
+    }
+
+    // ============================================
+    // 保留原有的 updateSelection 方法（用于导航按钮）
+    // ============================================
     private void updateSelection(JTable table) {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
@@ -247,6 +271,9 @@ public class HistoryPanel extends JPanel {
 
             ModifiedRequestResponse modifiedEntry = tableModel.getModifiedEntry(modelRow);
             if (modifiedEntry != null) {
+                // 导航时强制更新
+                lastSelectedModifiedId = modifiedEntry.getId();
+
                 OriginalRequestResponse original =
                         tableModel.findByMessageId(modifiedEntry.getOriginalMessageId());
                 selectionCallback.accept(original, modifiedEntry);

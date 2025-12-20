@@ -400,6 +400,8 @@ public class TableModel extends AbstractTableModel {
     /**
      * 添加修改后的条目
      * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
+     *
+     * 性能优化：移除了自动选中状态恢复逻辑，避免在高频插入+倒序排序时的卡顿问题
      */
     public synchronized void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
         if (SwingUtilities.isEventDispatchThread()) {
@@ -432,14 +434,29 @@ public class TableModel extends AbstractTableModel {
             final int filteredIndex = filteredEntries.size() - 1;
             fireTableRowsInserted(filteredIndex, filteredIndex);
 
-            if (associatedTable != null) {
-                SwingUtilities.invokeLater(() -> {
-                    int selectedRow = associatedTable.getSelectedRow();
-                    if (selectedRow != -1) {
-                        associatedTable.setRowSelectionInterval(selectedRow, selectedRow);
-                    }
-                });
-            }
+            // ============================================
+            // 关键修改：移除自动选中恢复逻辑
+            // ============================================
+            // 原因：
+            // 1. TableRowSorter 会自动维护选中状态的模型索引
+            // 2. 在倒序排序+高频插入时，手动恢复选中会导致：
+            //    - 视图索引变化导致选中错误的行
+            //    - 触发大量不必要的选择事件和数据加载
+            //    - 造成严重的UI卡顿
+            // 3. 移除后，用户的选中状态会自然保持，不会受影响
+            // ============================================
+
+            // 以下代码已注释掉，解决卡顿问题
+        /*
+        if (associatedTable != null) {
+            SwingUtilities.invokeLater(() -> {
+                int selectedRow = associatedTable.getSelectedRow();
+                if (selectedRow != -1) {
+                    associatedTable.setRowSelectionInterval(selectedRow, selectedRow);
+                }
+            });
+        }
+        */
         }
     }
 
