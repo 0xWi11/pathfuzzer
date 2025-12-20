@@ -22,6 +22,7 @@ public class SettingsPanel extends JPanel {
     private final JTabbedPane listTabPane;
     private final PayloadManagerPanel payloadManagerPanel;
     private final ParamCollectorPanel paramCollectorPanel;
+    private final ParamBlacklistPanel paramBlacklistPanel;
 
     public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel,
                          RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
@@ -57,6 +58,9 @@ public class SettingsPanel extends JPanel {
         // Initialize PayloadManagerPanel
         payloadManagerPanel = new PayloadManagerPanel();
 
+        // Initialize ParamBlacklistPanel (始终创建，不受 ParamCollector 影响)
+        paramBlacklistPanel = new ParamBlacklistPanel();
+
         // 只在 ParamCollector 启用时才创建 ParamCollectorPanel
         if (paramCollector != null) {
             paramCollectorPanel = new ParamCollectorPanel(paramCollector);
@@ -67,6 +71,9 @@ public class SettingsPanel extends JPanel {
         // Add tabs
         listTabPane.addTab("Payload Manager", payloadManagerPanel);
         listTabPane.addTab("Intercept Filter", new RequestFilterPanel(configManager));
+
+        // 添加 Param Blacklist 标签页（始终显示）
+        listTabPane.addTab("Param Blacklist", paramBlacklistPanel);
 
         // 只在 ParamCollector 启用时才添加标签页
         if (paramCollectorPanel != null) {
@@ -108,12 +115,19 @@ public class SettingsPanel extends JPanel {
         return paramCollectorPanel;
     }
 
+    public ParamBlacklistPanel getParamBlacklistPanel() {
+        return paramBlacklistPanel;
+    }
+
     /**
      * 清理资源
      */
     public void cleanup() {
         if (paramCollectorPanel != null) {
             paramCollectorPanel.cleanup();
+        }
+        if (paramBlacklistPanel != null) {
+            paramBlacklistPanel.cleanup();
         }
     }
 }
