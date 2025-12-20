@@ -36,7 +36,6 @@ public class HistoryPanel extends JPanel {
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
-        // 为每个标签页创建独立的表格 - 现在有12个标签页
         JTable allTable = createTable();
         JTable jsonTable = createTable();
         JTable paramTable = createTable();
@@ -44,7 +43,7 @@ public class HistoryPanel extends JPanel {
         JTable paramDelTable = createTable();
         JTable route1Table = createTable();
         JTable route2Table = createTable();
-        JTable generalFuzzTable = createTable();  // 新增：GENERALFUZZ表格
+        JTable generalFuzzTable = createTable();
         JTable oobparamTable = createTable();
         JTable cookieTable = createTable();
         JTable headerTable = createTable();
@@ -52,7 +51,6 @@ public class HistoryPanel extends JPanel {
         currentTable = allTable;
         tableModel.setAssociatedTable(currentTable);
 
-        // 添加标签页 - GENERALFUZZ 放在 ROUTE2 之后
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
         tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));
@@ -60,7 +58,7 @@ public class HistoryPanel extends JPanel {
         tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
         tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));
         tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));
-        tabbedPane.addTab("GENERALFUZZ", new JScrollPane(generalFuzzTable));  // 新增
+        tabbedPane.addTab("GENERALFUZZ", new JScrollPane(generalFuzzTable));
         tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));
         tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));
         tabbedPane.addTab("HEADER", new JScrollPane(headerTable));
@@ -95,7 +93,7 @@ public class HistoryPanel extends JPanel {
                     tableModel.setFilter("ROUTE2");
                     break;
                 case 7:
-                    tableModel.setFilter("OOB-GENERALFUZZ");  // 新增
+                    tableModel.setFilter("OOB-GENERALFUZZ");
                     break;
                 case 8:
                     tableModel.setFilter("PARAM-OOB");
@@ -207,22 +205,22 @@ public class HistoryPanel extends JPanel {
             }
         });
 
-        // 设置列宽 - 使用固定宽度，防止被拉伸
-        if (table.getColumnModel().getColumnCount() >= 13) {
-            // 辅助方法：设置固定列宽
+        // 设置列宽 - 总列数现在是14列
+        if (table.getColumnModel().getColumnCount() >= 14) {
             setFixedColumnWidth(table, 0, 38);     // ID
-            setFixedColumnWidth(table, 1, 38);     // Method
-            setFixedColumnWidth(table, 2, 800);    // URL
-            setFixedColumnWidth(table, 3, 88);     // Test Type
-            setFixedColumnWidth(table, 4, 113);    // Param - 设置为113像素
-            setFixedColumnWidth(table, 5, 115);    // Payload - 设置为115像素
-            setFixedColumnWidth(table, 6, 38);     // modif status - 保持30像素
-            setFixedColumnWidth(table, 7, 60);     // Len Diff - 设置为60像素
-            setFixedColumnWidth(table, 8, 60);     // modif len(withoutheader) - 设置为60像素
-            setFixedColumnWidth(table, 9, 60);     // modif len+(withheader) - 设置为60像素
-            setFixedColumnWidth(table, 10, 60);    // origin len(withoutheader) - 设置为60像素
-            setFixedColumnWidth(table, 11, 72);    // Modif. Time
-            setFixedColumnWidth(table, 12, 80);    // Reflect
+            setFixedColumnWidth(table, 1, 68);     // Orig.ID (新增列)
+            setFixedColumnWidth(table, 2, 38);     // Method
+            setFixedColumnWidth(table, 3, 800);    // URL
+            setFixedColumnWidth(table, 4, 88);     // Test Type
+            setFixedColumnWidth(table, 5, 113);    // Param
+            setFixedColumnWidth(table, 6, 115);    // Payload
+            setFixedColumnWidth(table, 7, 38);     // modif status
+            setFixedColumnWidth(table, 8, 60);     // Len Diff
+            setFixedColumnWidth(table, 9, 60);     // modif len(withoutheader)
+            setFixedColumnWidth(table, 10, 60);    // modif len+(withheader)
+            setFixedColumnWidth(table, 11, 60);    // origin len(withoutheader)
+            setFixedColumnWidth(table, 12, 72);    // Modif. Time
+            setFixedColumnWidth(table, 13, 80);    // Reflect
         }
 
         return table;
