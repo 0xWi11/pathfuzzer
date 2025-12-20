@@ -25,6 +25,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.security.MessageDigest;
+import java.util.regex.Pattern;
 
 /**
  * RequestResponseSaver - 支持Netty的版本
@@ -314,9 +315,7 @@ public class RequestResponseSaver {
         if (response == null) {
             return "";
         }
-
         List<String> detectedTypes = new ArrayList<>();
-
         try {
             if (response.contains("73504", false) || response.contains("918891889188", false)) {
                 detectedTypes.add("SSTI-73504-9188");
@@ -333,17 +332,30 @@ public class RequestResponseSaver {
             if (response.contains("SHELL=/", false) || response.contains("PWD=/", false) || response.contains("HOME=/", false) ) {
                 detectedTypes.add("CMDI");
             }
+            if (response.contains("\"swagger\":", false) || response.contains("\"swaggerVersion\":", false)) {
+                detectedTypes.add("SWAGGER");
+            }
+            if (response.contains("Whitelabel Error Page", false)) {
+                detectedTypes.add("Spring Boot");
+            }
+            if (response.contains("debug mode</a> is enabled.", false) || response.contains("id=\"sfWebDebugSymfony\"", false)) {
+                detectedTypes.add("SYMFONY");
+            }
+            // 检测 Actuator 端点
+            String responseBody = response.bodyToString(); // 根据实际API调整
+            if (Pattern.compile("\"href\":\"http.*?/actuator\"").matcher(responseBody).find()) {
+                detectedTypes.add("ACTUATOR");
+            }
+
             // 检测CRLF漏洞
             for (HttpHeader header : response.headers()) {
                 if (header.name().toLowerCase().contains("c9w") ||
                         header.name().toLowerCase().contains("v5m") ||
-                        header.name().toLowerCase().contains("wwwwwmmmwwwwwwww") ||
-                        header.value().toLowerCase().contains("wwwwwmmmwwwwwwww")) {
+                        header.name().toLowerCase().contains("wwwwwmmmwwwwwwww") ) {
                     detectedTypes.add("CRLF");
                     break;
                 }
             }
-
             return String.join(",", detectedTypes);
         } catch (Exception e) {
             return "";
