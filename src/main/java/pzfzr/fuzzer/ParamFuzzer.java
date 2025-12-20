@@ -153,64 +153,16 @@ public class ParamFuzzer {
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
 
-            // 检查是否为GraphQL
-            JsonNode graphqlNode = detectGraphQLSimple(bodyString);
-            if (graphqlNode != null) {
-                // 如果是GraphQL，只计算variables下的参数数量
-                List<JsonPath> jsonPaths = extractGraphQLJsonPaths(graphqlNode);
-                return jsonPaths.size();
-            } else {
-                // 普通JSON
-                List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
-                return jsonPaths.size();
-            }
+            List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
+            return jsonPaths.size();
+
         } catch (Exception e) {
             return 0;
         }
     }
 
-    /**
-     * 检测GraphQL简单方法
-     */
-    private JsonNode detectGraphQLSimple(String bodyString) {
-        if (bodyString == null || bodyString.isEmpty()) {
-            return null;
-        }
-        try {
-            JsonNode root = objectMapper.readTree(bodyString);
-            // Batch处理
-            if (root.isArray() && root.size() > 0) {
-                root = root.get(0);
-            }
-            // 只检查三个字段存在即可（不验证内容）
-            if (root.has("operationName") &&
-                    root.has("variables") &&
-                    root.has("query")) {
-                return root;
-            }
-        } catch (Exception e) {
-            // 忽略
-        }
-        return null;
-    }
 
-    /**
-     * 提取GraphQL的JSON路径（仅从variables中提取）
-     */
-    private List<JsonPath> extractGraphQLJsonPaths(JsonNode graphqlNode) {
-        List<JsonPath> paths = new ArrayList<>();
 
-        // 获取variables节点
-        JsonNode variablesNode = graphqlNode.get("variables");
-        if (variablesNode == null || !variablesNode.isObject()) {
-            return paths;
-        }
-
-        // 只提取variables对象下的参数
-        paths.addAll(extractJsonPaths(variablesNode, "variables"));
-
-        return paths;
-    }
 
     /**
      * 发送参数数量过多的请求 - 使用NettyManager
@@ -385,13 +337,6 @@ public class ParamFuzzer {
             return;
         }
 
-        // 检查是否为GraphQL
-        JsonNode graphqlNode = detectGraphQLSimple(bodyString);
-        if (graphqlNode != null) {
-            // 如果是GraphQL，使用专门的GraphQL测试方法
-            fuzzGraphQLParameters(originalRequest, messageId, host, graphqlNode);
-            return;
-        }
 
         // 普通JSON测试
         try {
@@ -432,49 +377,7 @@ public class ParamFuzzer {
         }
     }
 
-    /**
-     * 对GraphQL参数进行模糊测试（仅测试variables对象下的参数）
-     */
-    private void fuzzGraphQLParameters(HttpRequest originalRequest, int messageId, String host, JsonNode graphqlNode) {
-        if (isShuttingDown) return;
 
-        try {
-            // 提取variables下的所有参数路径
-            List<JsonPath> jsonPaths = extractGraphQLJsonPaths(graphqlNode);
-
-            for (JsonPath jsonPath : jsonPaths) {
-                if (isShuttingDown) return;
-
-                // 使用PayloadManager获取启用的param payloads
-                for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
-                    if (isShuttingDown) return;
-
-                    // 从JsonNode获取实际文本值
-                    String originalValue = getJsonNodeValue(jsonPath.value);
-                    String processedPayload = processPayload(payloadInfo.payload, originalValue);
-
-                    try {
-                        JsonNode modifiedJson = modifyJsonNode(graphqlNode, jsonPath.path, processedPayload, payloadInfo.alias);
-                        String modifiedJsonString = objectMapper.writeValueAsString(modifiedJson);
-
-                        // 从修改后的JSON中提取实际表达式
-                        String expression = extractExpressionFromJson(modifiedJson, jsonPath.path, jsonPath.lastKey);
-
-                        HttpRequest modifiedRequest = originalRequest.withBody(modifiedJsonString);
-
-                        sendTestRequest(modifiedRequest, messageId, host, expression, "GRAPHQL_PARAM",
-                                payloadInfo.alias, jsonPath.lastKey);
-
-                    } catch (Exception e) {
-                        // 静默错误处理
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            // 静默错误处理
-        }
-    }
 
     /**
      * 发送测试请求 - 使用NettyManager
