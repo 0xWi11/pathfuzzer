@@ -351,7 +351,7 @@ public class RequestResponseSaver {
             for (HttpHeader header : response.headers()) {
                 if (header.name().toLowerCase().contains("c9w") ||
                         header.name().toLowerCase().contains("v5m") ||
-                        header.name().toLowerCase().contains("wwwwwmmmwwwwwwww") ) {
+                        header.name().equalsIgnoreCase("www.xixicrt.top") ) {
                     detectedTypes.add("CRLF");
                     break;
                 }
