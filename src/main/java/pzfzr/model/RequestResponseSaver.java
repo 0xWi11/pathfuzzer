@@ -346,7 +346,10 @@ public class RequestResponseSaver {
             if (Pattern.compile("\"href\":\"http.*?/actuator\"").matcher(responseBody).find()) {
                 detectedTypes.add("ACTUATOR");
             }
-
+            // 新增：检测 HTTP 505 错误，不区分大小写
+            if (response.contains("HTTP/1.1 505 HTTP Version Not Supported", false)) {
+                detectedTypes.add("505 HTTP Version");
+            }
             // 检测CRLF漏洞
             for (HttpHeader header : response.headers()) {
                 if (header.name().toLowerCase().contains("c9w") ||
