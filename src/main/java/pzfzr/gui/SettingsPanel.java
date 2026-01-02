@@ -3,6 +3,7 @@ package pzfzr.gui;
 import pzfzr.config.ConfigManager;
 import pzfzr.core.ParamCollector;
 import pzfzr.core.RateLimiter;
+import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -23,6 +24,8 @@ public class SettingsPanel extends JPanel {
     private final PayloadManagerPanel payloadManagerPanel;
     private final ParamCollectorPanel paramCollectorPanel;
     private final ParamBlacklistPanel paramBlacklistPanel;
+    private final NoSkipUrlPanel noSkipUrlPanel;
+    private final RequestDeduplicator requestDeduplicator;
 
     public SettingsPanel(ConfigManager configManager, Logging logging, TableModel tableModel,
                          RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
@@ -31,6 +34,9 @@ public class SettingsPanel extends JPanel {
                          OOBParamFuzzer oobParamFuzzer, ParamCollector paramCollector) {
         setLayout(new BorderLayout());
 
+        // 获取 RequestDeduplicator 实例
+        this.requestDeduplicator = RequestDeduplicator.getInstance(logging);
+
         // 创建主要的水平分割面板（左右结构）
         JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
@@ -38,7 +44,7 @@ public class SettingsPanel extends JPanel {
         JPanel leftPanel = new JPanel(new BorderLayout());
         leftPanel.setBorder(BorderFactory.createTitledBorder("Function Controls"));
 
-        // 创建开关面板 - 传入 paramAdder
+        // 创建开关面板
         switchPanel = new SwitchPanel(logging, tableModel, requestResponseSaver, rateLimiter, trafficHandler,
                 paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer, oobParamFuzzer);
 
@@ -58,8 +64,14 @@ public class SettingsPanel extends JPanel {
         // Initialize PayloadManagerPanel
         payloadManagerPanel = new PayloadManagerPanel();
 
-        // Initialize ParamBlacklistPanel (始终创建，不受 ParamCollector 影响)
+        // Initialize ParamBlacklistPanel
         paramBlacklistPanel = new ParamBlacklistPanel();
+
+        // Initialize NoSkipUrlPanel
+        noSkipUrlPanel = new NoSkipUrlPanel();
+
+        // 添加监听器，当正则表达式列表变化时更新 RequestDeduplicator
+        setupNoSkipUrlPanelListener();
 
         // 只在 ParamCollector 启用时才创建 ParamCollectorPanel
         if (paramCollector != null) {
@@ -71,9 +83,8 @@ public class SettingsPanel extends JPanel {
         // Add tabs
         listTabPane.addTab("Payload Manager", payloadManagerPanel);
         listTabPane.addTab("Intercept Filter", new RequestFilterPanel(configManager));
-
-        // 添加 Param Blacklist 标签页（始终显示）
         listTabPane.addTab("Param Blacklist", paramBlacklistPanel);
+        listTabPane.addTab("No-Skip URL Patterns", noSkipUrlPanel);
 
         // 只在 ParamCollector 启用时才添加标签页
         if (paramCollectorPanel != null) {
@@ -86,10 +97,10 @@ public class SettingsPanel extends JPanel {
         mainSplitPane.setLeftComponent(leftPanel);
         mainSplitPane.setRightComponent(rightPanel);
 
-        // 设置分割比例 - 左侧功能控制占40%，右侧配置管理占60%
+        // 设置分割比例
         mainSplitPane.setResizeWeight(0.4);
 
-        // 设置最小尺寸避免面板被压缩得太小
+        // 设置最小尺寸
         leftPanel.setMinimumSize(new Dimension(300, 200));
         rightPanel.setMinimumSize(new Dimension(400, 200));
 
@@ -100,6 +111,27 @@ public class SettingsPanel extends JPanel {
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
         titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         add(titleLabel, BorderLayout.NORTH);
+
+        // 初始化时同步一次正则表达式列表
+        syncNoSkipUrlPatterns();
+    }
+
+    /**
+     * 设置 NoSkipUrlPanel 的监听器
+     */
+    private void setupNoSkipUrlPanelListener() {
+        // 使用 Timer 定期同步（每2秒检查一次）
+        Timer syncTimer = new Timer(2000, e -> syncNoSkipUrlPatterns());
+        syncTimer.start();
+    }
+
+    /**
+     * 同步正则表达式列表到 RequestDeduplicator
+     */
+    private void syncNoSkipUrlPatterns() {
+        if (noSkipUrlPanel != null && requestDeduplicator != null) {
+            requestDeduplicator.setNoSkipUrlPatterns(noSkipUrlPanel.getAllRegexPatterns());
+        }
     }
 
     // Getter methods
@@ -119,6 +151,10 @@ public class SettingsPanel extends JPanel {
         return paramBlacklistPanel;
     }
 
+    public NoSkipUrlPanel getNoSkipUrlPanel() {
+        return noSkipUrlPanel;
+    }
+
     /**
      * 清理资源
      */
@@ -128,6 +164,9 @@ public class SettingsPanel extends JPanel {
         }
         if (paramBlacklistPanel != null) {
             paramBlacklistPanel.cleanup();
+        }
+        if (noSkipUrlPanel != null) {
+            noSkipUrlPanel.cleanup();
         }
     }
 }
