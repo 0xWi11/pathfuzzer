@@ -68,8 +68,6 @@ public class RequestDeduplicator {
             this.noSkipUrlPatterns = patterns;
         }
 
-        logging.logToOutput("[RequestDeduplicator] Updated no-skip URL patterns, total: " +
-                this.noSkipUrlPatterns.size());
     }
 
     public List<String> getNoSkipUrlPatterns() {
