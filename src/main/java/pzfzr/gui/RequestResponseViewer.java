@@ -24,7 +24,8 @@ public class RequestResponseViewer extends JPanel {
     private final HttpRequestEditor modifiedRequestViewer;
     private final HttpResponseEditor originalResponseViewer;
     private final HttpResponseEditor modifiedResponseViewer;
-
+    // ★★★ 新增：ResponseDiffPanel ★★★
+    private final ResponseDiffPanel responseDiffPanel;
     private final JButton previousButton;
     private final JButton nextButton;
     private HistoryPanel historyPanel;
@@ -62,6 +63,9 @@ public class RequestResponseViewer extends JPanel {
         originalResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
         modifiedResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
 
+        // ★★★ 新增：创建ResponseDiffPanel ★★★
+        responseDiffPanel = new ResponseDiffPanel();
+
         // 为每个编辑器添加滚轮增强
         enhanceScrolling(originalRequestViewer.uiComponent());
         enhanceScrolling(modifiedRequestViewer.uiComponent());
@@ -74,12 +78,19 @@ public class RequestResponseViewer extends JPanel {
         originalResponsePanel = new ResizablePanel("Original Response", originalResponseViewer.uiComponent(), this);
         modifiedResponsePanel = new ResizablePanel("Modified Response", modifiedResponseViewer.uiComponent(), this);
 
+        // ★★★ 新增：创建第五个面板 - Response Diff ★★★
+        ResizablePanel responseDiffPanelWrapper = new ResizablePanel("Response Diff", responseDiffPanel, this);
+
+
         // 创建自定义布局容器
         layoutContainer = new CustomLayoutContainer();
         layoutContainer.addPanel(originalRequestPanel);
         layoutContainer.addPanel(modifiedRequestPanel);
         layoutContainer.addPanel(originalResponsePanel);
         layoutContainer.addPanel(modifiedResponsePanel);
+
+        // ★★★ 新增：添加第五个面板到容器 ★★★
+        layoutContainer.addPanel(responseDiffPanelWrapper);
 
         // 将容器添加到主面板
         add(layoutContainer, BorderLayout.CENTER);
@@ -301,6 +312,12 @@ public class RequestResponseViewer extends JPanel {
                     modifiedRequestViewer.setRequest(modified.getModifiedRequest());
                     modifiedRequestViewer.setSearchExpression(modified.getExpression());
                     modifiedResponseViewer.setResponse(modified.getModifiedResponse());
+                    // ★★★ 新增：更新ResponseDiffPanel ★★★
+                    responseDiffPanel.updateDiff(
+                            original.getOriginalResponse(),
+                            modified.getModifiedResponse()
+                    );
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -323,6 +340,9 @@ public class RequestResponseViewer extends JPanel {
                 originalResponseViewer.setResponse(null);
                 modifiedRequestViewer.setRequest(null);
                 modifiedResponseViewer.setResponse(null);
+                // ★★★ 新增：清空ResponseDiffPanel ★★★
+                responseDiffPanel.clear();
+
 
                 if (currentOriginal != null) {
                     currentOriginal.clear();
@@ -344,6 +364,9 @@ public class RequestResponseViewer extends JPanel {
             window.dispose();
         }
         popoutWindows.clear();
+
+        // ★★★ 新增：清理ResponseDiffPanel资源 ★★★
+        responseDiffPanel.cleanup();
 
         previousButton.removeActionListener(l -> {});
         nextButton.removeActionListener(l -> {});
