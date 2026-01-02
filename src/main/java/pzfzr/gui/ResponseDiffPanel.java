@@ -1,536 +1,602 @@
 package pzfzr.gui;
 
-import burp.api.montoya.http.message.responses.HttpResponse;
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
-import java.awt.event.*;
-import java.io.File;
-import java.io.IOException;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.lang.ref.WeakReference;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import org.mozilla.universalchardet.UniversalDetector;
 
 /**
- * Side-by-Side 响应对比面板
- * 用于对比 Original Response 和 Modified Response 的差异
+ * Side-by-Side Response Diff Panel
+ * 用于并排对比 Original Response 和 Modified Response 的差异
  */
 public class ResponseDiffPanel extends JPanel {
+
     // UI 组件
-    private final JTextPane originalTextPane;
-    private final JTextPane modifiedTextPane;
-    private final JScrollPane originalScrollPane;
-    private final JScrollPane modifiedScrollPane;
-    private final JPanel lineNumberPanelOriginal;
-    private final JPanel lineNumberPanelModified;
+    private JTextPane originalTextPane;
+    private JTextPane modifiedTextPane;
+    private JScrollPane originalScrollPane;
+    private JScrollPane modifiedScrollPane;
+    private JSplitPane splitPane;
+    private JToggleButton diffToggleButton;
 
-    // 数据存储（使用弱引用）
-    private WeakReference<String> originalText;
-    private WeakReference<String> modifiedText;
+    // Diff 开关状态
+    private boolean diffEnabled = true;
 
-    // 线程池（用于后台计算diff）
-    private final ExecutorService diffExecutor;
+    // 数据引用（使用弱引用节省内存）
+    private WeakReference<byte[]> originalResponseRef;
+    private WeakReference<byte[]> modifiedResponseRef;
 
-    // 字体配置
-    private static final String FONT_PATH = "C:\\Users\\Administrator\\AppData\\Local\\Microsoft\\Windows\\Fonts\\SarasaGothicSC-Regular.ttf";
-    private Font monoFont;
+    // 自定义字体
+    private Font customFont;
 
-    // 差异高亮颜色
-    private static final Color COLOR_ADDED = new Color(200, 255, 200);      // 淡绿色 - 新增行
-    private static final Color COLOR_DELETED = new Color(255, 200, 200);    // 淡红色 - 删除行
-    private static final Color COLOR_MODIFIED = new Color(255, 255, 200);   // 淡黄色 - 修改行
-    private static final Color COLOR_LINE_NUMBER_BG = new Color(240, 240, 240);
+    // 颜色定义
+    private static final Color COLOR_DELETED = new Color(255, 200, 200);  // 浅红色 - 删除内容
+    private static final Color COLOR_INSERTED = new Color(200, 255, 200); // 浅绿色 - 新增内容
+    private static final Color COLOR_EQUAL = Color.WHITE;                  // 白色 - 相同内容
 
-    // 最大响应大小（1MB）
-    private static final int MAX_RESPONSE_SIZE = 1024 * 1024;
+    // 大小限制
+    private static final int MAX_SIZE_BYTES = 1 * 1024 * 1024; // 1MB
 
+    /**
+     * 构造函数
+     */
     public ResponseDiffPanel() {
         super(new BorderLayout());
+        initializeFont();
+        initializeUI();
+    }
 
-        // 初始化线程池
-        diffExecutor = Executors.newSingleThreadExecutor();
+    /**
+     * 初始化自定义字体
+     */
+    private void initializeFont() {
+        try {
+            // 尝试加载 Sarasa Gothic 字体
+            String fontPath = "C:\\Users\\Administrator\\AppData\\Local\\Microsoft\\Windows\\Fonts\\SarasaGothicSC-Regular.ttf";
+            java.io.File fontFile = new java.io.File(fontPath);
 
-        // 加载字体
-        loadCustomFont();
+            if (fontFile.exists()) {
+                Font baseFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
+                customFont = baseFont.deriveFont(12f); // 12号字体
+            } else {
+                // 如果找不到自定义字体，使用系统等宽字体
+                customFont = new Font(Font.MONOSPACED, Font.PLAIN, 12);
+            }
+        } catch (Exception e) {
+            // 字体加载失败，使用系统默认等宽字体
+            customFont = new Font(Font.MONOSPACED, Font.PLAIN, 12);
+            System.err.println("[ResponseDiffPanel] 字体加载失败，使用默认字体: " + e.getMessage());
+        }
+    }
 
-        // 创建文本面板
-        originalTextPane = createTextPane();
-        modifiedTextPane = createTextPane();
+    /**
+     * 初始化 UI 组件
+     */
+    private void initializeUI() {
+        // 创建顶部工具栏
+        JPanel toolbarPanel = createToolbar();
 
-        // 创建行号面板
-        lineNumberPanelOriginal = new JPanel();
-        lineNumberPanelModified = new JPanel();
+        // 创建左侧文本面板（Original Response）
+        originalTextPane = createTextPane("Original Response");
+        originalScrollPane = new JScrollPane(originalTextPane);
+        originalScrollPane.setBorder(BorderFactory.createTitledBorder("Original Response"));
 
-        // 创建滚动面板
-        originalScrollPane = createScrollPane(originalTextPane, lineNumberPanelOriginal, "Original Response");
-        modifiedScrollPane = createScrollPane(modifiedTextPane, lineNumberPanelModified, "Modified Response");
+        // 创建右侧文本面板（Modified Response）
+        modifiedTextPane = createTextPane("Modified Response");
+        modifiedScrollPane = new JScrollPane(modifiedTextPane);
+        modifiedScrollPane.setBorder(BorderFactory.createTitledBorder("Modified Response"));
+
+        // 创建分割面板
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, originalScrollPane, modifiedScrollPane);
+        splitPane.setResizeWeight(0.5); // 左右各占 50%
+        splitPane.setDividerSize(5);
 
         // 同步滚动
         synchronizeScrolling();
 
-        // 创建分割面板
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-                originalScrollPane,
-                modifiedScrollPane);
-        splitPane.setDividerLocation(0.5);
-        splitPane.setResizeWeight(0.5);
-        splitPane.setDividerSize(8);
-
+        // 布局
+        add(toolbarPanel, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
     }
 
     /**
-     * 加载自定义等宽字体
+     * 创建工具栏
      */
-    private void loadCustomFont() {
-        try {
-            File fontFile = new File(FONT_PATH);
-            if (fontFile.exists()) {
-                Font baseFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
-                monoFont = baseFont.deriveFont(Font.PLAIN, 12f);
-                System.out.println("[ResponseDiffPanel] 成功加载自定义字体: " + FONT_PATH);
-            } else {
-                // 回退到系统等宽字体
-                monoFont = new Font("Monospaced", Font.PLAIN, 12);
-                System.out.println("[ResponseDiffPanel] 字体文件不存在，使用系统等宽字体");
+    private JPanel createToolbar() {
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
+        toolbar.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+        toolbar.setBackground(new Color(248, 249, 250));
+
+        // Diff 开关按钮
+        diffToggleButton = new JToggleButton("✓ Diff 已启用", true);
+        diffToggleButton.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        diffToggleButton.setPreferredSize(new Dimension(110, 22));
+        diffToggleButton.setFocusPainted(false);
+        diffToggleButton.setToolTipText("切换 Diff 计算（关闭可提升性能）");
+
+        // 设置按钮样式
+        updateToggleButtonStyle();
+
+        // 添加切换事件
+        diffToggleButton.addActionListener(e -> {
+            diffEnabled = diffToggleButton.isSelected();
+            updateToggleButtonStyle();
+
+            // 如果有缓存的响应数据，重新渲染
+            if (originalResponseRef != null && modifiedResponseRef != null) {
+                byte[] orig = originalResponseRef.get();
+                byte[] modi = modifiedResponseRef.get();
+                if (orig != null && modi != null) {
+                    setResponses(orig, modi);
+                }
             }
-        } catch (Exception e) {
-            monoFont = new Font("Monospaced", Font.PLAIN, 12);
-            System.err.println("[ResponseDiffPanel] 字体加载失败: " + e.getMessage());
+        });
+
+        // 状态标签
+        JLabel statusLabel = new JLabel("快速浏览模式：关闭 Diff 可提升性能");
+        statusLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
+        statusLabel.setForeground(new Color(108, 117, 125));
+
+        toolbar.add(diffToggleButton);
+        toolbar.add(Box.createHorizontalStrut(10));
+        toolbar.add(statusLabel);
+
+        return toolbar;
+    }
+
+    /**
+     * 更新切换按钮样式
+     */
+    private void updateToggleButtonStyle() {
+        if (diffEnabled) {
+            diffToggleButton.setText("✓ Diff 已启用");
+            diffToggleButton.setBackground(new Color(25, 135, 84)); // 绿色
+            diffToggleButton.setForeground(Color.WHITE);
+            diffToggleButton.setToolTipText("点击关闭 Diff（提升性能）");
+        } else {
+            diffToggleButton.setText("✗ Diff 已关闭");
+            diffToggleButton.setBackground(new Color(220, 53, 69)); // 红色
+            diffToggleButton.setForeground(Color.WHITE);
+            diffToggleButton.setToolTipText("点击启用 Diff（显示差异）");
         }
     }
 
     /**
      * 创建文本面板
      */
-    private JTextPane createTextPane() {
+    private JTextPane createTextPane(String name) {
         JTextPane textPane = new JTextPane();
-        textPane.setFont(monoFont);
         textPane.setEditable(false);
+        textPane.setFont(customFont);
+        textPane.setName(name);
+
+        // 设置文本面板背景色
         textPane.setBackground(Color.WHITE);
+
         return textPane;
     }
 
     /**
-     * 创建滚动面板（带行号）
-     */
-    private JScrollPane createScrollPane(JTextPane textPane, JPanel lineNumberPanel, String title) {
-        JScrollPane scrollPane = new JScrollPane(textPane);
-        scrollPane.setBorder(BorderFactory.createTitledBorder(title));
-
-        // 设置行号面板
-        lineNumberPanel.setLayout(new BorderLayout());
-        lineNumberPanel.setBackground(COLOR_LINE_NUMBER_BG);
-        lineNumberPanel.setPreferredSize(new Dimension(40, 0));
-
-        scrollPane.setRowHeaderView(lineNumberPanel);
-
-        return scrollPane;
-    }
-
-    /**
-     * 同步两个滚动面板的滚动
+     * 同步左右滚动条
      */
     private void synchronizeScrolling() {
-        JScrollBar originalScrollBar = originalScrollPane.getVerticalScrollBar();
-        JScrollBar modifiedScrollBar = modifiedScrollPane.getVerticalScrollBar();
+        JScrollBar originalVertical = originalScrollPane.getVerticalScrollBar();
+        JScrollBar modifiedVertical = modifiedScrollPane.getVerticalScrollBar();
 
-        // Original -> Modified
-        originalScrollBar.addAdjustmentListener(e -> {
+        // 左侧滚动时同步右侧
+        originalVertical.addAdjustmentListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                modifiedScrollBar.setValue(e.getValue());
+                modifiedVertical.setValue(e.getValue());
             }
         });
 
-        // Modified -> Original
-        modifiedScrollBar.addAdjustmentListener(e -> {
+        // 右侧滚动时同步左侧
+        modifiedVertical.addAdjustmentListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                originalScrollBar.setValue(e.getValue());
-            }
-        });
-
-        // 同步水平滚动
-        JScrollBar originalHScrollBar = originalScrollPane.getHorizontalScrollBar();
-        JScrollBar modifiedHScrollBar = modifiedScrollPane.getHorizontalScrollBar();
-
-        originalHScrollBar.addAdjustmentListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                modifiedHScrollBar.setValue(e.getValue());
-            }
-        });
-
-        modifiedHScrollBar.addAdjustmentListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                originalHScrollBar.setValue(e.getValue());
+                originalVertical.setValue(e.getValue());
             }
         });
     }
 
     /**
-     * 更新对比视图
-     * @param originalResponse 原始响应
-     * @param modifiedResponse 修改后的响应
+     * 设置要对比的响应数据（主入口方法）
+     *
+     * @param originalResponse 原始响应数据
+     * @param modifiedResponse 修改后的响应数据
      */
-    public void updateDiff(HttpResponse originalResponse, HttpResponse modifiedResponse) {
-        // 在EDT线程中清空显示
-        SwingUtilities.invokeLater(() -> {
-            originalTextPane.setText("正在加载...");
-            modifiedTextPane.setText("正在加载...");
-        });
+    public void setResponses(byte[] originalResponse, byte[] modifiedResponse) {
+        // 保存数据引用
+        this.originalResponseRef = new WeakReference<>(originalResponse);
+        this.modifiedResponseRef = new WeakReference<>(modifiedResponse);
 
-        // 在后台线程中处理响应
-        diffExecutor.submit(() -> {
-            try {
-                // 检查空响应
-                if (originalResponse == null || modifiedResponse == null) {
-                    showMessage("响应为空", "响应为空");
-                    return;
-                }
+        // 如果 Diff 被禁用，直接显示原始文本（快速模式）
+        if (!diffEnabled) {
+            displayRawResponses(originalResponse, modifiedResponse);
+            return;
+        }
 
-                // 获取响应字节
-                byte[] originalBytes = originalResponse.toByteArray().getBytes();
-                byte[] modifiedBytes = modifiedResponse.toByteArray().getBytes();
+        // 在后台线程计算 diff（启用 Diff 模式）
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            private String originalText;
+            private String modifiedText;
+            private boolean shouldContinue = true;
 
-                // 检查超大响应
-                if (originalBytes.length > MAX_RESPONSE_SIZE || modifiedBytes.length > MAX_RESPONSE_SIZE) {
-                    int result = JOptionPane.showConfirmDialog(
-                            ResponseDiffPanel.this,
-                            String.format("响应大小超过1MB (原始: %d bytes, 修改: %d bytes)\n是否继续加载?",
-                                    originalBytes.length, modifiedBytes.length),
-                            "警告",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.WARNING_MESSAGE
-                    );
-
-                    if (result != JOptionPane.YES_OPTION) {
-                        showMessage("用户取消", "用户取消");
-                        return;
+            @Override
+            protected Void doInBackground() throws Exception {
+                try {
+                    // 检查空响应
+                    if (originalResponse == null || originalResponse.length == 0) {
+                        originalText = "响应为空";
+                        modifiedText = modifiedResponse == null || modifiedResponse.length == 0 ?
+                                "响应为空" : convertBytesToString(modifiedResponse);
+                        return null;
                     }
+
+                    if (modifiedResponse == null || modifiedResponse.length == 0) {
+                        originalText = convertBytesToString(originalResponse);
+                        modifiedText = "响应为空";
+                        return null;
+                    }
+
+                    // 检查超大响应
+                    if (originalResponse.length > MAX_SIZE_BYTES || modifiedResponse.length > MAX_SIZE_BYTES) {
+                        int result = JOptionPane.showConfirmDialog(
+                                ResponseDiffPanel.this,
+                                String.format("响应数据较大（原始: %d KB, 修改后: %d KB）\n对比可能需要较长时间，是否继续？",
+                                        originalResponse.length / 1024,
+                                        modifiedResponse.length / 1024),
+                                "警告",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.WARNING_MESSAGE
+                        );
+
+                        if (result != JOptionPane.YES_OPTION) {
+                            shouldContinue = false;
+                            return null;
+                        }
+                    }
+
+                    // 转换为字符串
+                    originalText = convertBytesToString(originalResponse);
+                    modifiedText = convertBytesToString(modifiedResponse);
+
+                    // 检查是否完全相同
+                    if (originalText.equals(modifiedText)) {
+                        originalText = "两个响应完全相同\n\n" + originalText;
+                        modifiedText = "两个响应完全相同\n\n" + modifiedText;
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("[ResponseDiffPanel] 后台处理异常: " + e.getMessage());
+                    e.printStackTrace();
+                    originalText = "处理错误: " + e.getMessage();
+                    modifiedText = "处理错误: " + e.getMessage();
                 }
 
-                // 检测编码并转换为文本
-                String originalStr = decodeBytes(originalBytes);
-                String modifiedStr = decodeBytes(modifiedBytes);
+                return null;
+            }
 
-                // 存储到弱引用
-                originalText = new WeakReference<>(originalStr);
-                modifiedText = new WeakReference<>(modifiedStr);
-
-                // 检查是否完全相同
-                if (originalStr.equals(modifiedStr)) {
-                    showMessage("两个响应完全相同", "两个响应完全相同");
+            @Override
+            protected void done() {
+                if (!shouldContinue) {
+                    clear();
                     return;
                 }
 
-                // 计算差异
-                List<DiffLine> diff = computeDiff(originalStr, modifiedStr);
-
-                // 在EDT线程中更新UI
-                SwingUtilities.invokeLater(() -> displayDiff(diff, originalStr, modifiedStr));
-
-            } catch (Exception e) {
-                e.printStackTrace();
+                // 在 EDT 线程更新 UI
                 SwingUtilities.invokeLater(() -> {
-                    showMessage("错误: " + e.getMessage(), "错误: " + e.getMessage());
+                    try {
+                        updateTextPanes(originalText, modifiedText);
+                    } catch (Exception e) {
+                        System.err.println("[ResponseDiffPanel] UI 更新异常: " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 });
             }
+        };
+
+        worker.execute();
+    }
+
+    /**
+     * 快速模式：直接显示原始响应文本（不计算 Diff）
+     */
+    private void displayRawResponses(byte[] originalResponse, byte[] modifiedResponse) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                // 转换为字符串
+                String originalText = (originalResponse == null || originalResponse.length == 0) ?
+                        "响应为空" : convertBytesToString(originalResponse);
+                String modifiedText = (modifiedResponse == null || modifiedResponse.length == 0) ?
+                        "响应为空" : convertBytesToString(modifiedResponse);
+
+                // 直接显示原始文本（无高亮）
+                originalTextPane.setText(originalText);
+                modifiedTextPane.setText(modifiedText);
+
+                // 滚动到顶部
+                SwingUtilities.invokeLater(() -> {
+                    originalTextPane.setCaretPosition(0);
+                    modifiedTextPane.setCaretPosition(0);
+                });
+
+            } catch (Exception e) {
+                System.err.println("[ResponseDiffPanel] 快速显示异常: " + e.getMessage());
+                e.printStackTrace();
+            }
         });
     }
 
     /**
-     * 自动检测编码并解码字节
+     * 更新文本面板内容
      */
-    private String decodeBytes(byte[] bytes) {
-        // 尝试多种编码
-        Charset[] charsets = {
-                StandardCharsets.UTF_8,
-                Charset.forName("GBK"),
-                Charset.forName("GB2312"),
-                StandardCharsets.ISO_8859_1
-        };
-
-        // 优先尝试UTF-8
+    private void updateTextPanes(String originalText, String modifiedText) {
         try {
-            String utf8Str = new String(bytes, StandardCharsets.UTF_8);
-            // 简单验证：检查是否包含替换字符
-            if (!utf8Str.contains("\uFFFD")) {
-                return utf8Str;
-            }
+            // 计算 diff
+            List<DiffLine> diffs = computeLineDiff(originalText, modifiedText);
+
+            // 渲染左侧（Original）
+            renderDiff(originalTextPane, diffs, true);
+
+            // 渲染右侧（Modified）
+            renderDiff(modifiedTextPane, diffs, false);
+
+            // 滚动到顶部
+            SwingUtilities.invokeLater(() -> {
+                originalTextPane.setCaretPosition(0);
+                modifiedTextPane.setCaretPosition(0);
+            });
+
         } catch (Exception e) {
-            // 继续尝试其他编码
+            System.err.println("[ResponseDiffPanel] 渲染异常: " + e.getMessage());
+            e.printStackTrace();
         }
-
-        // 尝试其他编码
-        for (Charset charset : charsets) {
-            try {
-                String decoded = new String(bytes, charset);
-                if (!decoded.contains("\uFFFD")) {
-                    System.out.println("[ResponseDiffPanel] 使用编码: " + charset.name());
-                    return decoded;
-                }
-            } catch (Exception e) {
-                // 继续尝试下一个
-            }
-        }
-
-        // 回退到UTF-8
-        System.out.println("[ResponseDiffPanel] 回退到UTF-8编码");
-        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     /**
-     * 计算两个文本的差异（逐行对比）
+     * 计算行级别的 diff
+     *
+     * @param original 原始文本
+     * @param modified 修改后的文本
+     * @return diff 结果列表
      */
-    private List<DiffLine> computeDiff(String original, String modified) {
+    private List<DiffLine> computeLineDiff(String original, String modified) {
+        List<DiffLine> result = new ArrayList<>();
+
+        // 按行分割（保留换行符信息）
         String[] originalLines = splitLines(original);
         String[] modifiedLines = splitLines(modified);
 
-        List<DiffLine> result = new ArrayList<>();
-
-        // 使用简单的逐行对比算法
+        // 简单的逐行对比（可以替换为更复杂的 diff 算法）
         int maxLines = Math.max(originalLines.length, modifiedLines.length);
 
         for (int i = 0; i < maxLines; i++) {
             String origLine = i < originalLines.length ? originalLines[i] : null;
-            String modLine = i < modifiedLines.length ? modifiedLines[i] : null;
+            String modiLine = i < modifiedLines.length ? modifiedLines[i] : null;
 
+            DiffType type;
             if (origLine == null) {
-                // 修改后新增的行
-                result.add(new DiffLine(null, modLine, DiffType.ADDED));
-            } else if (modLine == null) {
-                // 原始中有但修改后删除的行
-                result.add(new DiffLine(origLine, null, DiffType.DELETED));
-            } else if (origLine.equals(modLine)) {
-                // 相同行
-                result.add(new DiffLine(origLine, modLine, DiffType.UNCHANGED));
+                type = DiffType.INSERTED;
+            } else if (modiLine == null) {
+                type = DiffType.DELETED;
+            } else if (origLine.equals(modiLine)) {
+                type = DiffType.EQUAL;
             } else {
-                // 修改的行
-                result.add(new DiffLine(origLine, modLine, DiffType.MODIFIED));
+                type = DiffType.CHANGED;
             }
+
+            result.add(new DiffLine(type, origLine, modiLine));
         }
 
         return result;
     }
 
     /**
-     * 按行分割文本（保留原始换行符）
+     * 分割文本为行（保留空行）
      */
     private String[] splitLines(String text) {
         if (text == null || text.isEmpty()) {
             return new String[0];
         }
 
-        // 保留空行，不使用正则表达式分割以保留换行符类型
-        List<String> lines = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-
-            if (c == '\r') {
-                // 检查是否是\r\n
-                if (i + 1 < text.length() && text.charAt(i + 1) == '\n') {
-                    lines.add(line.toString());
-                    line.setLength(0);
-                    i++; // 跳过\n
-                } else {
-                    // 单独的\r
-                    lines.add(line.toString());
-                    line.setLength(0);
-                }
-            } else if (c == '\n') {
-                // 单独的\n
-                lines.add(line.toString());
-                line.setLength(0);
-            } else {
-                line.append(c);
-            }
-        }
-
-        // 添加最后一行（如果有）
-        if (line.length() > 0) {
-            lines.add(line.toString());
-        }
-
-        return lines.toArray(new String[0]);
+        // 使用正则表达式分割，保留换行符
+        // 支持 \r\n 和 \n
+        return text.split("(?<=\r\n)|(?<=\n)");
     }
 
     /**
-     * 显示差异结果
+     * 渲染 diff 结果到文本面板
+     *
+     * @param textPane 目标文本面板
+     * @param diffs diff 结果列表
+     * @param isOriginal 是否为原始响应（true=左侧，false=右侧）
      */
-    private void displayDiff(List<DiffLine> diff, String originalFull, String modifiedFull) {
-        try {
-            // 清空文本
-            originalTextPane.setText("");
-            modifiedTextPane.setText("");
+    private void renderDiff(JTextPane textPane, List<DiffLine> diffs, boolean isOriginal) {
+        StyledDocument doc = textPane.getStyledDocument();
 
-            StyledDocument originalDoc = originalTextPane.getStyledDocument();
-            StyledDocument modifiedDoc = modifiedTextPane.getStyledDocument();
+        try {
+            // 清空文档
+            doc.remove(0, doc.getLength());
 
             // 创建样式
-            Style defaultStyle = originalTextPane.addStyle("default", null);
-            StyleConstants.setFontFamily(defaultStyle, monoFont.getFamily());
-            StyleConstants.setFontSize(defaultStyle, monoFont.getSize());
+            Style defaultStyle = textPane.addStyle("Default", null);
+            StyleConstants.setFontFamily(defaultStyle, customFont.getFamily());
+            StyleConstants.setFontSize(defaultStyle, customFont.getSize());
 
-            Style addedStyle = originalTextPane.addStyle("added", defaultStyle);
-            StyleConstants.setBackground(addedStyle, COLOR_ADDED);
-
-            Style deletedStyle = originalTextPane.addStyle("deleted", defaultStyle);
+            Style deletedStyle = textPane.addStyle("Deleted", defaultStyle);
             StyleConstants.setBackground(deletedStyle, COLOR_DELETED);
 
-            Style modifiedStyle = originalTextPane.addStyle("modified", defaultStyle);
-            StyleConstants.setBackground(modifiedStyle, COLOR_MODIFIED);
+            Style insertedStyle = textPane.addStyle("Inserted", defaultStyle);
+            StyleConstants.setBackground(insertedStyle, COLOR_INSERTED);
 
-            // 逐行添加文本和高亮
-            int originalLineNum = 1;
-            int modifiedLineNum = 1;
+            Style changedStyle = textPane.addStyle("Changed", defaultStyle);
+            StyleConstants.setBackground(changedStyle,
+                    isOriginal ? COLOR_DELETED : COLOR_INSERTED);
 
-            for (DiffLine diffLine : diff) {
-                Style origStyle = defaultStyle;
-                Style modStyle = defaultStyle;
+            // 逐行渲染
+            for (DiffLine diff : diffs) {
+                String line = isOriginal ? diff.originalLine : diff.modifiedLine;
 
-                switch (diffLine.type) {
-                    case ADDED:
-                        modStyle = addedStyle;
-                        break;
+                if (line == null) {
+                    // 对方有这行，本侧没有，显示空行占位
+                    line = "\n";
+                    doc.insertString(doc.getLength(), line, defaultStyle);
+                    continue;
+                }
+
+                Style style;
+                switch (diff.type) {
                     case DELETED:
-                        origStyle = deletedStyle;
+                        style = isOriginal ? deletedStyle : defaultStyle;
                         break;
-                    case MODIFIED:
-                        origStyle = modifiedStyle;
-                        modStyle = modifiedStyle;
+                    case INSERTED:
+                        style = isOriginal ? defaultStyle : insertedStyle;
                         break;
+                    case CHANGED:
+                        style = changedStyle;
+                        break;
+                    default:
+                        style = defaultStyle;
                 }
 
-                // 添加原始行
-                if (diffLine.originalLine != null) {
-                    originalDoc.insertString(originalDoc.getLength(),
-                            diffLine.originalLine + "\n", origStyle);
-                    originalLineNum++;
-                } else {
-                    originalDoc.insertString(originalDoc.getLength(), "\n", origStyle);
-                    originalLineNum++;
-                }
+                doc.insertString(doc.getLength(), line, style);
+            }
 
-                // 添加修改后的行
-                if (diffLine.modifiedLine != null) {
-                    modifiedDoc.insertString(modifiedDoc.getLength(),
-                            diffLine.modifiedLine + "\n", modStyle);
-                    modifiedLineNum++;
-                } else {
-                    modifiedDoc.insertString(modifiedDoc.getLength(), "\n", modStyle);
-                    modifiedLineNum++;
+        } catch (BadLocationException e) {
+            System.err.println("[ResponseDiffPanel] 文档渲染异常: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 字节数组转字符串（自动检测编码）
+     */
+    private String convertBytesToString(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+
+        try {
+            // 使用 universalchardet 检测编码
+            String encoding = detectEncoding(bytes);
+
+            if (encoding != null) {
+                return new String(bytes, Charset.forName(encoding));
+            }
+
+            // 如果检测失败，尝试常用编码
+            String[] encodings = {"UTF-8", "GBK", "GB2312", "ISO-8859-1"};
+
+            for (String enc : encodings) {
+                try {
+                    String result = new String(bytes, Charset.forName(enc));
+                    // 简单验证：如果没有太多乱码字符，就使用这个编码
+                    if (isValidText(result)) {
+                        return result;
+                    }
+                } catch (Exception e) {
+                    // 继续尝试下一个编码
                 }
             }
 
-            // 更新行号
-            updateLineNumbers(lineNumberPanelOriginal, originalLineNum - 1);
-            updateLineNumbers(lineNumberPanelModified, modifiedLineNum - 1);
+            // 最后使用 UTF-8
+            return new String(bytes, StandardCharsets.UTF_8);
 
-            // 滚动到顶部
-            originalTextPane.setCaretPosition(0);
-            modifiedTextPane.setCaretPosition(0);
-
-        } catch (BadLocationException e) {
-            e.printStackTrace();
-            showMessage("显示错误", "显示错误");
+        } catch (Exception e) {
+            System.err.println("[ResponseDiffPanel] 编码转换异常: " + e.getMessage());
+            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 
     /**
-     * 更新行号显示
+     * 检测字节数组的编码
      */
-    private void updateLineNumbers(JPanel lineNumberPanel, int lineCount) {
-        lineNumberPanel.removeAll();
+    private String detectEncoding(byte[] bytes) {
+        try {
+            UniversalDetector detector = new UniversalDetector(null);
 
-        JTextArea lineNumberArea = new JTextArea();
-        lineNumberArea.setFont(monoFont);
-        lineNumberArea.setBackground(COLOR_LINE_NUMBER_BG);
-        lineNumberArea.setForeground(Color.GRAY);
-        lineNumberArea.setEditable(false);
+            // 只检测前面部分数据以提高速度
+            int detectSize = Math.min(bytes.length, 4096);
+            detector.handleData(bytes, 0, detectSize);
+            detector.dataEnd();
 
-        StringBuilder lineNumbers = new StringBuilder();
-        for (int i = 1; i <= lineCount; i++) {
-            lineNumbers.append(i).append("\n");
+            String encoding = detector.getDetectedCharset();
+            detector.reset();
+
+            return encoding;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 验证文本是否有效（简单检查是否有过多乱码）
+     */
+    private boolean isValidText(String text) {
+        if (text == null || text.isEmpty()) {
+            return true;
         }
 
-        lineNumberArea.setText(lineNumbers.toString());
-        lineNumberPanel.add(lineNumberArea, BorderLayout.CENTER);
-        lineNumberPanel.revalidate();
-        lineNumberPanel.repaint();
+        int replacementCount = 0;
+        for (char c : text.toCharArray()) {
+            if (c == '\uFFFD') { // Unicode 替换字符
+                replacementCount++;
+            }
+        }
+
+        // 如果替换字符超过 5%，认为编码可能不正确
+        return replacementCount < text.length() * 0.05;
     }
 
     /**
-     * 显示提示消息
-     */
-    private void showMessage(String originalMsg, String modifiedMsg) {
-        SwingUtilities.invokeLater(() -> {
-            originalTextPane.setText(originalMsg);
-            modifiedTextPane.setText(modifiedMsg);
-            lineNumberPanelOriginal.removeAll();
-            lineNumberPanelModified.removeAll();
-            lineNumberPanelOriginal.revalidate();
-            lineNumberPanelModified.revalidate();
-        });
-    }
-
-    /**
-     * 清空资源
+     * 清除当前显示的内容，释放资源
      */
     public void clear() {
         SwingUtilities.invokeLater(() -> {
             originalTextPane.setText("");
             modifiedTextPane.setText("");
-            lineNumberPanelOriginal.removeAll();
-            lineNumberPanelModified.removeAll();
 
-            if (originalText != null) {
-                originalText.clear();
+            if (originalResponseRef != null) {
+                originalResponseRef.clear();
             }
-            if (modifiedText != null) {
-                modifiedText.clear();
+            if (modifiedResponseRef != null) {
+                modifiedResponseRef.clear();
             }
-
-            System.gc(); // 建议垃圾回收
         });
     }
 
     /**
-     * 关闭面板时清理资源
-     */
-    public void cleanup() {
-        clear();
-        diffExecutor.shutdown();
-    }
-
-    // ===== 内部类 =====
-
-    /**
-     * 差异行数据结构
+     * Diff 行数据结构
      */
     private static class DiffLine {
-        String originalLine;
-        String modifiedLine;
-        DiffType type;
+        final DiffType type;
+        final String originalLine;
+        final String modifiedLine;
 
-        DiffLine(String originalLine, String modifiedLine, DiffType type) {
+        DiffLine(DiffType type, String originalLine, String modifiedLine) {
+            this.type = type;
             this.originalLine = originalLine;
             this.modifiedLine = modifiedLine;
-            this.type = type;
         }
     }
 
     /**
-     * 差异类型枚举
+     * Diff 类型枚举
      */
     private enum DiffType {
-        UNCHANGED,  // 未改变
-        ADDED,      // 新增
-        DELETED,    // 删除
-        MODIFIED    // 修改
+        EQUAL,      // 相同
+        DELETED,    // 删除（仅在原始中存在）
+        INSERTED,   // 插入（仅在修改后存在）
+        CHANGED     // 修改（两边都存在但内容不同）
     }
 }
