@@ -820,6 +820,12 @@ public class RequestResponseSaver {
             if (response.contains("HTTP/1.1 505 HTTP Version Not Supported", false)) {
                 detectedTypes.add("505 HTTP Version");
             }
+            if (response.contains("Request Header Fields Too Large", false)) {
+                detectedTypes.add("431 Header Too Large");
+            }
+            if (response.contains("URI Too Long", false)) {
+                detectedTypes.add("URI Too Long");
+            }
             // 检测CRLF漏洞
             for (HttpHeader header : response.headers()) {
                 if (header.name().toLowerCase().contains("c9w") ||
