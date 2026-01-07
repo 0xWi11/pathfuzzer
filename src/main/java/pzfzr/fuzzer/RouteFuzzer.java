@@ -39,6 +39,7 @@ public class RouteFuzzer {
     // 定义ROUTE1类型的payload alias数组
     private static final Set<String> ROUTE1_ALIASES = new HashSet<>(Arrays.asList(
             "null",
+            ".%2f{path}",
             "{param}&chaxx=cha",
             "{param}%26chaxx=cha",
             "{path}@host",
