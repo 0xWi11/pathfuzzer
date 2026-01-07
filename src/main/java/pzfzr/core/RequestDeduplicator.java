@@ -104,15 +104,10 @@ public class RequestDeduplicator {
         int requestHash = Objects.hash(method, normalizedUrl, re);
 
         if (matchesNoSkipPattern(url)) {
-            logging.logToOutput("[RequestDeduplicator] matchesNoSkip" + re + url);
-
             if (!"RouteFuzzer".equals(re)) {
-                logging.logToOutput("[RequestDeduplicator] jump" + re + url);
-
                 if (!requestHashes.containsKey(requestHash)) {
                     requestHashes.put(requestHash, Instant.now().plusSeconds(6 * 24 * 60 * 60).toEpochMilli());
                 }
-
                 return false;
             }
         }
