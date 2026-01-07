@@ -27,7 +27,7 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox collectedSwitch;
     private final JCheckBox suspiciousSwitch;
     private final JCheckBox paramDeleterSwitch;
-    private final JCheckBox paramAdderSwitch; // 新增：ParamAdder开关
+    private final JCheckBox paramAdderSwitch;
     private final JCheckBox headerFuzzerSwitch;
     private final JCheckBox cookieFuzzerSwitch;
     private final JCheckBox oobParamFuzzerSwitch;
@@ -35,7 +35,7 @@ public class SwitchPanel extends JPanel {
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
     private final SwitchManager switchManager;
-    private final PluginConfigManager pluginConfigManager; // 新增
+    private final PluginConfigManager pluginConfigManager;
     private final Logging logging;
     private final CSVExporter csvExporter;
     private final RequestResponseSaver requestResponseSaver;
@@ -64,13 +64,15 @@ public class SwitchPanel extends JPanel {
     private final TrafficHandler trafficHandler;
     private final JLabel requestsPerHourLabel;
     private final JButton cancelActiveTasksButton;
+    private final JLabel successMessageLabel; // 新增：成功提示标签
+    private Timer successMessageTimer; // 新增：用于隐藏成功提示的定时器
 
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
                        ParamDeleter paramDeleter, ParamAdder paramAdder, HeaderFuzzer headerFuzzer,
                        CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer) {
         this.switchManager = SwitchManager.getInstance();
-        this.pluginConfigManager = PluginConfigManager.getInstance(); // 新增
+        this.pluginConfigManager = PluginConfigManager.getInstance();
         this.logging = logging;
         this.requestResponseSaver = requestResponseSaver;
         this.csvExporter = new CSVExporter(logging, tableModel, requestResponseSaver);
@@ -122,7 +124,6 @@ public class SwitchPanel extends JPanel {
                 selected -> switchManager.setParamdeleterSwitch(selected));
         paramDeleterSwitch.setEnabled(configState.isParamDeleterEnabled());
 
-        // 新增：ParamAdder开关
         paramAdderSwitch = createSwitch("ParamAdder 测试开关",
                 switchManager.isParamadderSwitch(),
                 selected -> switchManager.setParamadderSwitch(selected));
@@ -157,7 +158,7 @@ public class SwitchPanel extends JPanel {
             paramDeleterSwitch.setVisible(false);
         }
         if (!configState.isParamAdderEnabled()) {
-            paramAdderSwitch.setVisible(false); // 新增
+            paramAdderSwitch.setVisible(false);
         }
         if (!configState.isHeaderFuzzerEnabled()) {
             headerFuzzerSwitch.setVisible(false);
@@ -322,7 +323,7 @@ public class SwitchPanel extends JPanel {
             paramFuzzerLimitPanel.add(maxParameterCountTextField);
             maxParameterPanel.add(paramFuzzerLimitPanel);
         } else {
-            maxParameterCountTextField = new JTextField("0", 5); // 创建隐藏字段
+            maxParameterCountTextField = new JTextField("0", 5);
         }
 
         // ParamDeleter参数数量限制
@@ -334,10 +335,10 @@ public class SwitchPanel extends JPanel {
             paramDeleterLimitPanel.add(maxParameterCountDeleterTextField);
             maxParameterPanel.add(paramDeleterLimitPanel);
         } else {
-            maxParameterCountDeleterTextField = new JTextField("0", 5); // 创建隐藏字段
+            maxParameterCountDeleterTextField = new JTextField("0", 5);
         }
 
-        // 新增：ParamAdder批次大小限制
+        // ParamAdder批次大小限制
         if (configState.isParamAdderEnabled()) {
             JPanel paramAdderBatchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
             JLabel getBatchSizeLabel = new JLabel("GET批次大小:");
@@ -368,7 +369,7 @@ public class SwitchPanel extends JPanel {
             cookieFuzzerLimitPanel.add(maxParameterCountCookieTextField);
             maxParameterPanel.add(cookieFuzzerLimitPanel);
         } else {
-            maxParameterCountCookieTextField = new JTextField("0", 5); // 创建隐藏字段
+            maxParameterCountCookieTextField = new JTextField("0", 5);
         }
 
         // OOBParamFuzzer参数数量限制
@@ -380,7 +381,7 @@ public class SwitchPanel extends JPanel {
             oobParamFuzzerLimitPanel.add(maxParameterCountOOBTextField);
             maxParameterPanel.add(oobParamFuzzerLimitPanel);
         } else {
-            maxParameterCountOOBTextField = new JTextField("0", 5); // 创建隐藏字段
+            maxParameterCountOOBTextField = new JTextField("0", 5);
         }
 
         maxParameterPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -388,6 +389,12 @@ public class SwitchPanel extends JPanel {
         // 创建设置按钮面板
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         setRateLimitButton = new JButton("应用设置");
+
+        // 新增：创建成功提示标签
+        successMessageLabel = new JLabel();
+        successMessageLabel.setForeground(new Color(0, 150, 0)); // 绿色
+        successMessageLabel.setVisible(false); // 初始隐藏
+
         setRateLimitButton.addActionListener(e -> {
             try {
                 int newCapacity = Integer.parseInt(newCapacityTextField.getText());
@@ -407,7 +414,7 @@ public class SwitchPanel extends JPanel {
                 int newMaxParameterCountOOB = configState.isOOBParamFuzzerEnabled() ?
                         Integer.parseInt(maxParameterCountOOBTextField.getText()) : 0;
 
-                // 新增：获取ParamAdder批次大小参数
+                // 获取ParamAdder批次大小参数
                 int newGetBatchSize = configState.isParamAdderEnabled() ?
                         Integer.parseInt(getBatchSizeTextField.getText()) : 0;
                 int newPostBatchSize = configState.isParamAdderEnabled() ?
@@ -435,7 +442,7 @@ public class SwitchPanel extends JPanel {
                         oobParamFuzzer.setMaxParameterCount(newMaxParameterCountOOB);
                     }
 
-                    // 新增：更新ParamAdder批次大小
+                    // 更新ParamAdder批次大小
                     if (configState.isParamAdderEnabled()) {
                         if (newGetBatchSize > 0) {
                             paramAdder.setGetBatchSize(newGetBatchSize);
@@ -453,13 +460,10 @@ public class SwitchPanel extends JPanel {
                     int updatedRequestsPerHour = (int)(updatedRequestsPerSecond * 3600);
                     requestsPerHourLabel.setText(String.format("%d req/h | %.2f req/s", updatedRequestsPerHour, updatedRequestsPerSecond));
 
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "速率限制和参数数量限制已更新",
-                            "成功",
-                            JOptionPane.INFORMATION_MESSAGE
-                    );
+                    // 新增：显示成功提示而不是弹窗
+                    showSuccessMessage("✓ 设置已成功更新");
                 } else {
+                    // 错误提示仍使用弹窗
                     JOptionPane.showMessageDialog(
                             this,
                             "容量、令牌添加间隔、每批次最大Header数必须大于0，其他参数不能为负数",
@@ -468,6 +472,7 @@ public class SwitchPanel extends JPanel {
                     );
                 }
             } catch (NumberFormatException ex) {
+                // 错误提示仍使用弹窗
                 JOptionPane.showMessageDialog(
                         this,
                         "请输入有效的数字",
@@ -478,6 +483,7 @@ public class SwitchPanel extends JPanel {
         });
 
         buttonPanel.add(setRateLimitButton);
+        buttonPanel.add(successMessageLabel); // 新增：在按钮旁边添加提示标签
         buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // 创建一个新的面板，包含所有速率限制相关的控件
@@ -494,14 +500,14 @@ public class SwitchPanel extends JPanel {
         buttonsContainer.setLayout(new BoxLayout(buttonsContainer, BoxLayout.Y_AXIS));
         buttonsContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 第一行：清除URL缓存（单独一行）
+        // 第一行
         JPanel firstButtonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
         firstButtonRow.add(clearHashesButton);
         firstButtonRow.add(cancelActiveTasksButton);
         firstButtonRow.add(clearTasksButton);
         firstButtonRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 第二行：丢弃活跃任务 + 清空待处理任务
+        // 第二行
         JPanel secondButtonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
         secondButtonRow.add(exportCSVButton);
         secondButtonRow.add(openFolderButton);
@@ -529,7 +535,6 @@ public class SwitchPanel extends JPanel {
             switchesPanel.add(Box.createVerticalStrut(5));
             switchesPanel.add(paramDeleterSwitch);
         }
-        // 新增：添加 ParamAdder 开关
         if (configState.isParamAdderEnabled()) {
             switchesPanel.add(Box.createVerticalStrut(5));
             switchesPanel.add(paramAdderSwitch);
@@ -559,6 +564,25 @@ public class SwitchPanel extends JPanel {
         updateSwitchStates();
     }
 
+    // 新增：显示成功消息的方法
+    private void showSuccessMessage(String message) {
+        // 如果有正在运行的定时器，先停止它
+        if (successMessageTimer != null && successMessageTimer.isRunning()) {
+            successMessageTimer.stop();
+        }
+
+        // 显示消息
+        successMessageLabel.setText(message);
+        successMessageLabel.setVisible(true);
+
+        // 创建一个定时器，3秒后隐藏消息
+        successMessageTimer = new Timer(3000, e -> {
+            successMessageLabel.setVisible(false);
+        });
+        successMessageTimer.setRepeats(false); // 只执行一次
+        successMessageTimer.start();
+    }
+
     private JCheckBox createSwitch(String text, boolean initialState, SwitchChangeListener listener) {
         JCheckBox checkBox = new JCheckBox(text);
         checkBox.setSelected(initialState);
@@ -584,7 +608,6 @@ public class SwitchPanel extends JPanel {
         if (configState.isParamDeleterEnabled()) {
             paramDeleterSwitch.setEnabled(masterState);
         }
-        // 新增：ParamAdder开关状态更新
         if (configState.isParamAdderEnabled()) {
             paramAdderSwitch.setEnabled(masterState);
         }
@@ -599,12 +622,8 @@ public class SwitchPanel extends JPanel {
         }
     }
 
-    // 修正计算请求数的方法
     private double calculateRequestsPerSecond(int refillRate, long refillIntervalMillis) {
-        // 如果refillRate为0，则返回0
         if (refillRate == 0) return 0;
-
-        // 直接计算每秒请求数：refillRate 令牌每 refillIntervalMillis 毫秒
         return (double) refillRate * (1000.0 / refillIntervalMillis);
     }
 

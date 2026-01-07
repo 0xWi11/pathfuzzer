@@ -17,6 +17,7 @@ public class NoSkipUrlPanel extends JPanel {
     private final JList<String> regexList;
     private final JTextField regexInputField;
     private final JButton addButton;
+    private final JButton addWildcardButton;  // 新增：通配符添加按钮
     private final JButton deleteButton;
     private final JLabel statusLabel;
     private Timer statusTimer;
@@ -59,9 +60,11 @@ public class NoSkipUrlPanel extends JPanel {
 
         // 创建按钮
         addButton = new JButton("Add");
+        addWildcardButton = new JButton("Add Wildcard");  // 新增：通配符按钮
         deleteButton = new JButton("Delete");
 
         addButton.addActionListener(e -> addRegex());
+        addWildcardButton.addActionListener(e -> addWildcardRegex());  // 新增：通配符按钮事件
         deleteButton.addActionListener(e -> deleteSelectedRegex());
 
         // 状态标签
@@ -73,6 +76,7 @@ public class NoSkipUrlPanel extends JPanel {
         inputPanel.add(new JLabel("Regex Pattern:"));
         inputPanel.add(regexInputField);
         inputPanel.add(addButton);
+        inputPanel.add(addWildcardButton);  // 新增：添加通配符按钮到面板
         inputPanel.add(deleteButton);
 
         bottomPanel.add(inputPanel, BorderLayout.NORTH);
@@ -90,7 +94,8 @@ public class NoSkipUrlPanel extends JPanel {
                 "Configure URL regex patterns that should NOT skip the deduplication mechanism.\n" +
                         "When a URL matches any of these patterns AND the source is NOT 'RouteFuzzer', " +
                         "the request will be tested.\n" +
-                        "Example: (?i).*graphql.* (case-insensitive match for 'graphql')"
+                        "Example: (?i).*graphql.* (case-insensitive match for 'graphql')\n" +
+                        "Use 'Add Wildcard' button to automatically wrap text with .* (e.g., '123' becomes '.*123.*')"
         );
         descArea.setEditable(false);
         descArea.setLineWrap(true);
@@ -147,6 +152,39 @@ public class NoSkipUrlPanel extends JPanel {
         addRegexToList(regex);
         regexInputField.setText("");
         showStatus("Pattern added successfully", true);
+    }
+
+    /**
+     * 新增：添加通配符正则表达式
+     * 将输入的文本转换为 .*文本.* 格式
+     */
+    private void addWildcardRegex() {
+        String input = regexInputField.getText().trim();
+
+        if (input.isEmpty()) {
+            showStatus("Please enter text for wildcard pattern", false);
+            return;
+        }
+
+        // 转换为通配符格式
+        String regex = ".*" + input + ".*";
+
+        // 验证正则表达式
+        if (!isValidRegex(regex)) {
+            showStatus("Invalid regex pattern: " + regex, false);
+            return;
+        }
+
+        // 检查是否已存在
+        if (listModel.contains(regex)) {
+            showStatus("Pattern already exists", false);
+            return;
+        }
+
+        // 添加到列表
+        addRegexToList(regex);
+        regexInputField.setText("");
+        showStatus("Wildcard pattern added: " + regex, true);
     }
 
     /**
