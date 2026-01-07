@@ -28,9 +28,12 @@ public class ResponseDiffPanel extends JPanel {
     private JScrollPane modifiedScrollPane;
     private JSplitPane splitPane;
     private JToggleButton diffToggleButton;
+    private JToggleButton lockButton;  // 新增：锁定按钮
+    private JLabel statusLabel;        // 状态标签
 
     // Diff 开关状态
     private boolean diffEnabled = true;
+    private boolean diffLocked = false;  // 新增：Diff 锁定状态
 
     // 数据引用（使用弱引用节省内存）
     private WeakReference<byte[]> originalResponseRef;
@@ -124,34 +127,87 @@ public class ResponseDiffPanel extends JPanel {
         diffToggleButton.setFocusPainted(false);
         diffToggleButton.setToolTipText("切换 Diff 计算（关闭可提升性能）");
 
+        // 锁定按钮
+        lockButton = new JToggleButton("🔓 未锁定", false);
+        lockButton.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        lockButton.setPreferredSize(new Dimension(90, 22));
+        lockButton.setFocusPainted(false);
+        lockButton.setToolTipText("锁定 Diff 状态（锁定后不会自动关闭）");
+
         // 设置按钮样式
         updateToggleButtonStyle();
+        updateLockButtonStyle();
 
-        // 添加切换事件
+        // Diff 开关事件
         diffToggleButton.addActionListener(e -> {
             diffEnabled = diffToggleButton.isSelected();
             updateToggleButtonStyle();
+            updateStatusLabel();
 
-            // 如果有缓存的响应数据，重新渲染
-            if (originalResponseRef != null && modifiedResponseRef != null) {
-                byte[] orig = originalResponseRef.get();
-                byte[] modi = modifiedResponseRef.get();
-                if (orig != null && modi != null) {
-                    setResponses(orig, modi);
+            // 如果关闭 Diff，立即清空显示
+            if (!diffEnabled) {
+                showDiffClosedMessage();
+            } else {
+                // 如果开启 Diff 且有缓存的响应数据，重新渲染
+                if (originalResponseRef != null && modifiedResponseRef != null) {
+                    byte[] orig = originalResponseRef.get();
+                    byte[] modi = modifiedResponseRef.get();
+                    if (orig != null && modi != null) {
+                        setResponses(orig, modi);
+                    }
                 }
             }
         });
 
+        // 锁定按钮事件
+        lockButton.addActionListener(e -> {
+            diffLocked = lockButton.isSelected();
+            updateLockButtonStyle();
+            updateStatusLabel();
+        });
+
         // 状态标签
-        JLabel statusLabel = new JLabel("快速浏览模式：关闭 Diff 可提升性能");
+        statusLabel = new JLabel();
         statusLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 10));
         statusLabel.setForeground(new Color(108, 117, 125));
+        updateStatusLabel();
 
         toolbar.add(diffToggleButton);
+        toolbar.add(lockButton);
         toolbar.add(Box.createHorizontalStrut(10));
         toolbar.add(statusLabel);
 
         return toolbar;
+    }
+
+    /**
+     * 显示 Diff 已关闭的提示信息
+     */
+    private void showDiffClosedMessage() {
+        SwingUtilities.invokeLater(() -> {
+            String message = "\n\n\n" +
+                    "═══════════════════════════════════════\n" +
+                    "          Diff 功能已关闭\n" +
+                    "═══════════════════════════════════════\n\n" +
+                    "  不会显示任何响应内容\n" +
+                    "  点击上方 [✗ Diff 已关闭] 按钮重新启用\n\n";
+
+            originalTextPane.setText(message);
+            modifiedTextPane.setText(message);
+        });
+    }
+
+    /**
+     * 更新状态标签
+     */
+    private void updateStatusLabel() {
+        if (diffLocked) {
+            statusLabel.setText("🔒 Diff 已锁定 - 不会自动关闭");
+        } else if (diffEnabled) {
+            statusLabel.setText("📊 Diff 已启用 - 大响应时自动切换");
+        } else {
+            statusLabel.setText("⚡ Diff 已关闭 - 不处理任何内容");
+        }
     }
 
     /**
@@ -168,6 +224,23 @@ public class ResponseDiffPanel extends JPanel {
             diffToggleButton.setBackground(new Color(220, 53, 69)); // 红色
             diffToggleButton.setForeground(Color.WHITE);
             diffToggleButton.setToolTipText("点击启用 Diff（显示差异）");
+        }
+    }
+
+    /**
+     * 更新锁定按钮样式
+     */
+    private void updateLockButtonStyle() {
+        if (diffLocked) {
+            lockButton.setText("🔒 已锁定");
+            lockButton.setBackground(new Color(255, 193, 7)); // 黄色
+            lockButton.setForeground(Color.BLACK);
+            lockButton.setToolTipText("点击解锁（允许自动切换）");
+        } else {
+            lockButton.setText("🔓 未锁定");
+            lockButton.setBackground(new Color(108, 117, 125)); // 灰色
+            lockButton.setForeground(Color.WHITE);
+            lockButton.setToolTipText("点击锁定（防止自动关闭 Diff）");
         }
     }
 
@@ -215,21 +288,42 @@ public class ResponseDiffPanel extends JPanel {
      * @param modifiedResponse 修改后的响应数据
      */
     public void setResponses(byte[] originalResponse, byte[] modifiedResponse) {
+        // ========================================
+        // 关键检查：如果 Diff 已关闭，直接返回，不做任何处理！
+        // ========================================
+        if (!diffEnabled) {
+            System.out.println("[ResponseDiffPanel] Diff 已关闭，忽略响应数据");
+            return;  // 直接返回，不处理任何内容
+        }
+
         // 保存数据引用
         this.originalResponseRef = new WeakReference<>(originalResponse);
         this.modifiedResponseRef = new WeakReference<>(modifiedResponse);
 
-        // 如果 Diff 被禁用，直接显示原始文本（快速模式）
-        if (!diffEnabled) {
-            displayRawResponses(originalResponse, modifiedResponse);
-            return;
+        // 检查响应大小，如果过大且未锁定，则自动关闭 diff
+        boolean isLargeResponse = (originalResponse != null && originalResponse.length > MAX_SIZE_BYTES) ||
+                (modifiedResponse != null && modifiedResponse.length > MAX_SIZE_BYTES);
+
+        if (isLargeResponse && !diffLocked && diffEnabled) {
+            // 自动关闭 Diff
+            diffEnabled = false;
+            diffToggleButton.setSelected(false);
+            updateToggleButtonStyle();
+            updateStatusLabel();
+
+            System.out.println(String.format("[ResponseDiffPanel] 检测到大响应（原始: %d KB, 修改后: %d KB），自动关闭 Diff",
+                    originalResponse != null ? originalResponse.length / 1024 : 0,
+                    modifiedResponse != null ? modifiedResponse.length / 1024 : 0));
+
+            // 显示关闭提示
+            showDiffClosedMessage();
+            return;  // 关闭后直接返回，不再处理
         }
 
         // 在后台线程计算 diff（启用 Diff 模式）
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             private String originalText;
             private String modifiedText;
-            private boolean shouldContinue = true;
 
             @Override
             protected Void doInBackground() throws Exception {
@@ -246,24 +340,6 @@ public class ResponseDiffPanel extends JPanel {
                         originalText = convertBytesToString(originalResponse);
                         modifiedText = "响应为空";
                         return null;
-                    }
-
-                    // 检查超大响应
-                    if (originalResponse.length > MAX_SIZE_BYTES || modifiedResponse.length > MAX_SIZE_BYTES) {
-                        int result = JOptionPane.showConfirmDialog(
-                                ResponseDiffPanel.this,
-                                String.format("响应数据较大（原始: %d KB, 修改后: %d KB）\n对比可能需要较长时间，是否继续？",
-                                        originalResponse.length / 1024,
-                                        modifiedResponse.length / 1024),
-                                "警告",
-                                JOptionPane.YES_NO_OPTION,
-                                JOptionPane.WARNING_MESSAGE
-                        );
-
-                        if (result != JOptionPane.YES_OPTION) {
-                            shouldContinue = false;
-                            return null;
-                        }
                     }
 
                     // 转换为字符串
@@ -288,11 +364,6 @@ public class ResponseDiffPanel extends JPanel {
 
             @Override
             protected void done() {
-                if (!shouldContinue) {
-                    clear();
-                    return;
-                }
-
                 // 在 EDT 线程更新 UI
                 SwingUtilities.invokeLater(() -> {
                     try {
@@ -306,35 +377,6 @@ public class ResponseDiffPanel extends JPanel {
         };
 
         worker.execute();
-    }
-
-    /**
-     * 快速模式：直接显示原始响应文本（不计算 Diff）
-     */
-    private void displayRawResponses(byte[] originalResponse, byte[] modifiedResponse) {
-        SwingUtilities.invokeLater(() -> {
-            try {
-                // 转换为字符串
-                String originalText = (originalResponse == null || originalResponse.length == 0) ?
-                        "响应为空" : convertBytesToString(originalResponse);
-                String modifiedText = (modifiedResponse == null || modifiedResponse.length == 0) ?
-                        "响应为空" : convertBytesToString(modifiedResponse);
-
-                // 直接显示原始文本（无高亮）
-                originalTextPane.setText(originalText);
-                modifiedTextPane.setText(modifiedText);
-
-                // 滚动到顶部
-                SwingUtilities.invokeLater(() -> {
-                    originalTextPane.setCaretPosition(0);
-                    modifiedTextPane.setCaretPosition(0);
-                });
-
-            } catch (Exception e) {
-                System.err.println("[ResponseDiffPanel] 快速显示异常: " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
     }
 
     /**
