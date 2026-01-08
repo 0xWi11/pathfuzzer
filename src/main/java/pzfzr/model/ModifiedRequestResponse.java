@@ -19,6 +19,8 @@ public class ModifiedRequestResponse implements Serializable {
 
     private long ResponseTime = -1;
     private String ReflectType = null;
+    private String contentType = null;
+
     private final Logging logging;
 
     // 修改构造函数，添加 payloadAlias 和 testParameterName 参数
@@ -100,14 +102,20 @@ public class ModifiedRequestResponse implements Serializable {
     public String getTestParameterName() {
         return testParameterName;
     }
+    public String getContentType() {
+        return contentType;
+    }
 
     // 设置 ModifiedResponse 并异步计算元数据
-    public void setModifiedResponseAndCalculateMetadata(Short StatusCode, int ModifiedBodyLength,int ModifiedBodyWithoutHeaderLength, String ReflectType, long responseTime) {
-        this.StatusCode = StatusCode;//response.statusCode();
+    public void setModifiedResponseAndCalculateMetadata(Short StatusCode, int ModifiedBodyLength,
+                                                        int ModifiedBodyWithoutHeaderLength, String ReflectType,
+                                                        long responseTime, String contentType) {
+        this.StatusCode = StatusCode;
         this.ModifiedBodyLength = ModifiedBodyLength;
         this.ModifiedBodyLengthWithoutHeader = ModifiedBodyWithoutHeaderLength;
         this.ResponseTime = responseTime;
         this.ReflectType = ReflectType;
+        this.contentType = contentType;
     }
 
     // 添加资源清理方法，关闭线程池

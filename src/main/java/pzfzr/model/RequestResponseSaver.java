@@ -707,12 +707,24 @@ public class RequestResponseSaver {
                     // 更新表格模型
                     if (modifiedEntry != null) {
                         int responseLength = calculateResponseLengthWithoutSetCookieValues(response);
+
+                        // 获取 MIME type，处理空值情况
+                        String contentType = null;
+                        try {
+                            if (response.mimeType() != null) {
+                                contentType = response.mimeType().toString();
+                            }
+                        } catch (Exception e) {
+                            logging.logToError("[RequestResponseSaver] Failed to get MIME type: " + e.getMessage());
+                        }
+
                         modifiedEntry.setModifiedResponseAndCalculateMetadata(
                                 response.statusCode(),
                                 responseLength,
                                 response.body().length(),
                                 detectReflectType(response),
-                                responseTime
+                                responseTime,
+                                contentType  // 添加 contentType 参数
                         );
                     }
                 }).exceptionally(ex -> {

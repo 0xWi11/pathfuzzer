@@ -194,21 +194,22 @@ public class HistoryPanel extends JPanel {
         });
 
         // 设置列宽
-        if (table.getColumnModel().getColumnCount() >= 14) {
+        if (table.getColumnModel().getColumnCount() >= 15) {
             setFixedColumnWidth(table, 0, 38);     // ID
-            setFixedColumnWidth(table, 1, 68);     // Orig.ID (新增列)
+            setFixedColumnWidth(table, 1, 68);     // Orig.ID
             setFixedColumnWidth(table, 2, 38);     // Method
             setFixedColumnWidth(table, 3, 800);    // URL
             setFixedColumnWidth(table, 4, 88);     // Test Type
             setFixedColumnWidth(table, 5, 113);    // Param
-            setFixedColumnWidth(table, 6, 115);    // Payload
-            setFixedColumnWidth(table, 7, 38);     // modif status
-            setFixedColumnWidth(table, 8, 60);     // Len Diff
-            setFixedColumnWidth(table, 9, 60);     // modif len(withoutheader)
-            setFixedColumnWidth(table, 10, 60);    // modif len+(withheader)
-            setFixedColumnWidth(table, 11, 60);    // origin len(withoutheader)
-            setFixedColumnWidth(table, 12, 72);    // Modif. Time
-            setFixedColumnWidth(table, 13, 80);    // Reflect
+            setFixedColumnWidth(table, 6, 72);     // Content Type (新增)
+            setFixedColumnWidth(table, 7, 115);    // Payload
+            setFixedColumnWidth(table, 8, 38);     // Modif Status
+            setFixedColumnWidth(table, 9, 60);     // Len Diff
+            setFixedColumnWidth(table, 10, 60);    // Modif. len (withoutheader)
+            setFixedColumnWidth(table, 11, 60);    // Modif. len+ (withheader)
+            setFixedColumnWidth(table, 12, 60);    // Origin len (withoutheader)
+            setFixedColumnWidth(table, 13, 72);    // Modif. Time
+            setFixedColumnWidth(table, 14, 80);    // Reflect
         }
 
         return table;
