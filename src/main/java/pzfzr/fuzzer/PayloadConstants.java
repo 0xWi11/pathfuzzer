@@ -204,6 +204,7 @@ public class PayloadConstants {
             new PayloadInfo("v2/api-docs", "v2docs"),
             new PayloadInfo("v3/api-docs", "v3docs"),
             new PayloadInfo("actuator", "actuator"),
+            new PayloadInfo("actuator%23", "actuator%23"),
             new PayloadInfo("env", "env"),
             new PayloadInfo("health", "health"),
             new PayloadInfo("mappings", "mappings"),
