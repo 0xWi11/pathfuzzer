@@ -195,10 +195,10 @@ public class HistoryPanel extends JPanel {
 
         // 设置列宽
         if (table.getColumnModel().getColumnCount() >= 15) {
-            setFixedColumnWidth(table, 0, 38);     // ID
+            setFixedColumnWidth(table, 0, 50);     // ID
             setFixedColumnWidth(table, 1, 68);     // Orig.ID
             setFixedColumnWidth(table, 2, 38);     // Method
-            setFixedColumnWidth(table, 3, 800);    // URL
+            setFixedColumnWidth(table, 3, 718);    // URL
             setFixedColumnWidth(table, 4, 88);     // Test Type
             setFixedColumnWidth(table, 5, 113);    // Param
             setFixedColumnWidth(table, 6, 72);     // Content Type (新增)

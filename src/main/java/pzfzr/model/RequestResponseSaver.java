@@ -799,8 +799,8 @@ public class RequestResponseSaver {
         }
         List<String> detectedTypes = new ArrayList<>();
         try {
-            if (response.contains("73504", false) || response.contains("918891889188", false)) {
-                detectedTypes.add("SSTI-73504-9188");
+            if (response.contains("808544", false) || response.contains("918891889188", false)) {
+                detectedTypes.add("SSTI-808544-9188");
             }
             if (response.contains("/bin/sh", false)) {
                 detectedTypes.add("LFI");
@@ -808,7 +808,7 @@ public class RequestResponseSaver {
             if (response.contains("Message too large to display", false)) {
                 detectedTypes.add("Large");
             }
-            if (response.contains("chaxx123'\">", false)) {
+            if (response.bodyToString().contains("chaxx123'\">")) {
                 detectedTypes.add("RXSS");
             }
             if (response.contains("SHELL=/", false) || response.contains("PWD=/", false) || response.contains("HOME=/", false) ) {
