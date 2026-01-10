@@ -32,7 +32,7 @@ public class RequestResponseSaver {
     private final Path STORAGE_DIR;
     private final Logging logging;
     private final TableModel tableModel;
-    private final String dailyDirHash;
+    private final String dbFileName;
 
     // SQLite连接 - 读写分离
     private Connection writeConnection;  // 专用于批量写入
@@ -107,11 +107,11 @@ public class RequestResponseSaver {
     public RequestResponseSaver(Logging logging, TableModel tableModel) {
         this.logging = logging;
         this.tableModel = tableModel;
-        this.dailyDirHash = generateRandomHash();
-        this.STORAGE_DIR = createDailyStorageDir();
+        this.dbFileName = generateDbFileName();
+        this.STORAGE_DIR = createMonthlyStorageDir();
 
         if (this.STORAGE_DIR == null) {
-            throw new StorageException("[RequestResponseSaver] Failed to create daily storage directory.");
+            throw new StorageException("[RequestResponseSaver] Failed to create monthly storage directory.");
         }
 
         // 初始化SQLite数据库
@@ -147,6 +147,17 @@ public class RequestResponseSaver {
         startBatchWriter();
 
         logging.logToOutput("[RequestResponseSaver] Initialization complete, storage directory: " + STORAGE_DIR);
+        logging.logToOutput("[RequestResponseSaver] Database file: " + dbFileName);
+    }
+
+    /**
+     * 生成数据库文件名：日期_hash_requestdata.db
+     */
+    private String generateDbFileName() {
+        LocalDateTime now = LocalDateTime.now();
+        String dateStr = now.format(DateTimeFormatter.ofPattern("dd"));
+        String randomHash = generateRandomHash();
+        return dateStr + "_" + randomHash + "_requestdata.db";
     }
 
     /**
@@ -162,7 +173,7 @@ public class RequestResponseSaver {
                 throw new RuntimeException("SQLite JDBC driver not found. Please ensure sqlite-jdbc is in the classpath.", e);
             }
 
-            String dbPath = STORAGE_DIR.resolve("requests.db").toString();
+            String dbPath = STORAGE_DIR.resolve(dbFileName).toString();
 
             // 创建写连接
             writeConnection = createConnection(dbPath);
@@ -678,7 +689,7 @@ public class RequestResponseSaver {
                     logging.logToError("[RequestResponseSaver] Read connection invalid, attempting to recreate...");
                     synchronized (connectionLock) {
                         readConnection.close();
-                        String dbPath = STORAGE_DIR.resolve("requests.db").toString();
+                        String dbPath = STORAGE_DIR.resolve(dbFileName).toString();
                         readConnection = createConnection(dbPath);
                         logging.logToOutput("[RequestResponseSaver] Read connection recreated");
                     }
@@ -854,20 +865,18 @@ public class RequestResponseSaver {
     }
 
     /**
-     * 创建每日存储目录
+     * 创建月份存储目录
      */
-    private Path createDailyStorageDir() {
+    private Path createMonthlyStorageDir() {
         LocalDateTime now = LocalDateTime.now();
         String monthDir = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
-        String dayDir = now.format(DateTimeFormatter.ofPattern("dd")) + "_" + this.dailyDirHash;
 
         Path monthlyHistoryDir = HISTORY_DIR.resolve(monthDir);
-        Path dailyStorageDir = monthlyHistoryDir.resolve(dayDir);
 
         try {
-            Files.createDirectories(dailyStorageDir);
-            logging.logToOutput("[RequestResponseSaver] Created daily storage directory: " + dailyStorageDir);
-            return dailyStorageDir;
+            Files.createDirectories(monthlyHistoryDir);
+            logging.logToOutput("[RequestResponseSaver] Created monthly storage directory: " + monthlyHistoryDir);
+            return monthlyHistoryDir;
         } catch (IOException e) {
             logging.logToError("[RequestResponseSaver] Failed to create directory: " + e.getMessage());
             return null;
