@@ -303,17 +303,19 @@ public class RequestResponseSaver {
 
             // Header总是UTF-8文本
             headers = new String(headerBytes, StandardCharsets.UTF_8);
-
+            headerBytes = null;
             // 检测body是否为二进制内容
             String contentType = extractContentType(headers);
             if (isBinaryContentType(contentType) || !isValidUtf8(bodyBytes)) {
                 // 二进制内容：Base64编码
                 body = Base64.getEncoder().encodeToString(bodyBytes);
                 isBodyBase64 = true;
+                bodyBytes = null;
             } else {
                 // 文本内容：直接存储
                 body = new String(bodyBytes, StandardCharsets.UTF_8);
                 isBodyBase64 = false;
+                bodyBytes = null;
             }
         } else {
             // 没有body，整个数据就是header
@@ -321,6 +323,8 @@ public class RequestResponseSaver {
             body = "";
             isBodyBase64 = false;
         }
+        data = null;
+        bytes = null;
 
         return new HttpMessageParts(headers, body, isBodyBase64);
     }
@@ -411,6 +415,10 @@ public class RequestResponseSaver {
         System.arraycopy(headerBytes, 0, result, 0, headerBytes.length);
         System.arraycopy(separator, 0, result, headerBytes.length, separator.length);
         System.arraycopy(bodyBytes, 0, result, headerBytes.length + separator.length, bodyBytes.length);
+
+        headerBytes = null;
+        separator = null;
+        bodyBytes = null;
 
         return result;
     }
