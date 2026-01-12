@@ -7,6 +7,7 @@ import burp.api.montoya.http.message.responses.HttpResponse;
 import burp.api.montoya.logging.Logging;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
@@ -46,10 +47,11 @@ public class RequestResponseSaver {
     // 批处理配置
     private static final int BATCH_SIZE = 50;
     private static final int BATCH_TIMEOUT_MS = 200;
+    private static final int MAX_QUEUE_SIZE = 10000; // 防止队列无限增长
 
-    // 写入队列和缓存
-    private final Map<Integer, CompletableFuture<Void>> pendingWrites = new ConcurrentHashMap<>();
-    private final BlockingQueue<WriteTask> writeQueue = new LinkedBlockingQueue<>();
+    // 写入队列和缓存 - 优化：使用有界队列
+    private final Map<Integer, WeakReference<CompletableFuture<Void>>> pendingWrites = new ConcurrentHashMap<>();
+    private final BlockingQueue<WriteTask> writeQueue = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
 
     // 统计信息
     private final AtomicLong totalWrites = new AtomicLong(0);
@@ -60,6 +62,13 @@ public class RequestResponseSaver {
     private static final Path HISTORY_DIR = BASE_DIR.resolve("project_request_history");
 
     private volatile boolean isShutdown = false;
+
+    // 优化：添加定期清理任务
+    private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "rs-cleanup");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * 内部类：存储拆分后的HTTP数据
@@ -73,6 +82,12 @@ public class RequestResponseSaver {
             this.headers = headers;
             this.body = body;
             this.isBodyBase64 = isBodyBase64;
+        }
+
+        // 优化：添加清理方法
+        void clear() {
+            headers = null;
+            body = null;
         }
     }
 
@@ -88,6 +103,11 @@ public class RequestResponseSaver {
             this.data = data;
             this.filename = filename;
             this.future = future;
+        }
+
+        // 优化：添加清理方法
+        void clear() {
+            // ByteArray由Burp管理，不需要手动清理
         }
     }
 
@@ -145,6 +165,9 @@ public class RequestResponseSaver {
 
         // 启动批处理写入线程
         startBatchWriter();
+
+        // 优化：启动定期清理任务
+        startPeriodicCleanup();
 
         logging.logToOutput("[RequestResponseSaver] Initialization complete, storage directory: " + STORAGE_DIR);
         logging.logToOutput("[RequestResponseSaver] Database file: " + dbFileName);
@@ -285,6 +308,7 @@ public class RequestResponseSaver {
 
     /**
      * 拆分HTTP消息并智能编码body
+     * 优化：减少临时对象创建，优化内存使用
      */
     private HttpMessageParts splitAndEncodeHttpMessage(ByteArray data, String dataType) {
         byte[] bytes = data.getBytes();
@@ -297,25 +321,22 @@ public class RequestResponseSaver {
         boolean isBodyBase64 = false;
 
         if (separatorIndex != -1) {
-            // 分离header和body
-            byte[] headerBytes = Arrays.copyOfRange(bytes, 0, separatorIndex);
-            byte[] bodyBytes = Arrays.copyOfRange(bytes, separatorIndex + 4, bytes.length);
+            // 分离header和body - 优化：直接使用偏移量，避免copyOfRange
+            headers = new String(bytes, 0, separatorIndex, StandardCharsets.UTF_8);
 
-            // Header总是UTF-8文本
-            headers = new String(headerBytes, StandardCharsets.UTF_8);
-            headerBytes = null;
+            int bodyStart = separatorIndex + 4;
+            int bodyLength = bytes.length - bodyStart;
+
             // 检测body是否为二进制内容
             String contentType = extractContentType(headers);
-            if (isBinaryContentType(contentType) || !isValidUtf8(bodyBytes)) {
+            if (isBinaryContentType(contentType) || !isValidUtf8(bytes, bodyStart, bodyLength)) {
                 // 二进制内容：Base64编码
-                body = Base64.getEncoder().encodeToString(bodyBytes);
+                body = Base64.getEncoder().encodeToString(Arrays.copyOfRange(bytes, bodyStart, bytes.length));
                 isBodyBase64 = true;
-                bodyBytes = null;
             } else {
                 // 文本内容：直接存储
-                body = new String(bodyBytes, StandardCharsets.UTF_8);
+                body = new String(bytes, bodyStart, bodyLength, StandardCharsets.UTF_8);
                 isBodyBase64 = false;
-                bodyBytes = null;
             }
         } else {
             // 没有body，整个数据就是header
@@ -323,8 +344,6 @@ public class RequestResponseSaver {
             body = "";
             isBodyBase64 = false;
         }
-        data = null;
-        bytes = null;
 
         return new HttpMessageParts(headers, body, isBodyBase64);
     }
@@ -344,14 +363,29 @@ public class RequestResponseSaver {
 
     /**
      * 从header中提取Content-Type
+     * 优化：避免split产生大量临时对象
      */
     private String extractContentType(String headers) {
-        String[] lines = headers.split("\r\n");
-        for (String line : lines) {
-            if (line.toLowerCase().startsWith("content-type:")) {
-                return line.substring(13).trim().toLowerCase();
+        int startIndex = 0;
+        int endIndex;
+
+        while (startIndex < headers.length()) {
+            endIndex = headers.indexOf("\r\n", startIndex);
+            if (endIndex == -1) {
+                endIndex = headers.length();
             }
+
+            // 检查当前行是否是Content-Type
+            if (endIndex - startIndex > 13) {
+                String line = headers.substring(startIndex, endIndex);
+                if (line.regionMatches(true, 0, "content-type:", 0, 13)) {
+                    return line.substring(13).trim().toLowerCase();
+                }
+            }
+
+            startIndex = endIndex + 2;
         }
+
         return "";
     }
 
@@ -382,13 +416,14 @@ public class RequestResponseSaver {
 
     /**
      * 检测字节数组是否为有效UTF-8
+     * 优化：支持偏移量，避免数组复制
      */
-    private boolean isValidUtf8(byte[] bytes) {
+    private boolean isValidUtf8(byte[] bytes, int offset, int length) {
         try {
             CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
                     .onMalformedInput(CodingErrorAction.REPORT)
                     .onUnmappableCharacter(CodingErrorAction.REPORT);
-            decoder.decode(ByteBuffer.wrap(bytes));
+            decoder.decode(ByteBuffer.wrap(bytes, offset, length));
             return true;
         } catch (Exception e) {
             return false;
@@ -397,12 +432,12 @@ public class RequestResponseSaver {
 
     /**
      * 合并header和body为完整HTTP消息
+     * 优化：直接计算总长度，一次性分配内存
      */
     private byte[] combineHttpMessage(String headers, String body, boolean isBodyBase64) {
         byte[] headerBytes = headers.getBytes(StandardCharsets.UTF_8);
-        byte[] separator = "\r\n\r\n".getBytes(StandardCharsets.UTF_8);
-
         byte[] bodyBytes;
+
         if (isBodyBase64) {
             // Base64解码
             bodyBytes = Base64.getDecoder().decode(body);
@@ -411,14 +446,14 @@ public class RequestResponseSaver {
             bodyBytes = body.getBytes(StandardCharsets.UTF_8);
         }
 
-        byte[] result = new byte[headerBytes.length + separator.length + bodyBytes.length];
+        // 优化：一次性分配精确大小的数组
+        byte[] result = new byte[headerBytes.length + 4 + bodyBytes.length];
         System.arraycopy(headerBytes, 0, result, 0, headerBytes.length);
-        System.arraycopy(separator, 0, result, headerBytes.length, separator.length);
-        System.arraycopy(bodyBytes, 0, result, headerBytes.length + separator.length, bodyBytes.length);
-
-        headerBytes = null;
-        separator = null;
-        bodyBytes = null;
+        result[headerBytes.length] = '\r';
+        result[headerBytes.length + 1] = '\n';
+        result[headerBytes.length + 2] = '\r';
+        result[headerBytes.length + 3] = '\n';
+        System.arraycopy(bodyBytes, 0, result, headerBytes.length + 4, bodyBytes.length);
 
         return result;
     }
@@ -435,11 +470,14 @@ public class RequestResponseSaver {
      */
     private int extractMessageId(String filename) {
         String key = generateCompositeKey(filename);
-        String[] parts = key.split("_");
+        int firstUnderscore = key.indexOf('_');
 
-        if (parts.length >= 2) {
+        if (firstUnderscore != -1 && firstUnderscore < key.length() - 1) {
+            int secondUnderscore = key.indexOf('_', firstUnderscore + 1);
+            int endIndex = secondUnderscore != -1 ? secondUnderscore : key.length();
+
             try {
-                return Integer.parseInt(parts[1]);
+                return Integer.parseInt(key.substring(firstUnderscore + 1, endIndex));
             } catch (NumberFormatException e) {
                 logging.logToError("[RequestResponseSaver] Invalid message_id in filename: " + filename);
                 return -1;
@@ -453,8 +491,8 @@ public class RequestResponseSaver {
      */
     private String extractDataType(String filename) {
         String key = generateCompositeKey(filename);
-        String[] parts = key.split("_");
-        return parts.length > 0 ? parts[0] : "Unknown";
+        int firstUnderscore = key.indexOf('_');
+        return firstUnderscore != -1 ? key.substring(0, firstUnderscore) : "Unknown";
     }
 
     /**
@@ -464,16 +502,37 @@ public class RequestResponseSaver {
         String key = generateCompositeKey(filename);
 
         if (key.startsWith("ModResp")) {
-            String[] parts = key.split("_");
-            if (parts.length >= 3) {
-                try {
-                    return Integer.parseInt(parts[2]);
-                } catch (NumberFormatException e) {
-                    logging.logToError("[RequestResponseSaver] Invalid timing_data in filename: " + filename);
+            int firstUnderscore = key.indexOf('_');
+            if (firstUnderscore != -1) {
+                int secondUnderscore = key.indexOf('_', firstUnderscore + 1);
+                if (secondUnderscore != -1 && secondUnderscore < key.length() - 1) {
+                    try {
+                        return Integer.parseInt(key.substring(secondUnderscore + 1));
+                    } catch (NumberFormatException e) {
+                        logging.logToError("[RequestResponseSaver] Invalid timing_data in filename: " + filename);
+                    }
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * 优化：定期清理过期的WeakReference
+     */
+    private void startPeriodicCleanup() {
+        cleanupExecutor.scheduleWithFixedDelay(() -> {
+            try {
+                // 清理已完成的弱引用
+                pendingWrites.entrySet().removeIf(entry -> {
+                    WeakReference<CompletableFuture<Void>> ref = entry.getValue();
+                    CompletableFuture<Void> future = ref.get();
+                    return future == null || future.isDone();
+                });
+            } catch (Exception e) {
+                logging.logToError("[RequestResponseSaver] Cleanup task error: " + e.getMessage());
+            }
+        }, 30, 30, TimeUnit.SECONDS);
     }
 
     /**
@@ -495,6 +554,11 @@ public class RequestResponseSaver {
 
                         // 批量写入
                         processBatch(batch);
+
+                        // 优化：清理batch中的任务
+                        for (WriteTask t : batch) {
+                            t.clear();
+                        }
                         batch.clear();
                     }
                 } catch (InterruptedException e) {
@@ -513,6 +577,7 @@ public class RequestResponseSaver {
 
     /**
      * 处理批量写入（使用writeConnection）
+     * 优化：改进资源管理和错误处理
      */
     private void processBatch(List<WriteTask> batch) {
         if (batch.isEmpty()) {
@@ -521,6 +586,7 @@ public class RequestResponseSaver {
 
         String sql = "INSERT OR REPLACE INTO http_data (composite_key, message_id, data_type, timing_data, header_data, body_data, is_body_base64) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
+        PreparedStatement pstmt = null;
         try {
             // 确保写连接可用
             synchronized (connectionLock) {
@@ -528,75 +594,78 @@ public class RequestResponseSaver {
             }
 
             writeConnection.setAutoCommit(false);
+            pstmt = writeConnection.prepareStatement(sql);
 
-            try (PreparedStatement pstmt = writeConnection.prepareStatement(sql)) {
-                for (WriteTask task : batch) {
-                    String compositeKey = generateCompositeKey(task.filename);
-                    int messageId = extractMessageId(task.filename);
-                    String dataType = extractDataType(task.filename);
-                    Integer timingData = extractTimingData(task.filename);
+            for (WriteTask task : batch) {
+                String compositeKey = generateCompositeKey(task.filename);
+                int messageId = extractMessageId(task.filename);
+                String dataType = extractDataType(task.filename);
+                Integer timingData = extractTimingData(task.filename);
 
-                    // 拆分并编码HTTP消息
-                    HttpMessageParts parts = splitAndEncodeHttpMessage(task.data, dataType);
+                // 拆分并编码HTTP消息
+                HttpMessageParts parts = splitAndEncodeHttpMessage(task.data, dataType);
 
-                    pstmt.setString(1, compositeKey);
-                    pstmt.setInt(2, messageId);
-                    pstmt.setString(3, dataType);
-                    if (timingData != null) {
-                        pstmt.setInt(4, timingData);
-                    } else {
-                        pstmt.setNull(4, Types.INTEGER);
-                    }
-                    pstmt.setString(5, parts.headers);
-                    pstmt.setString(6, parts.body);
-                    pstmt.setInt(7, parts.isBodyBase64 ? 1 : 0);
-
-                    pstmt.addBatch();
+                pstmt.setString(1, compositeKey);
+                pstmt.setInt(2, messageId);
+                pstmt.setString(3, dataType);
+                if (timingData != null) {
+                    pstmt.setInt(4, timingData);
+                } else {
+                    pstmt.setNull(4, Types.INTEGER);
                 }
+                pstmt.setString(5, parts.headers);
+                pstmt.setString(6, parts.body);
+                pstmt.setInt(7, parts.isBodyBase64 ? 1 : 0);
 
-                pstmt.executeBatch();
-                writeConnection.commit();
+                pstmt.addBatch();
 
-                // 标记所有任务完成
-                for (WriteTask task : batch) {
-                    task.future.complete(null);
-                    totalWrites.incrementAndGet();
-                    pendingWrites.remove(task.filename.hashCode());
-                }
+                // 优化：及时清理parts
+                parts.clear();
+            }
 
-            } catch (SQLException e) {
-                writeConnection.rollback();
-                writeErrors.addAndGet(batch.size());
-                logging.logToError("[RequestResponseSaver] Batch insert failed: " + e.getMessage());
+            pstmt.executeBatch();
+            writeConnection.commit();
 
-                // 降级为单条插入
-                for (WriteTask task : batch) {
-                    try {
-                        insertSingleRecord(task);
-                        task.future.complete(null);
-                        totalWrites.incrementAndGet();
-                    } catch (Exception ex) {
-                        task.future.completeExceptionally(ex);
-                        logging.logToError("[RequestResponseSaver] Single insert failed for " + task.filename + ": " + ex.getMessage());
-                    } finally {
-                        pendingWrites.remove(task.filename.hashCode());
-                    }
-                }
+            // 标记所有任务完成
+            for (WriteTask task : batch) {
+                task.future.complete(null);
+                totalWrites.incrementAndGet();
+                pendingWrites.remove(task.filename.hashCode());
             }
 
         } catch (SQLException e) {
-            logging.logToError("[RequestResponseSaver] Transaction error: " + e.getMessage());
-
-            // 检测磁盘空间不足
-            if (e.getErrorCode() == 13) { // SQLITE_FULL
-                logging.logToError("[RequestResponseSaver] CRITICAL: Disk full! Cannot write to database.");
+            try {
+                writeConnection.rollback();
+            } catch (SQLException rollbackEx) {
+                logging.logToError("[RequestResponseSaver] Rollback failed: " + rollbackEx.getMessage());
             }
 
+            writeErrors.addAndGet(batch.size());
+            logging.logToError("[RequestResponseSaver] Batch insert failed: " + e.getMessage());
+
+            // 降级为单条插入
             for (WriteTask task : batch) {
-                task.future.completeExceptionally(e);
-                pendingWrites.remove(task.filename.hashCode());
+                try {
+                    insertSingleRecord(task);
+                    task.future.complete(null);
+                    totalWrites.incrementAndGet();
+                } catch (Exception ex) {
+                    task.future.completeExceptionally(ex);
+                    logging.logToError("[RequestResponseSaver] Single insert failed for " + task.filename + ": " + ex.getMessage());
+                } finally {
+                    pendingWrites.remove(task.filename.hashCode());
+                }
             }
         } finally {
+            // 优化：确保Statement被关闭
+            if (pstmt != null) {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    logging.logToError("[RequestResponseSaver] Error closing PreparedStatement: " + e.getMessage());
+                }
+            }
+
             try {
                 writeConnection.setAutoCommit(true);
             } catch (SQLException e) {
@@ -607,6 +676,7 @@ public class RequestResponseSaver {
 
     /**
      * 单条记录插入（降级方案，使用writeConnection）
+     * 优化：改进资源管理
      */
     private void insertSingleRecord(WriteTask task) throws SQLException {
         String sql = "INSERT OR REPLACE INTO http_data (composite_key, message_id, data_type, timing_data, header_data, body_data, is_body_base64) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -636,11 +706,15 @@ public class RequestResponseSaver {
             pstmt.setInt(7, parts.isBodyBase64 ? 1 : 0);
 
             pstmt.executeUpdate();
+
+            // 优化：清理parts
+            parts.clear();
         }
     }
 
     /**
      * 异步存储数据
+     * 优化：使用WeakReference防止内存泄漏
      */
     private CompletableFuture<Void> storeDataAsync(ByteArray data, String filename) {
         if (isShutdown) {
@@ -648,21 +722,31 @@ public class RequestResponseSaver {
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        pendingWrites.put(filename.hashCode(), future);
+        pendingWrites.put(filename.hashCode(), new WeakReference<>(future));
 
         WriteTask task = new WriteTask(data, filename, future);
-        writeQueue.offer(task);
+
+        // 优化：如果队列满了，直接拒绝而不是阻塞
+        if (!writeQueue.offer(task)) {
+            logging.logToError("[RequestResponseSaver] Write queue is full, rejecting task: " + filename);
+            future.completeExceptionally(new StorageException("Write queue is full"));
+            pendingWrites.remove(filename.hashCode());
+        }
 
         return future;
     }
 
     /**
      * 数据加载方法（使用readConnection）
+     * 优化：改进资源管理
      */
     public ByteArray loadData(String filename) throws StorageException {
         String compositeKey = generateCompositeKey(filename);
 
         String sql = "SELECT header_data, body_data, is_body_base64 FROM http_data WHERE composite_key = ?";
+
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
 
         try {
             // 确保读连接可用
@@ -670,25 +754,23 @@ public class RequestResponseSaver {
                 ensureConnectionAlive(readConnection);
             }
 
-            try (PreparedStatement pstmt = readConnection.prepareStatement(sql)) {
-                pstmt.setString(1, compositeKey);
+            pstmt = readConnection.prepareStatement(sql);
+            pstmt.setString(1, compositeKey);
+            rs = pstmt.executeQuery();
 
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        String headers = rs.getString("header_data");
-                        String body = rs.getString("body_data");
-                        boolean isBodyBase64 = rs.getInt("is_body_base64") == 1;
+            if (rs.next()) {
+                String headers = rs.getString("header_data");
+                String body = rs.getString("body_data");
+                boolean isBodyBase64 = rs.getInt("is_body_base64") == 1;
 
-                        // 合并HTTP消息
-                        byte[] fullMessage = combineHttpMessage(headers, body, isBodyBase64);
+                // 合并HTTP消息
+                byte[] fullMessage = combineHttpMessage(headers, body, isBodyBase64);
 
-                        totalReads.incrementAndGet();
-                        return ByteArray.byteArray(fullMessage);
-                    }
-
-                    return null; // 数据不存在
-                }
+                totalReads.incrementAndGet();
+                return ByteArray.byteArray(fullMessage);
             }
+
+            return null; // 数据不存在
 
         } catch (SQLException e) {
             // 如果读连接出错，尝试重新创建
@@ -707,6 +789,22 @@ public class RequestResponseSaver {
             }
 
             throw new StorageException("[RequestResponseSaver] Failed to load data for key: " + compositeKey, e);
+        } finally {
+            // 优化：确保资源被关闭
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    logging.logToError("[RequestResponseSaver] Error closing ResultSet: " + e.getMessage());
+                }
+            }
+            if (pstmt != null) {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    logging.logToError("[RequestResponseSaver] Error closing PreparedStatement: " + e.getMessage());
+                }
+            }
         }
     }
 
@@ -919,10 +1017,22 @@ public class RequestResponseSaver {
 
     /**
      * 清理存储（关闭两个连接）
+     * 优化：改进关闭顺序
      */
     public void cleanupStorage() {
         logging.logToOutput("[RequestResponseSaver] Starting cleanup...");
         isShutdown = true;
+
+        // 优化：先关闭清理任务
+        cleanupExecutor.shutdown();
+        try {
+            if (!cleanupExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                cleanupExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            cleanupExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
 
         // 等待所有待处理的写入完成
         int retries = 0;
@@ -982,6 +1092,9 @@ public class RequestResponseSaver {
                 }
             }
         }
+
+        // 优化：清理pendingWrites
+        pendingWrites.clear();
 
         logging.logToOutput("[RequestResponseSaver] Cleanup complete. " + getStats());
     }
