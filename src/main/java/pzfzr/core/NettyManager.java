@@ -89,6 +89,10 @@ public class NettyManager {
     private static final int MAX_RETRY_COUNT = 4; // 最大重试次数（修改为4，总共尝试5次）
     private static final long RETRY_DELAY_MS = 500; // 重试延迟时间(毫秒)
 
+    // 连接池清理配置（新增）
+    private static final long POOL_CLEANUP_INTERVAL_SEC = 60; // 连接池清理间隔：60秒
+    private static final long CHANNEL_IDLE_TIMEOUT_MS = 300000; // Channel空闲超时：5分钟
+
     // 统计
     private final AtomicLong totalRequests = new AtomicLong(0);
     private final AtomicLong successRequests = new AtomicLong(0);
@@ -99,6 +103,7 @@ public class NettyManager {
     private final AtomicLong connectionCreated = new AtomicLong(0);
     private final AtomicLong connectionReused = new AtomicLong(0);
     private final AtomicLong connectionClosed = new AtomicLong(0);
+    private final AtomicLong poolCleaned = new AtomicLong(0); // 连接池清理统计（新增）
 
     // 调试开关
     private static final boolean DEBUG = false;
@@ -110,6 +115,10 @@ public class NettyManager {
 
     // 超时任务跟踪（新增）
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> timeoutTasks = new ConcurrentHashMap<>();
+
+    // AttributeKey 缓存（优化：避免重复创建）
+    private static final AttributeKey<ResponseContext> CONTEXT_KEY = AttributeKey.valueOf("context");
+    private static final AttributeKey<Long> LAST_USED_KEY = AttributeKey.valueOf("lastUsed");
 
     private NettyManager(Logging logging, CompressionUtils compressionUtils) {
         this.logging = logging;
@@ -170,6 +179,9 @@ public class NettyManager {
         // 启动监控线程
         startMonitorThread();
 
+        // 启动连接池清理线程（新增）
+        startPoolCleanupThread();
+
         logging.logToOutput("[NettyManager] Initialization complete, EventLoop threads: " +
                 ((NioEventLoopGroup)eventLoopGroup).executorCount() +
                 ", Proxy: " + PROXY_HOST + ":" + PROXY_PORT +
@@ -177,6 +189,7 @@ public class NettyManager {
                 ", Max retry count: " + MAX_RETRY_COUNT +
                 ", Overall timeout: " + (OVERALL_REQUEST_TIMEOUT_MS / 1000) + "s" +
                 ", Total retry timeout: " + (TOTAL_RETRY_TIMEOUT_MS / 1000) + "s" +
+                ", Pool cleanup interval: " + POOL_CLEANUP_INTERVAL_SEC + "s" +
                 ", Plugin: " + configManager.getPluginName());
     }
 
@@ -193,7 +206,7 @@ public class NettyManager {
             if (DEBUG) {
                 logging.logToOutput(String.format(
                         "[NettyManager Monitor] Permits: %d/%d, Active: %d, Total: %d, Success: %d, Failed: %d, Retry: %d, Timeout: %d, Oversized: %d, " +
-                                "Connections - Created: %d, Reused: %d, Closed: %d, Pools: %d",
+                                "Connections - Created: %d, Reused: %d, Closed: %d, Pools: %d, Cleaned: %d",
                         requestSemaphore.availablePermits(), 300,
                         activeRequests.get(),
                         totalRequests.get(),
@@ -205,10 +218,79 @@ public class NettyManager {
                         connectionCreated.get(),
                         connectionReused.get(),
                         connectionClosed.get(),
-                        getTotalPooledConnections()
+                        getTotalPooledConnections(),
+                        poolCleaned.get()
                 ));
             }
         }, 10, 10, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 启动连接池清理线程（新增）
+     */
+    private void startPoolCleanupThread() {
+        monitorExecutor.scheduleAtFixedRate(() -> {
+            if (isShutdown.get()) {
+                return;
+            }
+
+            try {
+                cleanupConnectionPools();
+            } catch (Exception e) {
+                logging.logToError("[NettyManager] Error during pool cleanup: " + e.getMessage());
+            }
+        }, POOL_CLEANUP_INTERVAL_SEC, POOL_CLEANUP_INTERVAL_SEC, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 清理连接池中的无效或空闲连接（新增）
+     */
+    private void cleanupConnectionPools() {
+        long now = System.currentTimeMillis();
+        int totalCleaned = 0;
+
+        for (Map.Entry<String, Queue<Channel>> entry : channelPools.entrySet()) {
+            String poolKey = entry.getKey();
+            Queue<Channel> pool = entry.getValue();
+
+            List<Channel> toRemove = new ArrayList<>();
+
+            // 检查池中的每个连接
+            for (Channel channel : pool) {
+                // 检查连接是否活跃
+                if (!channel.isActive()) {
+                    toRemove.add(channel);
+                    continue;
+                }
+
+                // 检查连接是否空闲超时
+                Long lastUsed = channel.attr(LAST_USED_KEY).get();
+                if (lastUsed != null && (now - lastUsed) > CHANNEL_IDLE_TIMEOUT_MS) {
+                    toRemove.add(channel);
+                }
+            }
+
+            // 移除无效连接
+            for (Channel channel : toRemove) {
+                if (pool.remove(channel)) {
+                    try {
+                        channel.close();
+                    } catch (Exception e) {
+                        // 忽略关闭错误
+                    }
+                    channelInfoMap.remove(channel);
+                    connectionClosed.incrementAndGet();
+                    totalCleaned++;
+                }
+            }
+        }
+
+        if (totalCleaned > 0) {
+            poolCleaned.addAndGet(totalCleaned);
+            if (DEBUG) {
+                logging.logToOutput("[NettyManager] Pool cleanup: removed " + totalCleaned + " stale connections");
+            }
+        }
     }
 
     /**
@@ -558,6 +640,8 @@ public class NettyManager {
         Channel channel = null;
         while ((channel = pool.poll()) != null) {
             if (channel.isActive()) {
+                // 更新最后使用时间（新增）
+                channel.attr(LAST_USED_KEY).set(System.currentTimeMillis());
                 connectionReused.incrementAndGet();
                 if (DEBUG) {
                     logging.logToOutput("[NettyManager] Reusing connection for " + key);
@@ -628,10 +712,18 @@ public class NettyManager {
             }, SSL_HANDSHAKE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
             connectFuture.addListener((ChannelFutureListener) f -> {
-                sslTimeoutTask.cancel(false);
+                // 确保超时任务被取消（新增）
+                if (!sslTimeoutTask.cancel(false) && sslTimeoutTask.isDone()) {
+                    if (DEBUG) {
+                        logging.logToOutput("[NettyManager] SSL timeout task already executed for " + host + ":" + port);
+                    }
+                }
+
                 if (f.isSuccess()) {
                     Channel channel = f.channel();
                     channelInfoMap.put(channel, new ChannelInfo(host, port, isHttps));
+                    // 设置创建时间（新增）
+                    channel.attr(LAST_USED_KEY).set(System.currentTimeMillis());
                     connectionCreated.incrementAndGet();
 
                     if (DEBUG) {
@@ -648,6 +740,8 @@ public class NettyManager {
                 if (f.isSuccess()) {
                     Channel channel = f.channel();
                     channelInfoMap.put(channel, new ChannelInfo(host, port, isHttps));
+                    // 设置创建时间（新增）
+                    channel.attr(LAST_USED_KEY).set(System.currentTimeMillis());
                     connectionCreated.incrementAndGet();
 
                     if (DEBUG) {
@@ -671,16 +765,17 @@ public class NettyManager {
                                       HttpRequest burpRequest, CompletableFuture<HttpResponse> future,
                                       ResponseCallback callback, long requestId, boolean keepAlive,
                                       int retryCount, long totalStartTime) {
+        FullHttpRequest nettyRequest = null;
         try {
             // 转换为Netty请求
-            FullHttpRequest nettyRequest = convertToNettyRequest(burpRequest, requestInfo, keepAlive);
+            nettyRequest = convertToNettyRequest(burpRequest, requestInfo, keepAlive);
 
             // 记录开始时间
             long startTime = System.nanoTime();
 
             // 设置响应处理器
             ResponseContext context = new ResponseContext(future, callback, startTime, requestId, keepAlive, burpRequest, retryCount, totalStartTime);
-            channel.attr(AttributeKey.<ResponseContext>valueOf("context")).set(context);
+            channel.attr(CONTEXT_KEY).set(context);
 
             // 设置整体请求超时监控（新增）
             ScheduledFuture<?> timeoutTask = timeoutExecutor.schedule(() -> {
@@ -705,11 +800,18 @@ public class NettyManager {
             // 保存超时任务以便取消
             timeoutTasks.put(requestId, timeoutTask);
 
+            // 保存引用以便在异常时释放（新增）
+            final FullHttpRequest finalRequest = nettyRequest;
+
             // 发送请求
             channel.writeAndFlush(nettyRequest).addListener((ChannelFutureListener) f -> {
                 if (!f.isSuccess()) {
-                    timeoutTask.cancel(false);
-                    timeoutTasks.remove(requestId);
+                    // 确保取消超时任务（新增）
+                    ScheduledFuture<?> task = timeoutTasks.remove(requestId);
+                    if (task != null) {
+                        task.cancel(false);
+                    }
+                    // ByteBuf已由writeAndFlush处理，无需手动释放
                     handleChannelError(channel, f.cause(), context);
                 } else if (DEBUG) {
                     logging.logToOutput("[NettyManager] Request #" + requestId + " sent successfully");
@@ -717,6 +819,10 @@ public class NettyManager {
             });
 
         } catch (Exception e) {
+            // 异常路径：确保释放ByteBuf（新增）
+            if (nettyRequest != null) {
+                ReferenceCountUtil.safeRelease(nettyRequest);
+            }
             handleChannelError(channel, e,
                     new ResponseContext(future, callback, 0, requestId, keepAlive, burpRequest, retryCount, totalStartTime));
         }
@@ -726,16 +832,26 @@ public class NettyManager {
      * 处理Channel错误 - 使用增强的错误描述
      */
     private void handleChannelError(Channel channel, Throwable cause, ResponseContext context) {
-        // 取消超时任务
+        // 取消超时任务（增强：双重检查）
         ScheduledFuture<?> timeoutTask = timeoutTasks.remove(context.requestId);
-        if (timeoutTask != null) {
-            timeoutTask.cancel(false);
+        if (timeoutTask != null && !timeoutTask.cancel(false)) {
+            // 如果取消失败，说明任务可能已执行或正在执行
+            if (DEBUG && timeoutTask.isDone()) {
+                logging.logToOutput("[NettyManager] Timeout task for request #" + context.requestId + " already executed");
+            }
         }
 
-        // 关闭并移除失败的连接
-        channel.close();
-        channelInfoMap.remove(channel);
-        connectionClosed.incrementAndGet();
+        // 安全关闭连接（新增：避免重复关闭）
+        try {
+            if (channel.isOpen()) {
+                channel.close();
+            }
+        } catch (Exception e) {
+            // 忽略关闭错误
+        } finally {
+            channelInfoMap.remove(channel);
+            connectionClosed.incrementAndGet();
+        }
 
         // 修改：只在DEBUG模式记录channel错误详情
         if (DEBUG) {
@@ -868,7 +984,7 @@ public class NettyManager {
     private class ResponseChannelHandler extends SimpleChannelInboundHandler<FullHttpResponse> {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) {
-            ResponseContext context = ctx.channel().attr(AttributeKey.<ResponseContext>valueOf("context")).get();
+            ResponseContext context = ctx.channel().attr(CONTEXT_KEY).get();
 
             if (context == null) {
                 logging.logToError("[NettyManager] No context found for response");
@@ -876,10 +992,12 @@ public class NettyManager {
                 return;
             }
 
-            // 取消超时任务（新增）
+            // 取消超时任务（增强：双重检查）
             ScheduledFuture<?> timeoutTask = timeoutTasks.remove(context.requestId);
-            if (timeoutTask != null) {
-                timeoutTask.cancel(false);
+            if (timeoutTask != null && !timeoutTask.cancel(false)) {
+                if (DEBUG && timeoutTask.isDone()) {
+                    logging.logToOutput("[NettyManager] Timeout task for request #" + context.requestId + " already executed");
+                }
             }
 
             try {
@@ -933,7 +1051,7 @@ public class NettyManager {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            ResponseContext context = ctx.channel().attr(AttributeKey.<ResponseContext>valueOf("context")).get();
+            ResponseContext context = ctx.channel().attr(CONTEXT_KEY).get();
 
             // 检查是否为响应过大异常
             if (cause instanceof TooLongFrameException) {
@@ -958,10 +1076,12 @@ public class NettyManager {
      * 处理超大响应 - 新增方法
      */
     private void handleOversizedResponse(Channel channel, ResponseContext context) {
-        // 取消超时任务
+        // 取消超时任务（增强：双重检查）
         ScheduledFuture<?> timeoutTask = timeoutTasks.remove(context.requestId);
-        if (timeoutTask != null) {
-            timeoutTask.cancel(false);
+        if (timeoutTask != null && !timeoutTask.cancel(false)) {
+            if (DEBUG && timeoutTask.isDone()) {
+                logging.logToOutput("[NettyManager] Timeout task for request #" + context.requestId + " already executed");
+            }
         }
 
         try {
@@ -1030,6 +1150,9 @@ public class NettyManager {
             String key = info.host + ":" + info.port;
             Queue<Channel> pool = channelPools.computeIfAbsent(key, k -> new ConcurrentLinkedQueue<>());
 
+            // 更新最后使用时间（新增）
+            channel.attr(LAST_USED_KEY).set(System.currentTimeMillis());
+
             // 限制池大小
             if (pool.size() < 300) {
                 pool.offer(channel);
@@ -1041,6 +1164,13 @@ public class NettyManager {
                 channelInfoMap.remove(channel);
                 connectionClosed.incrementAndGet();
             }
+        } else {
+            // 连接无效，关闭（新增）
+            if (channel.isActive()) {
+                channel.close();
+            }
+            channelInfoMap.remove(channel);
+            connectionClosed.incrementAndGet();
         }
     }
 
@@ -1218,9 +1348,9 @@ public class NettyManager {
             // 第七步：关闭业务线程池
             shutdownBusinessExecutor();
 
-            logging.logToOutput(String.format("[NettyManager] %s shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d, Timeout: %d, Oversized: %d",
+            logging.logToOutput(String.format("[NettyManager] %s shutdown complete. Total requests: %d, Success: %d, Failed: %d, Retry: %d, Timeout: %d, Oversized: %d, Cleaned: %d",
                     configManager.getPluginName(), totalRequests.get(), successRequests.get(),
-                    failedRequests.get(), retryRequests.get(), timeoutRequests.get(), oversizedResponses.get()));
+                    failedRequests.get(), retryRequests.get(), timeoutRequests.get(), oversizedResponses.get(), poolCleaned.get()));
 
         } catch (Exception e) {
             logging.logToError("[NettyManager] Error occurred during shutdown: " + e.getMessage());
@@ -1235,11 +1365,14 @@ public class NettyManager {
     private void cancelAllTimeoutTasks() {
         try {
             logging.logToOutput("[NettyManager] Cancelling all timeout tasks...");
-            for (ScheduledFuture<?> task : timeoutTasks.values()) {
-                task.cancel(false);
+            int cancelledCount = 0;
+            for (Map.Entry<Long, ScheduledFuture<?>> entry : timeoutTasks.entrySet()) {
+                if (entry.getValue().cancel(false)) {
+                    cancelledCount++;
+                }
             }
             timeoutTasks.clear();
-            logging.logToOutput("[NettyManager] All timeout tasks cancelled");
+            logging.logToOutput("[NettyManager] Cancelled " + cancelledCount + " timeout tasks");
         } catch (Exception e) {
             logging.logToError("[NettyManager] Error cancelling timeout tasks: " + e.getMessage());
         }
