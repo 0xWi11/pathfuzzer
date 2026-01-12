@@ -9,11 +9,11 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TableModel extends AbstractTableModel {
-    private final List<ModifiedRequestResponse> modifiedEntries = new CopyOnWriteArrayList<>();
-    private final List<ModifiedRequestResponse> filteredEntries = new CopyOnWriteArrayList<>();
+    // 性能优化：使用 synchronizedList 替代 CopyOnWriteArrayList
+    private final List<ModifiedRequestResponse> modifiedEntries = Collections.synchronizedList(new ArrayList<>());
+    private final List<ModifiedRequestResponse> filteredEntries = Collections.synchronizedList(new ArrayList<>());
     private final Map<Integer, OriginalRequestResponse> originalRequestMap = new ConcurrentHashMap<>();
     private JTable associatedTable;
     private String currentFilter = "ALL";
@@ -361,37 +361,47 @@ public class TableModel extends AbstractTableModel {
     /**
      * 更新过滤后的条目列表
      * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
+     * 性能优化：使用 synchronized 块保护集合操作，确保线程安全
      */
     private void updateFilteredEntries() {
-        filteredEntries.clear();
-        if ("ALL".equals(currentFilter)) {
-            filteredEntries.addAll(modifiedEntries);
-        } else {
-            for (ModifiedRequestResponse entry : modifiedEntries) {
-                String entryTestType = entry.getTestType();
+        List<ModifiedRequestResponse> tempFiltered = new ArrayList<>();
 
-                // 检查条目是否应该在当前过滤器下显示
-                boolean shouldInclude = false;
+        synchronized (modifiedEntries) {
+            if ("ALL".equals(currentFilter)) {
+                tempFiltered.addAll(modifiedEntries);
+            } else {
+                for (ModifiedRequestResponse entry : modifiedEntries) {
+                    String entryTestType = entry.getTestType();
 
-                if (entryTestType.equals(currentFilter)) {
-                    // 直接匹配当前过滤器
-                    shouldInclude = true;
-                } else if ("ROUTE3".equals(entryTestType)) {
-                    // ROUTE3类型的条目在ROUTE1和ROUTE2标签页中都显示
-                    if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
+                    // 检查条目是否应该在当前过滤器下显示
+                    boolean shouldInclude = false;
+
+                    if (entryTestType.equals(currentFilter)) {
+                        // 直接匹配当前过滤器
                         shouldInclude = true;
+                    } else if ("ROUTE3".equals(entryTestType)) {
+                        // ROUTE3类型的条目在ROUTE1和ROUTE2标签页中都显示
+                        if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
+                            shouldInclude = true;
+                        }
                     }
-                }
 
-                if (shouldInclude) {
-                    filteredEntries.add(entry);
+                    if (shouldInclude) {
+                        tempFiltered.add(entry);
+                    }
                 }
             }
         }
+
+        synchronized (filteredEntries) {
+            filteredEntries.clear();
+            filteredEntries.addAll(tempFiltered);
+        }
+
         SwingUtilities.invokeLater(this::fireTableDataChanged);
     }
 
-    public synchronized OriginalRequestResponse createEntry(OriginalRequestResponse entry,int messageId) {
+    public synchronized OriginalRequestResponse createEntry(OriginalRequestResponse entry, int messageId) {
         originalRequestMap.put(messageId, entry);
         return entry;
     }
@@ -401,8 +411,9 @@ public class TableModel extends AbstractTableModel {
      * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
      *
      * 性能优化：移除了自动选中状态恢复逻辑，避免在高频插入+倒序排序时的卡顿问题
+     * 性能优化：使用 synchronized 块保护集合操作，减小锁粒度
      */
-    public synchronized void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
+    public void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
         if (SwingUtilities.isEventDispatchThread()) {
             addModifiedEntryInternal(modifiedEntry);
         } else {
@@ -411,7 +422,10 @@ public class TableModel extends AbstractTableModel {
     }
 
     private void addModifiedEntryInternal(ModifiedRequestResponse modifiedEntry) {
-        modifiedEntries.add(modifiedEntry);
+        // 性能优化：先添加到主列表
+        synchronized (modifiedEntries) {
+            modifiedEntries.add(modifiedEntry);
+        }
 
         String entryTestType = modifiedEntry.getTestType();
         boolean shouldAdd = false;
@@ -429,8 +443,11 @@ public class TableModel extends AbstractTableModel {
         }
 
         if (shouldAdd) {
-            filteredEntries.add(modifiedEntry);
-            final int filteredIndex = filteredEntries.size() - 1;
+            int filteredIndex;
+            synchronized (filteredEntries) {
+                filteredEntries.add(modifiedEntry);
+                filteredIndex = filteredEntries.size() - 1;
+            }
             fireTableRowsInserted(filteredIndex, filteredIndex);
 
             // ============================================
@@ -444,18 +461,6 @@ public class TableModel extends AbstractTableModel {
             //    - 造成严重的UI卡顿
             // 3. 移除后，用户的选中状态会自然保持，不会受影响
             // ============================================
-
-            // 以下代码已注释掉，解决卡顿问题
-        /*
-        if (associatedTable != null) {
-            SwingUtilities.invokeLater(() -> {
-                int selectedRow = associatedTable.getSelectedRow();
-                if (selectedRow != -1) {
-                    associatedTable.setRowSelectionInterval(selectedRow, selectedRow);
-                }
-            });
-        }
-        */
         }
     }
 
@@ -463,20 +468,27 @@ public class TableModel extends AbstractTableModel {
         return originalRequestMap.get(messageId);
     }
 
-    //  新增方法：根据 ID 查找 ModifiedRequestResponse
+    /**
+     * 新增方法：根据 ID 查找 ModifiedRequestResponse
+     * 性能优化：使用 synchronized 块保护集合读取
+     */
     public ModifiedRequestResponse getModifiedEntryById(int id) {
-        for (ModifiedRequestResponse entry : modifiedEntries) {
-            if (entry.getId() == id) {
-                return entry;
+        synchronized (modifiedEntries) {
+            for (ModifiedRequestResponse entry : modifiedEntries) {
+                if (entry.getId() == id) {
+                    return entry;
+                }
             }
         }
-        logging.logToError("[TableModel] ModifiedRequestResponse entry NOT FOUND for ID: " + id + ", Total entries: " + modifiedEntries.size()); // 未找到条目时添加错误日志
+        logging.logToError("[TableModel] ModifiedRequestResponse entry NOT FOUND for ID: " + id + ", Total entries: " + modifiedEntries.size());
         return null;
     }
 
     @Override
     public int getRowCount() {
-        return filteredEntries.size();
+        synchronized (filteredEntries) {
+            return filteredEntries.size();
+        }
     }
 
     @Override
@@ -491,11 +503,14 @@ public class TableModel extends AbstractTableModel {
 
     @Override
     public Object getValueAt(int row, int column) {
-        if (row < 0 || row >= filteredEntries.size()) {
-            return null;
+        ModifiedRequestResponse modifiedEntry;
+        synchronized (filteredEntries) {
+            if (row < 0 || row >= filteredEntries.size()) {
+                return null;
+            }
+            modifiedEntry = filteredEntries.get(row);
         }
 
-        ModifiedRequestResponse modifiedEntry = filteredEntries.get(row);
         if (modifiedEntry == null) {
             return null;
         }
@@ -606,20 +621,26 @@ public class TableModel extends AbstractTableModel {
     }
 
     public ModifiedRequestResponse getModifiedEntry(int row) {
-        if (row >= 0 && row < filteredEntries.size()) {
-            return filteredEntries.get(row);
+        synchronized (filteredEntries) {
+            if (row >= 0 && row < filteredEntries.size()) {
+                return filteredEntries.get(row);
+            }
         }
         return null;
     }
 
     public List<ModifiedRequestResponse> getAllModifiedEntries() {
-        return new ArrayList<>(modifiedEntries);
+        synchronized (modifiedEntries) {
+            return new ArrayList<>(modifiedEntries);
+        }
     }
 
     // 添加资源清理方法
     public void cleanup() {
-        for(ModifiedRequestResponse entry : modifiedEntries) {
-            entry.cleanup();
+        synchronized (modifiedEntries) {
+            for (ModifiedRequestResponse entry : modifiedEntries) {
+                entry.cleanup();
+            }
         }
     }
 }
