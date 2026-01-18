@@ -24,6 +24,11 @@ public class HistoryPanel extends JPanel {
     private JTabbedPane tabbedPane;
     private JTable currentTable;
 
+    // ============================================
+    // 关键修复：追踪当前选中的条目，避免重复加载
+    // ============================================
+    private Integer lastSelectedModifiedId = null;
+
     public HistoryPanel(TableModel tableModel,
                         BiConsumer<OriginalRequestResponse, ModifiedRequestResponse> selectionCallback) {
         this.tableModel = tableModel;
@@ -36,14 +41,14 @@ public class HistoryPanel extends JPanel {
     private void createTabbedPane() {
         tabbedPane = new JTabbedPane();
 
-        // 为每个标签页创建独立的表格 - 现在有11个标签页
         JTable allTable = createTable();
         JTable jsonTable = createTable();
         JTable paramTable = createTable();
-        JTable paramAddTable = createTable();  // 新增：PARAM ADD表格
+        JTable paramAddTable = createTable();
         JTable paramDelTable = createTable();
         JTable route1Table = createTable();
         JTable route2Table = createTable();
+        JTable generalFuzzTable = createTable();
         JTable oobparamTable = createTable();
         JTable cookieTable = createTable();
         JTable headerTable = createTable();
@@ -51,56 +56,40 @@ public class HistoryPanel extends JPanel {
         currentTable = allTable;
         tableModel.setAssociatedTable(currentTable);
 
-        // 添加标签页 - PARAM ADD 放在 JSON 和 PARAM DEL 之间
         tabbedPane.addTab("All Requests", new JScrollPane(allTable));
         tabbedPane.addTab("JSON", new JScrollPane(jsonTable));
-        tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
-        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));  // 新增
         tabbedPane.addTab("PARAM DEL", new JScrollPane(paramDelTable));
+        tabbedPane.addTab("PARAM ADD", new JScrollPane(paramAddTable));
+        tabbedPane.addTab("PARAM", new JScrollPane(paramTable));
         tabbedPane.addTab("ROUTE1", new JScrollPane(route1Table));
         tabbedPane.addTab("ROUTE2", new JScrollPane(route2Table));
-        tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));  // 新增OOBPARAM标签页
-        tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));      // 新增COOKIE标签页
-        tabbedPane.addTab("HEADER", new JScrollPane(headerTable));      // 新增HEADER标签页
+        tabbedPane.addTab("GENERALFUZZ", new JScrollPane(generalFuzzTable));
+        tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));
+        tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));
+        tabbedPane.addTab("HEADER", new JScrollPane(headerTable));
 
-        // 添加标签切换监听器 - 更新为9个标签页
+        // 添加标签切换监听器 - 更新为11个标签页
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = tabbedPane.getSelectedIndex();
             // 更新当前表格
             currentTable = (JTable) ((JScrollPane) tabbedPane.getSelectedComponent()).getViewport().getView();
             tableModel.setAssociatedTable(currentTable);
 
+            // 切换标签页时重置追踪
+            lastSelectedModifiedId = null;
+
             switch (selectedIndex) {
-                case 0:
-                    tableModel.setFilter("ALL");
-                    break;
-                case 1:
-                    tableModel.setFilter("JSON");
-                    break;
-                case 2:
-                    tableModel.setFilter("PARAM");
-                    break;
-                case 3:
-                    tableModel.setFilter("PARAM-ADD");  // 新增
-                    break;
-                case 4:
-                    tableModel.setFilter("PARAM_DELETE");
-                    break;
-                case 5:
-                    tableModel.setFilter("ROUTE1");
-                    break;
-                case 6:
-                    tableModel.setFilter("ROUTE2");
-                    break;
-                case 7:
-                    tableModel.setFilter("PARAM-OOB");
-                    break;
-                case 8:
-                    tableModel.setFilter("COOKIE");
-                    break;
-                case 9:
-                    tableModel.setFilter("HEADER");
-                    break;
+                case 0: tableModel.setFilter("ALL"); break;
+                case 1: tableModel.setFilter("JSON"); break;
+                case 2: tableModel.setFilter("PARAM_DELETE"); break;
+                case 3: tableModel.setFilter("PARAM-ADD"); break;
+                case 4: tableModel.setFilter("PARAM"); break;
+                case 5: tableModel.setFilter("ROUTE1"); break;
+                case 6: tableModel.setFilter("ROUTE2"); break;
+                case 7: tableModel.setFilter("OOB-GENERALFUZZ"); break;
+                case 8: tableModel.setFilter("PARAM-OOB"); break;
+                case 9: tableModel.setFilter("COOKIE"); break;
+                case 10: tableModel.setFilter("HEADER"); break;
             }
         });
 
@@ -163,9 +152,7 @@ public class HistoryPanel extends JPanel {
                 if (column != -1) {
                     // 切换当前列的排序状态
                     columnStates[column] = (columnStates[column] + 1) % 3;
-
-                    // 根据当前列状态更新排序列表
-                    sortedColumns.remove(Integer.valueOf(column)); // 先移除当前列（如果存在）
+                    sortedColumns.remove(Integer.valueOf(column));
 
                     if (columnStates[column] > 0) {
                         // 如果不是不排序状态，将列添加到排序列表的开头（最高优先级）
@@ -196,28 +183,33 @@ public class HistoryPanel extends JPanel {
         sorter.setMaxSortKeys(tableModel.getColumnCount());
 
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        // ============================================
+        // 关键修复：添加选择监听器，带重复检测
+        // ============================================
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                updateSelection(table);
+                updateSelectionWithDuplicateCheck(table);
             }
         });
 
-        // 设置列宽 - 使用固定宽度，防止被拉伸
-        if (table.getColumnModel().getColumnCount() >= 13) {
-            // 辅助方法：设置固定列宽
-            setFixedColumnWidth(table, 0, 35);     // ID
-            setFixedColumnWidth(table, 1, 30);     // Method
-            setFixedColumnWidth(table, 2, 400);    // URL
-            setFixedColumnWidth(table, 3, 40);     // Test Type
-            setFixedColumnWidth(table, 4, 113);    // Param - 设置为113像素
-            setFixedColumnWidth(table, 5, 115);    // Payload - 设置为115像素
-            setFixedColumnWidth(table, 6, 30);     // modif status - 保持30像素
-            setFixedColumnWidth(table, 7, 60);     // Len Diff - 设置为60像素
-            setFixedColumnWidth(table, 8, 60);     // modif len(withoutheader) - 设置为60像素
-            setFixedColumnWidth(table, 9, 60);     // modif len+(withheader) - 设置为60像素
-            setFixedColumnWidth(table, 10, 60);    // origin len(withoutheader) - 设置为60像素
-            setFixedColumnWidth(table, 11, 72);    // Modif. Time
-            setFixedColumnWidth(table, 12, 80);    // Reflect
+        // 设置列宽
+        if (table.getColumnModel().getColumnCount() >= 15) {
+            setFixedColumnWidth(table, 0, 50);     // ID
+            setFixedColumnWidth(table, 1, 68);     // Orig.ID
+            setFixedColumnWidth(table, 2, 38);     // Method
+            setFixedColumnWidth(table, 3, 718);    // URL
+            setFixedColumnWidth(table, 4, 88);     // Test Type
+            setFixedColumnWidth(table, 5, 113);    // Param
+            setFixedColumnWidth(table, 6, 72);     // Content Type (新增)
+            setFixedColumnWidth(table, 7, 115);    // Payload
+            setFixedColumnWidth(table, 8, 38);     // Modif Status
+            setFixedColumnWidth(table, 9, 60);     // Len Diff
+            setFixedColumnWidth(table, 10, 60);    // Modif. len (withoutheader)
+            setFixedColumnWidth(table, 11, 60);    // Modif. len+ (withheader)
+            setFixedColumnWidth(table, 12, 60);    // Origin len (withoutheader)
+            setFixedColumnWidth(table, 13, 72);    // Modif. Time
+            setFixedColumnWidth(table, 14, 80);    // Reflect
         }
 
         return table;
@@ -236,6 +228,42 @@ public class HistoryPanel extends JPanel {
         // 不设置 setMaxWidth，允许用户手动拖动调整列宽
     }
 
+    // ============================================
+    // 关键修复：带重复检测的选择更新方法
+    // ============================================
+    private void updateSelectionWithDuplicateCheck(JTable table) {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow != -1) {
+            // 将视图索引转换为模型索引
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+
+            ModifiedRequestResponse modifiedEntry = tableModel.getModifiedEntry(modelRow);
+            if (modifiedEntry != null) {
+                // ★★★ 关键：检查是否是同一条数据 ★★★
+                Integer currentId = modifiedEntry.getId();
+
+                // 如果选中的是同一条数据，跳过加载
+                if (currentId.equals(lastSelectedModifiedId)) {
+                    return; // 不触发回调，避免重复加载
+                }
+
+                // 更新追踪的 ID
+                lastSelectedModifiedId = currentId;
+
+                // 加载新选中的数据
+                OriginalRequestResponse original =
+                        tableModel.findByMessageId(modifiedEntry.getOriginalMessageId());
+                selectionCallback.accept(original, modifiedEntry);
+            }
+        } else {
+            // 没有选中任何行时，清除追踪
+            lastSelectedModifiedId = null;
+        }
+    }
+
+    // ============================================
+    // 保留原有的 updateSelection 方法（用于导航按钮）
+    // ============================================
     private void updateSelection(JTable table) {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
@@ -244,6 +272,9 @@ public class HistoryPanel extends JPanel {
 
             ModifiedRequestResponse modifiedEntry = tableModel.getModifiedEntry(modelRow);
             if (modifiedEntry != null) {
+                // 导航时强制更新
+                lastSelectedModifiedId = modifiedEntry.getId();
+
                 OriginalRequestResponse original =
                         tableModel.findByMessageId(modifiedEntry.getOriginalMessageId());
                 selectionCallback.accept(original, modifiedEntry);

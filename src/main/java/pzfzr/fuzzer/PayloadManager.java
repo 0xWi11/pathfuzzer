@@ -1,5 +1,6 @@
 package pzfzr.fuzzer;
 
+import pzfzr.config.PluginConfigManager;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -34,9 +35,23 @@ public class PayloadManager {
             paramPayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
         }
 
-        // 从 PayloadConstants 初始化路由载荷
-        for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
-            routePayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
+        // 从 PayloadConstants 初始化路由载荷 - 根据插件名称选择不同的列表
+        String pluginName = PluginConfigManager.getInstance().getPluginName();
+        if ("PathFuzzer".equals(pluginName)) {
+            // PathFuzzer 使用 ROUTE_PAYLOAD_INFOS
+            for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
+                routePayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
+            }
+        } else if ("OOBFuzzer".equals(pluginName)) {
+            // OOBFuzzer 使用 OOB_ROUTE_PAYLOAD_INFOS
+            for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.OOB_ROUTE_PAYLOAD_INFOS) {
+                routePayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
+            }
+        } else {
+            // 默认使用 ROUTE_PAYLOAD_INFOS
+            for (PayloadConstants.PayloadInfo oldPayload : PayloadConstants.ROUTE_PAYLOAD_INFOS) {
+                routePayloads.add(new PayloadInfo(oldPayload.payload, oldPayload.alias, true));
+            }
         }
 
         // 从 PayloadConstants 初始化头部载荷

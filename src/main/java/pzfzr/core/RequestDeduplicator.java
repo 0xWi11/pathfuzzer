@@ -2,25 +2,28 @@ package pzfzr.core;
 
 import burp.api.montoya.logging.Logging;
 import java.time.Instant;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 public class RequestDeduplicator {
     private static RequestDeduplicator instance;
-    private final ConcurrentHashMap<Integer, Long> requestHashes = new ConcurrentHashMap<>(); // 存储请求哈希和过期时间戳
-    private final ScheduledExecutorService expiryScheduler = Executors.newSingleThreadScheduledExecutor(); // 定时清理过期哈希
-    private final Logging logging; // 用于日志记录
+    private final ConcurrentHashMap<Integer, Long> requestHashes = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService expiryScheduler = Executors.newSingleThreadScheduledExecutor();
+    private final Logging logging;
+
+    // 存储用户配置的正则表达式列表
+    private volatile List<Pattern> noSkipUrlPatterns = new ArrayList<>();
 
     private RequestDeduplicator(Logging logging) {
         this.logging = logging;
-        // 启动定时任务，定期清理过期的哈希值
-        expiryScheduler.scheduleAtFixedRate(this::removeExpiredHashes, 10, 10, TimeUnit.MINUTES); // 每分钟检查一次
+        setDefaultNoSkipUrlPatterns();
+        expiryScheduler.scheduleAtFixedRate(this::removeExpiredHashes, 10, 10, TimeUnit.MINUTES);
     }
 
-    // 单例模式获取实例
     public static RequestDeduplicator getInstance(Logging logging) {
         if (instance == null) {
             synchronized (RequestDeduplicator.class) {
@@ -32,69 +35,161 @@ public class RequestDeduplicator {
         return instance;
     }
 
-    // 检查是否应该跳过请求
-    public boolean shouldSkipRequest(String method, String url, String re) {
-        // 修改URL处理逻辑，忽略问号后面的部分
-        String baseUrl = removeQueryParameters(url);
+    private void setDefaultNoSkipUrlPatterns() {
+        List<Pattern> patterns = new ArrayList<>();
+        try {
+            patterns.add(Pattern.compile("(?i).*graphql.*"));
+        } catch (Exception e) {
+            logging.logToError("[RequestDeduplicator] Error setting default patterns: " + e.getMessage());
+        }
+        this.noSkipUrlPatterns = patterns;
+    }
 
-        int requestHash = Objects.hash(method, baseUrl, re); // 使用处理后的URL计算哈希值
-        if (requestHashes.containsKey(requestHash)) {
-            // 检查哈希是否已过期
-            if (isHashExpired(requestHash)) {
-                requestHashes.remove(requestHash); // 如果过期则移除，允许再次测试
-                return false; // 不跳过，允许本次请求
+    public void setNoSkipUrlPatterns(List<String> regexPatterns) {
+        List<Pattern> patterns = new ArrayList<>();
+
+        if (regexPatterns == null || regexPatterns.isEmpty()) {
+            setDefaultNoSkipUrlPatterns();
+            return;
+        }
+
+        for (String regex : regexPatterns) {
+            try {
+                patterns.add(Pattern.compile(regex));
+            } catch (Exception e) {
+                logging.logToError("[RequestDeduplicator] Invalid regex pattern: " + regex +
+                        ", Error: " + e.getMessage());
             }
-            return true; // 跳过，请求在XX分钟内已测试过
+        }
+
+        if (patterns.isEmpty()) {
+            setDefaultNoSkipUrlPatterns();
         } else {
-            // 添加新的哈希值，并设置过期时间为XX分钟后
-            requestHashes.put(requestHash, Instant.now().plusSeconds(6 * 24 * 60).toEpochMilli()); // 6天
-            return false; // 不跳过，允许本次请求
+            this.noSkipUrlPatterns = patterns;
+        }
+
+    }
+
+    public List<String> getNoSkipUrlPatterns() {
+        List<String> patterns = new ArrayList<>();
+        for (Pattern pattern : noSkipUrlPatterns) {
+            patterns.add(pattern.pattern());
+        }
+        return patterns;
+    }
+
+    private boolean matchesNoSkipPattern(String url) {
+        if (noSkipUrlPatterns.isEmpty()) {
+            return false;
+        }
+
+        for (Pattern pattern : noSkipUrlPatterns) {
+            try {
+                if (pattern.matcher(url).matches()) {
+                    return true;
+                }
+            } catch (Exception e) {
+                logging.logToError("[RequestDeduplicator] Error matching pattern: " +
+                        pattern.pattern() + ", Error: " + e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    public boolean shouldSkipRequest(String method, String url, String re) {
+        // 对URL进行规范化处理
+        String normalizedUrl = normalizeUrl(url);
+
+        // 计算hash
+        int requestHash = Objects.hash(method, normalizedUrl, re);
+
+        if (matchesNoSkipPattern(url)) {
+            if (!"RouteFuzzer".equals(re)) {
+                if (!requestHashes.containsKey(requestHash)) {
+                    requestHashes.put(requestHash, Instant.now().plusSeconds(6 * 24 * 60 * 60).toEpochMilli());
+                }
+                return false;
+            }
+        }
+
+        if (requestHashes.containsKey(requestHash)) {
+            if (isHashExpired(requestHash)) {
+                requestHashes.remove(requestHash);
+                return false;
+            }
+            return true;
+        } else {
+            requestHashes.put(requestHash, Instant.now().plusSeconds(6 * 24 * 60 * 60).toEpochMilli());
+            return false;
         }
     }
 
-    // 移除URL中的查询参数部分（问号及其后面的部分）
+    /**
+     * 规范化URL，移除攻击payload中的随机变化部分
+     */
+    private String normalizeUrl(String url) {
+        try {
+            // 1. 移除query参数
+            String baseUrl = removeQueryParameters(url);
+
+            // 2. 规范化 zcyy.fun 的所有子域名
+            baseUrl = normalizeZcyyFunSubdomains(baseUrl);
+
+            return baseUrl;
+
+        } catch (Exception e) {
+            logging.logToError("[RequestDeduplicator] Error normalizing URL: " + e.getMessage());
+            return removeQueryParameters(url);
+        }
+    }
+
+    /**
+     * 规范化 zcyy.fun 的所有子域名，统一替换为 zcyy.fun
+     * 例如: @ua0rf.tejq8.zcyy.fun -> @zcyy.fun
+     *      //el0u6.tejq8.zcyy.fun -> //zcyy.fun
+     */
+    private String normalizeZcyyFunSubdomains(String url) {
+        // 快速检查：如果URL中不包含目标域名，直接返回
+        if (!url.contains("zcyy.fun")) {
+            return url;
+        }
+
+        // 只有包含 zcyy.fun 时才执行正则替换
+        // 匹配模式：任意字符.zcyy.fun 替换为 zcyy.fun
+        return url.replaceAll("([a-zA-Z0-9-]+\\.)+zcyy\\.fun", "zcyy.fun");
+    }
+
     private String removeQueryParameters(String url) {
         int questionMarkIndex = url.indexOf('?');
         if (questionMarkIndex != -1) {
             return url.substring(0, questionMarkIndex);
         }
-        return url; // 如果没有问号，返回原始URL
+        return url;
     }
 
-    // 检查哈希是否过期
     private boolean isHashExpired(int requestHash) {
         Long expiryTime = requestHashes.get(requestHash);
         if (expiryTime == null) {
-            return true; // 如果哈希不存在，则视为过期
+            return true;
         }
         return Instant.now().toEpochMilli() > expiryTime;
     }
 
-    // 定期清理过期哈希
     private void removeExpiredHashes() {
         long now = Instant.now().toEpochMilli();
-        requestHashes.entrySet().removeIf(entry -> {
-            if (now > entry.getValue()) {
-//                logging.logToOutput("[RequestDeduplicator] Removed expired request hash: " + entry.getKey()); // 记录日志，可选
-                return true; // 移除过期的哈希
-            }
-            return false;
-        });
+        requestHashes.entrySet().removeIf(entry -> now > entry.getValue());
     }
 
-    // 清除所有哈希
     public void clearAllHashes() {
         int count = requestHashes.size();
         requestHashes.clear();
         logging.logToOutput("[RequestDeduplicator] Manually cleared all " + count + " request hashes.");
     }
 
-    // 获取当前哈希数量
     public int getHashCount() {
         return requestHashes.size();
     }
 
-    // 在插件卸载时调用，关闭定时任务线程池
     public void shutdown() {
         logging.logToOutput("[RequestDeduplicator] RequestDeduplicator is shutting down...");
         expiryScheduler.shutdown();
@@ -109,7 +204,7 @@ public class RequestDeduplicator {
             expiryScheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        requestHashes.clear(); // 清理哈希列表
+        requestHashes.clear();
         logging.logToOutput("[RequestDeduplicator] RequestDeduplicator shutdown complete.");
     }
 }

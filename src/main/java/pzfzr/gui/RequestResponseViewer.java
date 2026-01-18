@@ -24,7 +24,9 @@ public class RequestResponseViewer extends JPanel {
     private final HttpRequestEditor modifiedRequestViewer;
     private final HttpResponseEditor originalResponseViewer;
     private final HttpResponseEditor modifiedResponseViewer;
-
+    // ★★★ 新增：ResponseDiffPanel ★★★
+//    private final ResponseDiffPanel responseDiffPanel;
+//    private ResizablePanel diffPanel;
     private final JButton previousButton;
     private final JButton nextButton;
     private HistoryPanel historyPanel;
@@ -50,42 +52,49 @@ public class RequestResponseViewer extends JPanel {
     public RequestResponseViewer(MontoyaApi api) {
         super(new BorderLayout());
 
-        // 创建导航按钮（保持功能，但暂时隐藏）
+        // 1. 创建导航按钮
         previousButton = new JButton("▲ Previous");
         nextButton = new JButton("▼ Next");
-
         JPanel navigationPanel = createNavigationPanel();
 
-        // 创建四个编辑器
+        // 2. 创建编辑器
         originalRequestViewer = api.userInterface().createHttpRequestEditor(READ_ONLY);
         modifiedRequestViewer = api.userInterface().createHttpRequestEditor(READ_ONLY);
         originalResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
         modifiedResponseViewer = api.userInterface().createHttpResponseEditor(READ_ONLY);
 
-        // 为每个编辑器添加滚轮增强
+        // 3. ★ 创建 Diff 面板
+//        responseDiffPanel = new ResponseDiffPanel();
+
+        // 4. 添加滚轮增强
         enhanceScrolling(originalRequestViewer.uiComponent());
         enhanceScrolling(modifiedRequestViewer.uiComponent());
         enhanceScrolling(originalResponseViewer.uiComponent());
         enhanceScrolling(modifiedResponseViewer.uiComponent());
+//        enhanceScrolling(responseDiffPanel);
 
-        // 创建四个可调整大小的面板
+        // 5. 创建 ResizablePanel 包装
         originalRequestPanel = new ResizablePanel("Original Request", originalRequestViewer.uiComponent(), this);
         modifiedRequestPanel = new ResizablePanel("Modified Request", modifiedRequestViewer.uiComponent(), this);
         originalResponsePanel = new ResizablePanel("Original Response", originalResponseViewer.uiComponent(), this);
         modifiedResponsePanel = new ResizablePanel("Modified Response", modifiedResponseViewer.uiComponent(), this);
+//        diffPanel = new ResizablePanel("Response Diff", responseDiffPanel, this);
 
-        // 创建自定义布局容器
+        // 6. ⚠️ 关键：先创建 layoutContainer
         layoutContainer = new CustomLayoutContainer();
+
+        // 7. 然后添加所有面板
         layoutContainer.addPanel(originalRequestPanel);
         layoutContainer.addPanel(modifiedRequestPanel);
         layoutContainer.addPanel(originalResponsePanel);
         layoutContainer.addPanel(modifiedResponsePanel);
+//        layoutContainer.addPanel(diffPanel);  // ✅ 在这里添加
 
-        // 将容器添加到主面板
+        // 8. 添加到主面板
         add(layoutContainer, BorderLayout.CENTER);
         add(navigationPanel, BorderLayout.SOUTH);
 
-        // 设置按钮状态
+        // 9. 设置按钮状态
         updateButtonState();
     }
 
@@ -301,6 +310,16 @@ public class RequestResponseViewer extends JPanel {
                     modifiedRequestViewer.setRequest(modified.getModifiedRequest());
                     modifiedRequestViewer.setSearchExpression(modified.getExpression());
                     modifiedResponseViewer.setResponse(modified.getModifiedResponse());
+                    // 在 updateViewers 方法末尾添加
+//                    byte[] originalResponseBytes = original.getOriginalResponse() != null ?
+//                            original.getOriginalResponse().toByteArray().getBytes() :
+//                            new byte[0];
+//                    byte[] modifiedResponseBytes = modified.getModifiedResponse() != null ?
+//                            modified.getModifiedResponse().toByteArray().getBytes() :
+//                            new byte[0];
+
+//                    responseDiffPanel.setResponses(originalResponseBytes, modifiedResponseBytes);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -323,6 +342,9 @@ public class RequestResponseViewer extends JPanel {
                 originalResponseViewer.setResponse(null);
                 modifiedRequestViewer.setRequest(null);
                 modifiedResponseViewer.setResponse(null);
+//                // ★★★ 新增：清空ResponseDiffPanel ★★★
+//                responseDiffPanel.clear();
+
 
                 if (currentOriginal != null) {
                     currentOriginal.clear();
@@ -344,6 +366,11 @@ public class RequestResponseViewer extends JPanel {
             window.dispose();
         }
         popoutWindows.clear();
+
+//        // 添加清理代码
+//        if (responseDiffPanel != null) {
+//            responseDiffPanel.clear();
+//        }
 
         previousButton.removeActionListener(l -> {});
         nextButton.removeActionListener(l -> {});

@@ -24,6 +24,7 @@ import pzfzr.core.RateLimiter;
 import pzfzr.core.CookieChanger;
 import pzfzr.core.NettyManager;
 import pzfzr.core.NettyHelper;
+import pzfzr.core.ParamBlacklist;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,6 +45,9 @@ public class ParamFuzzer {
     private volatile boolean isShuttingDown = false;
     private final PayloadManager payloadManager;
 
+    // 参数黑名单
+    private final ParamBlacklist paramBlacklist;
+
     // 使用NettyManager替代OkHttpManager
     private final NettyManager nettyManager;
     private final NettyHelper nettyHelper;
@@ -63,12 +67,13 @@ public class ParamFuzzer {
         this.nextModifiedId = nextModifiedId;
         this.cookieChanger = CookieChanger.getInstance();
         this.payloadManager = PayloadManager.getInstance();
+        this.paramBlacklist = ParamBlacklist.getInstance();
 
         // 获取NettyManager实例
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[ParamFuzzer] Initialization completed using NettyManager client");
+        logging.logToOutput("[ParamFuzzer] Initialization completed using NettyManager client with ParamBlacklist support");
     }
 
     /**
@@ -152,12 +157,17 @@ public class ParamFuzzer {
 
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
+
             List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
             return jsonPaths.size();
+
         } catch (Exception e) {
             return 0;
         }
     }
+
+
+
 
     /**
      * 发送参数数量过多的请求 - 使用NettyManager
@@ -227,6 +237,11 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
+            // 黑名单检查：跳过被列入黑名单的参数
+            if (paramBlacklist.isBlacklisted(paramName)) {
+                continue;
+            }
+
             // 使用PayloadManager获取启用的param payloads
             for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
@@ -282,6 +297,11 @@ public class ParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
+            // 黑名单检查：跳过被列入黑名单的参数
+            if (paramBlacklist.isBlacklisted(paramName)) {
+                continue;
+            }
+
             // 使用PayloadManager获取启用的param payloads
             for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
                 if (isShuttingDown) return;
@@ -332,12 +352,19 @@ public class ParamFuzzer {
             return;
         }
 
+
+        // 普通JSON测试
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
             List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
 
             for (JsonPath jsonPath : jsonPaths) {
                 if (isShuttingDown) return;
+
+                // 黑名单检查：跳过被列入黑名单的JSONPath
+                if (paramBlacklist.isBlacklisted(jsonPath.path)) {
+                    continue;
+                }
 
                 // 使用PayloadManager获取启用的param payloads
                 for (PayloadInfo payloadInfo : payloadManager.getEnabledParamPayloads()) {
@@ -369,6 +396,8 @@ public class ParamFuzzer {
             // 静默错误处理
         }
     }
+
+
 
     /**
      * 发送测试请求 - 使用NettyManager

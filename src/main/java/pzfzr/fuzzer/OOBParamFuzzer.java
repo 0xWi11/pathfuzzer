@@ -25,6 +25,7 @@ import pzfzr.core.RateLimiter;
 import pzfzr.core.CookieChanger;
 import pzfzr.core.NettyManager;
 import pzfzr.core.NettyHelper;
+import pzfzr.core.ParamBlacklist;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,6 +45,9 @@ public class OOBParamFuzzer {
     private final CookieChanger cookieChanger;
     private volatile boolean isShuttingDown = false;
     private final PayloadManager payloadManager;
+
+    // 参数黑名单
+    private final ParamBlacklist paramBlacklist;
 
     // 使用NettyManager替代OkHttpManager
     private final NettyManager nettyManager;
@@ -78,12 +82,13 @@ public class OOBParamFuzzer {
         this.nextModifiedId = nextModifiedId;
         this.cookieChanger = CookieChanger.getInstance();
         this.payloadManager = PayloadManager.getInstance();
+        this.paramBlacklist = ParamBlacklist.getInstance();
 
         // 获取NettyManager实例
         this.nettyManager = NettyManager.getInstance();
         this.nettyHelper = new NettyHelper(logging, api.utilities().compressionUtils(), nettyManager);
 
-        logging.logToOutput("[OOBParamFuzzer] Initialization completed using NettyManager client");
+        logging.logToOutput("[OOBParamFuzzer] Initialization completed using NettyManager client with ParamBlacklist support");
     }
 
     /**
@@ -167,8 +172,10 @@ public class OOBParamFuzzer {
 
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
+
             List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
             return jsonPaths.size();
+
         } catch (Exception e) {
             return 0;
         }
@@ -242,6 +249,11 @@ public class OOBParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
+            // 黑名单检查：跳过被列入黑名单的参数
+            if (paramBlacklist.isBlacklisted(paramName)) {
+                continue;
+            }
+
             // 使用PayloadManager获取启用的header payloads用于OOB测试
             for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
                 if (isShuttingDown) return;
@@ -287,6 +299,11 @@ public class OOBParamFuzzer {
             String paramName = param.name();
             String paramValue = param.value();
 
+            // 黑名单检查：跳过被列入黑名单的参数
+            if (paramBlacklist.isBlacklisted(paramName)) {
+                continue;
+            }
+
             // 使用PayloadManager获取启用的header payloads用于OOB测试
             for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
                 if (isShuttingDown) return;
@@ -328,6 +345,7 @@ public class OOBParamFuzzer {
             return;
         }
 
+        // 普通JSON测试
         try {
             JsonNode rootNode = objectMapper.readTree(bodyString);
             List<JsonPath> jsonPaths = extractJsonPaths(rootNode, "");
@@ -335,8 +353,13 @@ public class OOBParamFuzzer {
             for (JsonPath jsonPath : jsonPaths) {
                 if (isShuttingDown) return;
 
+                // 黑名单检查：跳过被列入黑名单的JSONPath
+                if (paramBlacklist.isBlacklisted(jsonPath.path)) {
+                    continue;
+                }
+
                 // 使用PayloadManager获取启用的header payloads用于OOB测试
-                for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) { // 修改为使用HEADER_PAYLOAD_INFOS
+                for (PayloadInfo payloadInfo : payloadManager.getEnabledHeaderPayloads()) {
                     if (isShuttingDown) return;
 
                     // 从JsonNode获取实际文本值

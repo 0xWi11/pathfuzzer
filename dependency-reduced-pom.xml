@@ -144,7 +144,7 @@
         <netty.port>20668</netty.port>
         <plugin.name>OOBFuzzer</plugin.name>
         <context.menu.name>OOBFuzzer</context.menu.name>
-        <switch.routefuzzer.enabled>false</switch.routefuzzer.enabled>
+        <switch.routefuzzer.enabled>true</switch.routefuzzer.enabled>
         <plugin.package.prefix>oobfzr</plugin.package.prefix>
         <shade.package.prefix>oobfuzzer</shade.package.prefix>
         <switch.headerfuzzer.enabled>true</switch.headerfuzzer.enabled>
