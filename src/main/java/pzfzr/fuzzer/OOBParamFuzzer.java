@@ -54,7 +54,7 @@ public class OOBParamFuzzer {
     private final NettyHelper nettyHelper;
 
     // 可动态修改的参数数量限制
-    private volatile int maxParameterCount = 30;
+    private volatile int maxParameterCount = 80;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

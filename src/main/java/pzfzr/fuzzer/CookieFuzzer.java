@@ -42,7 +42,7 @@ public class CookieFuzzer {
     private final NettyHelper nettyHelper;
 
     // 可动态修改的参数数量限制
-    private volatile int maxParameterCount = 30;
+    private volatile int maxParameterCount = 80;
 
     // Cookie黑名单 - 这些cookie不进行测试
     private static final Set<String> COOKIE_BLACKLIST = new HashSet<>(Arrays.asList(
