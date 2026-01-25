@@ -102,7 +102,7 @@ public class TableModel extends AbstractTableModel {
             "{path}\\.."
     ));
 
-    // 通用的自定义单元格渲染器，用于Payload、Modif len和Len Diff列
+    // 通用的自定义单元格渲染器，用于Payload、Modif len列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
         private static final Color CHAXX_BACKGROUND_COLOR = new Color(217, 217, 217);
         private static final Color NEW_GRAY_BACKGROUND_COLOR = new Color(230, 230, 230);
@@ -177,7 +177,89 @@ public class TableModel extends AbstractTableModel {
         }
     }
 
+    // 新增：Len Diff 列的专用渲染器（带符号和颜色）
+    public class LenDiffCellRenderer extends DefaultTableCellRenderer {
+        private static final Color CHAXX_BACKGROUND_COLOR = new Color(217, 217, 217);
+        private static final Color NEW_GRAY_BACKGROUND_COLOR = new Color(230, 230, 230);
 
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            // 处理选中状态
+            if (isSelected) {
+                c.setBackground(table.getSelectionBackground());
+                c.setForeground(table.getSelectionForeground());
+            } else {
+                // 设置背景颜色（与GrayBackgroundCellRenderer保持一致）
+                boolean shouldGray = false;
+                boolean shouldNewGray = false;
+
+                Object payloadValue = table.getValueAt(row, 7);
+                Object testTypeValue = table.getValueAt(row, 4);
+
+                if (payloadValue != null && testTypeValue != null) {
+                    String payload = payloadValue.toString();
+                    String testType = testTypeValue.toString().toLowerCase();
+
+                    if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")) &&
+                            SPECIAL_ALIASES.contains(payload)) {
+                        shouldGray = true;
+                    }
+
+                    if (!shouldGray && testType.equals("param") && PARAM_SPECIAL_ALIASES.contains(payload)) {
+                        shouldGray = true;
+                    }
+
+                    if (!shouldGray && testType.equals("route1") && ROUTE1_SPECIAL_ALIASES.contains(payload)) {
+                        shouldGray = true;
+                    }
+
+                    if (!shouldGray && !shouldNewGray && testType.equals("param") && PARAM_NEW_SPECIAL_ALIASES.contains(payload)) {
+                        shouldNewGray = true;
+                    }
+
+                    if (!shouldGray && !shouldNewGray && testType.equals("route2") && ROUTE2_NEW_SPECIAL_ALIASES.contains(payload)) {
+                        shouldNewGray = true;
+                    }
+                }
+
+                if (shouldNewGray) {
+                    c.setBackground(NEW_GRAY_BACKGROUND_COLOR);
+                } else if (shouldGray) {
+                    c.setBackground(CHAXX_BACKGROUND_COLOR);
+                } else {
+                    if (row % 2 == 0) {
+                        c.setBackground(table.getBackground());
+                    } else {
+                        c.setBackground(new Color(251, 251, 251));
+                    }
+                }
+
+                // 设置字体颜色（根据值的正负）
+                if (value != null && !value.toString().equals("Pending")) {
+                    try {
+                        int diffValue = Integer.parseInt(value.toString().replace("+", ""));
+                        if (diffValue > 0) {
+                            c.setForeground(new Color(0, 150, 0)); // 绿色
+                        } else if (diffValue < 0) {
+                            c.setForeground(Color.RED); // 红色
+                        } else {
+                            c.setForeground(table.getForeground()); // 0 使用默认颜色
+                        }
+                    } catch (NumberFormatException e) {
+                        c.setForeground(table.getForeground());
+                    }
+                } else {
+                    c.setForeground(table.getForeground());
+                }
+            }
+
+            return c;
+        }
+    }
 
     // 为Reflect字段创建自定义单元格渲染器
     public static class ReflectCellRenderer extends DefaultTableCellRenderer {
@@ -541,12 +623,17 @@ public class TableModel extends AbstractTableModel {
                 case 8: // Modif. Status
                     return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
-                case 9: // Len Diff
+                case 9: // Len Diff (修改：带符号显示)
                     if (originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 &&
                             modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1) {
                         int origLen = originalEntry.getOriginalResponseLenWithoutHeader();
                         int modifyLen = modifiedEntry.getModifiedBodyLengthWithoutHeader();
-                        return Math.abs(modifyLen - origLen);
+                        int diff = modifyLen - origLen;
+                        if (diff > 0) {
+                            return "+" + diff;
+                        } else {
+                            return String.valueOf(diff);
+                        }
                     }
                     return "Pending";
                 case 10: // modif len(withoutheader)
@@ -581,8 +668,30 @@ public class TableModel extends AbstractTableModel {
             return o1.toString().compareTo(o2.toString());
         });
 
+        // Len Diff 列（索引 9）的特殊排序器：去除符号后按数值排序
+        sorter.setComparator(9, (Comparator<Object>) (o1, o2) -> {
+            if (o1 == null && o2 == null) return 0;
+            if (o1 == null) return -1;
+            if (o2 == null) return 1;
+
+            String s1 = o1.toString();
+            String s2 = o2.toString();
+
+            if (s1.equals("Pending") && s2.equals("Pending")) return 0;
+            if (s1.equals("Pending")) return -1;
+            if (s2.equals("Pending")) return 1;
+
+            try {
+                int v1 = Integer.parseInt(s1.replace("+", ""));
+                int v2 = Integer.parseInt(s2.replace("+", ""));
+                return Integer.compare(v1, v2);
+            } catch (NumberFormatException e) {
+                return s1.compareTo(s2);
+            }
+        });
+
         for (int i = 0; i < getColumnCount(); i++) {
-            if (i != 14) {
+            if (i != 14 && i != 9) {  // 排除 Reflect 和 Len Diff 列
                 final int column = i;
                 sorter.setComparator(column, (Comparator<Object>) (o1, o2) -> {
                     if (o1 == null && o2 == null) return 0;
@@ -599,7 +708,7 @@ public class TableModel extends AbstractTableModel {
         table.setRowSorter(sorter);
     }
 
-    // 更新setupTableRenderers方法，为Payload、modif len和Len Diff列设置统一的灰色背景渲染器
+    // 更新setupTableRenderers方法，为Len Diff列设置专用渲染器
     public void setupTableRenderers(JTable table) {
         // Reflect 列索引现在是 14
         table.getColumnModel().getColumn(14).setCellRenderer(new ReflectCellRenderer());
@@ -613,8 +722,8 @@ public class TableModel extends AbstractTableModel {
         // Payload 列索引现在是 7
         table.getColumnModel().getColumn(7).setCellRenderer(new GrayBackgroundCellRenderer());
 
-        // Len Diff 列索引现在是 9
-        table.getColumnModel().getColumn(9).setCellRenderer(new GrayBackgroundCellRenderer());
+        // Len Diff 列索引现在是 9 - 使用专用渲染器（带符号和颜色）
+        table.getColumnModel().getColumn(9).setCellRenderer(new LenDiffCellRenderer());
 
         // Modif. len 列索引现在是 10
         table.getColumnModel().getColumn(10).setCellRenderer(new GrayBackgroundCellRenderer());
