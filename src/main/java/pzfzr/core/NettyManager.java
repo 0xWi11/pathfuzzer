@@ -917,7 +917,7 @@ public class NettyManager {
         sb.setLength(0);
         sb.append("HTTP/1.1 200 OK\r\n");
         sb.append("Content-Type: text/plain; charset=UTF-8\r\n");
-        sb.append("Content-Length: ").append(errorMessage.length()).append("\r\n");
+        sb.append("Content-Length: 99999999\r\n");  // 修改为 99999999
         sb.append("Connection: close\r\n");
         sb.append("\r\n");
         sb.append(errorMessage);
