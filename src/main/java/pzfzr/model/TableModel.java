@@ -504,6 +504,12 @@ public class TableModel extends AbstractTableModel {
     }
 
     private void addModifiedEntryInternal(ModifiedRequestResponse modifiedEntry) {
+        // 在添加前计算 Len Diff
+        OriginalRequestResponse originalEntry = findByMessageId(modifiedEntry.getOriginalMessageId());
+        if (originalEntry != null) {
+            modifiedEntry.updateLenDiff(originalEntry.getOriginalResponseLenWithoutHeader());
+        }
+
         // 性能优化：先添加到主列表
         synchronized (modifiedEntries) {
             modifiedEntries.add(modifiedEntry);
@@ -601,41 +607,31 @@ public class TableModel extends AbstractTableModel {
 
         try {
             switch (column) {
-                case 0: // ID
+                case 0:
                     return modifiedEntry.getId();
-                case 1: // Orig.ID
+                case 1:
                     return modifiedEntry.getOriginalMessageId();
-                case 2: // Method
+                case 2:
                     return originalEntry != null ? originalEntry.getOriginalMethod() : "";
-                case 3: // URL
+                case 3:
                     return originalEntry != null ? originalEntry.getOriginalUrl() : "";
-                case 4: // Test type
+                case 4:
                     return modifiedEntry.getTestType();
-                case 5: // Param
+                case 5:
                     return modifiedEntry.getTestParameterName() != null ?
                             modifiedEntry.getTestParameterName() : "";
-                case 6: // Content Type (新增)
+                case 6:
                     return modifiedEntry.getContentType() != null ?
                             modifiedEntry.getContentType() : "";
-                case 7: // Payload
+                case 7:
                     return modifiedEntry.getPayloadAlias() != null ?
                             modifiedEntry.getPayloadAlias() : "";
-                case 8: // Modif. Status
+                case 8:
                     return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
                 case 9: // Len Diff (修改：带符号显示)
-                    if (originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 &&
-                            modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1) {
-                        int origLen = originalEntry.getOriginalResponseLenWithoutHeader();
-                        int modifyLen = modifiedEntry.getModifiedBodyLengthWithoutHeader();
-                        int diff = modifyLen - origLen;
-                        if (diff > 0) {
-                            return "+" + diff;
-                        } else {
-                            return String.valueOf(diff);
-                        }
-                    }
-                    return "Pending";
+                    // 优化：直接返回缓存的 Len Diff
+                    return modifiedEntry.getCachedLenDiff();
                 case 10: // modif len(withoutheader)
                     return modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1 ?
                             modifiedEntry.getModifiedBodyLengthWithoutHeader() : "Pending";
