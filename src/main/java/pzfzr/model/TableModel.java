@@ -104,64 +104,27 @@ public class TableModel extends AbstractTableModel {
 
     // 通用的自定义单元格渲染器，用于Payload、Modif len列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
-        private static final Color CHAXX_BACKGROUND_COLOR = new Color(217, 217, 217);
-        private static final Color NEW_GRAY_BACKGROUND_COLOR = new Color(230, 230, 230);
-
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus,
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-            // 处理选中状态
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
-                boolean shouldGray = false;
-                boolean shouldNewGray = false;
+                // 使用预计算的颜色
+                int modelRow = table.convertRowIndexToModel(row);
+                ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
-                // Payload 列现在是索引 7
-                Object payloadValue = table.getValueAt(row, 7);
-                Object testTypeValue = table.getValueAt(row, 4);
-
-                if (payloadValue != null && testTypeValue != null) {
-                    String payload = payloadValue.toString();
-                    String testType = testTypeValue.toString().toLowerCase();
-
-                    // 检查是否为特殊alias且testtype是route1、route2或route3
-                    if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")) &&
-                            SPECIAL_ALIASES.contains(payload)) {
-                        shouldGray = true;
-                    }
-
-                    // 检查test type为param且alias为指定列表的情况
-                    if (!shouldGray && testType.equals("param") && PARAM_SPECIAL_ALIASES.contains(payload)) {
-                        shouldGray = true;
-                    }
-
-                    // 检查test type为route1且alias为指定列表的情况
-                    if (!shouldGray && testType.equals("route1") && ROUTE1_SPECIAL_ALIASES.contains(payload)) {
-                        shouldGray = true;
-                    }
-
-                    // 新增：检查param类型的新特殊alias列表（用户需求）
-                    if (!shouldGray && !shouldNewGray && testType.equals("param") && PARAM_NEW_SPECIAL_ALIASES.contains(payload)) {
-                        shouldNewGray = true;
-                    }
-
-                    // 新增：检查route2类型的新特殊alias列表（用户需求）
-                    if (!shouldGray && !shouldNewGray && testType.equals("route2") && ROUTE2_NEW_SPECIAL_ALIASES.contains(payload)) {
-                        shouldNewGray = true;
-                    }
+                Color bgColor = null;
+                if (entry != null) {
+                    bgColor = entry.getPayloadBackgroundColor();
                 }
 
-                if (shouldNewGray) {
-                    // 设置为新的灰色背景 RGB 230 230 230
-                    c.setBackground(NEW_GRAY_BACKGROUND_COLOR);
-                } else if (shouldGray) {
-                    // 设置为原来的灰色背景
-                    c.setBackground(CHAXX_BACKGROUND_COLOR);
+                if (bgColor != null) {
+                    c.setBackground(bgColor);
                 } else {
                     // 使用默认的交替行背景色
                     if (row % 2 == 0) {
@@ -179,80 +142,45 @@ public class TableModel extends AbstractTableModel {
 
     // 新增：Len Diff 列的专用渲染器（带符号和颜色）
     public class LenDiffCellRenderer extends DefaultTableCellRenderer {
-        private static final Color CHAXX_BACKGROUND_COLOR = new Color(217, 217, 217);
-        private static final Color NEW_GRAY_BACKGROUND_COLOR = new Color(230, 230, 230);
-
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus,
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-            // 处理选中状态
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
-                // 设置背景颜色（与GrayBackgroundCellRenderer保持一致）
-                boolean shouldGray = false;
-                boolean shouldNewGray = false;
+                // 使用预计算的颜色
+                int modelRow = table.convertRowIndexToModel(row);
+                ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
-                Object payloadValue = table.getValueAt(row, 7);
-                Object testTypeValue = table.getValueAt(row, 4);
+                if (entry != null) {
+                    Color bgColor = entry.getLenDiffBackgroundColor();
+                    Color fgColor = entry.getLenDiffForegroundColor();
 
-                if (payloadValue != null && testTypeValue != null) {
-                    String payload = payloadValue.toString();
-                    String testType = testTypeValue.toString().toLowerCase();
-
-                    if ((testType.equals("route1") || testType.equals("route2") || testType.equals("route3")) &&
-                            SPECIAL_ALIASES.contains(payload)) {
-                        shouldGray = true;
+                    if (bgColor != null) {
+                        c.setBackground(bgColor);
+                    } else {
+                        if (row % 2 == 0) {
+                            c.setBackground(table.getBackground());
+                        } else {
+                            c.setBackground(new Color(251, 251, 251));
+                        }
                     }
 
-                    if (!shouldGray && testType.equals("param") && PARAM_SPECIAL_ALIASES.contains(payload)) {
-                        shouldGray = true;
+                    if (fgColor != null) {
+                        c.setForeground(fgColor);
+                    } else {
+                        c.setForeground(table.getForeground());
                     }
-
-                    if (!shouldGray && testType.equals("route1") && ROUTE1_SPECIAL_ALIASES.contains(payload)) {
-                        shouldGray = true;
-                    }
-
-                    if (!shouldGray && !shouldNewGray && testType.equals("param") && PARAM_NEW_SPECIAL_ALIASES.contains(payload)) {
-                        shouldNewGray = true;
-                    }
-
-                    if (!shouldGray && !shouldNewGray && testType.equals("route2") && ROUTE2_NEW_SPECIAL_ALIASES.contains(payload)) {
-                        shouldNewGray = true;
-                    }
-                }
-
-                if (shouldNewGray) {
-                    c.setBackground(NEW_GRAY_BACKGROUND_COLOR);
-                } else if (shouldGray) {
-                    c.setBackground(CHAXX_BACKGROUND_COLOR);
                 } else {
                     if (row % 2 == 0) {
                         c.setBackground(table.getBackground());
                     } else {
                         c.setBackground(new Color(251, 251, 251));
                     }
-                }
-
-                // 设置字体颜色（根据值的正负）
-                if (value != null && !value.toString().equals("Pending")) {
-                    try {
-                        int diffValue = Integer.parseInt(value.toString().replace("+", ""));
-                        if (diffValue > 0) {
-                            c.setForeground(new Color(0, 150, 0)); // 绿色
-                        } else if (diffValue < 0) {
-                            c.setForeground(Color.RED); // 红色
-                        } else {
-                            c.setForeground(table.getForeground()); // 0 使用默认颜色
-                        }
-                    } catch (NumberFormatException e) {
-                        c.setForeground(table.getForeground());
-                    }
-                } else {
                     c.setForeground(table.getForeground());
                 }
             }
@@ -287,33 +215,45 @@ public class TableModel extends AbstractTableModel {
     }
 
     // 为状态码列创建自定义渲染器
-    public static class StatusCodeCellRenderer extends DefaultTableCellRenderer {
-        // 存储状态码及其对应颜色的映射表
-        private static final Map<Integer, Color> STATUS_COLORS = new HashMap<>();
+    public class StatusCodeCellRenderer extends DefaultTableCellRenderer {
+        // 将颜色映射表改为public static，供ModifiedRequestResponse使用
+        public static final Map<Integer, Color> STATUS_COLORS = new HashMap<>();
         static {
-            STATUS_COLORS.put(200, new Color(198, 255, 221)); // #C6FFDD 淡薄荷绿
-            STATUS_COLORS.put(201, new Color(213, 251, 232)); // #D5FBE8 极浅薄荷
-            STATUS_COLORS.put(204, new Color(230, 255, 238)); // #E6FFEE 近白薄荷
-            STATUS_COLORS.put(301, new Color(255, 222, 173)); // #FFDEAD 淡杏黄
-            STATUS_COLORS.put(302, new Color(255, 234, 196)); // #FFEAC4 淡橙黄
-            STATUS_COLORS.put(304, new Color(240, 248, 225)); // #F0F8E1 极浅黄绿
-            STATUS_COLORS.put(307, new Color(255, 240, 213)); // #FFF0D5 极浅杏黄
-            STATUS_COLORS.put(308, new Color(245, 222, 179)); // #F5DEB3 小麦色
-            STATUS_COLORS.put(400, new Color(255, 139, 139)); // #FF8B8B 适中红，比403/404更重
-            STATUS_COLORS.put(401, new Color(255, 179, 186)); // #FFB3BA 淡草莓色
-            STATUS_COLORS.put(403, new Color(255, 182, 167)); // #FFB6A7 偏橙红，淡化但和404区分
-            STATUS_COLORS.put(404, new Color(255, 200, 209)); // #FFC8D1 偏粉红，亮度+25%，更柔和
-            STATUS_COLORS.put(405, new Color(255, 204, 204)); // #FFCCCC 浅红粉，柔和，和404/406保持差异
+            STATUS_COLORS.put(200, new Color(198, 255, 221));
+            STATUS_COLORS.put(201, new Color(213, 251, 232));
+            STATUS_COLORS.put(204, new Color(230, 255, 238));
+            STATUS_COLORS.put(301, new Color(255, 222, 173));
+            STATUS_COLORS.put(302, new Color(255, 234, 196));
+            STATUS_COLORS.put(304, new Color(240, 248, 225));
+            STATUS_COLORS.put(307, new Color(255, 240, 213));
+            STATUS_COLORS.put(308, new Color(245, 222, 179));
+            STATUS_COLORS.put(400, new Color(255, 139, 139));
+            STATUS_COLORS.put(401, new Color(255, 179, 186));
+            STATUS_COLORS.put(403, new Color(255, 182, 167));
+            STATUS_COLORS.put(404, new Color(255, 200, 209));
+            STATUS_COLORS.put(405, new Color(255, 204, 204));
             STATUS_COLORS.put(406, new Color(255, 135, 189));
-            STATUS_COLORS.put(409, new Color(255, 182, 193)); // #FFB6C1 浅粉红（比 404 稍淡）
-            STATUS_COLORS.put(410, new Color(255, 160, 122)); // #FFA07A 浅鲑鱼色
-            STATUS_COLORS.put(422, new Color(255, 188, 217)); // #FFBCD9 淡紫红
-            STATUS_COLORS.put(440, new Color(255, 218, 185)); // #FFDAB9 桃色（和 403/404 有区分）
-            STATUS_COLORS.put(500, new Color(216, 191, 216)); // #D8BFD8 蓟色(淡紫)
-            STATUS_COLORS.put(502, new Color(204, 187, 216)); // #CCBBD8 淡薰衣草
-            STATUS_COLORS.put(504, new Color(187, 191, 216)); // #BBBFD8 淡紫蓝
-            STATUS_COLORS.put(0, new Color(230, 230, 230));   // #E6E6E6 浅灰
-            STATUS_COLORS.put(-1, new Color(211, 211, 211));  // #D3D3D3 淡灰
+            STATUS_COLORS.put(409, new Color(255, 182, 193));
+            STATUS_COLORS.put(410, new Color(255, 160, 122));
+            STATUS_COLORS.put(422, new Color(255, 188, 217));
+            STATUS_COLORS.put(440, new Color(255, 218, 185));
+            STATUS_COLORS.put(500, new Color(216, 191, 216));
+            STATUS_COLORS.put(502, new Color(204, 187, 216));
+            STATUS_COLORS.put(504, new Color(187, 191, 216));
+            STATUS_COLORS.put(0, new Color(230, 230, 230));
+            STATUS_COLORS.put(-1, new Color(211, 211, 211));
+        }
+
+        public static Color getColorForStatusCode(int statusCode) {
+            Color color = STATUS_COLORS.get(statusCode);
+            if (color == null && statusCode > 0) {
+                int statusFamily = (statusCode / 100) * 100;
+                color = STATUS_COLORS.get(statusFamily);
+            }
+            if (color == null) {
+                color = STATUS_COLORS.get(0);
+            }
+            return color;
         }
 
         @Override
@@ -321,55 +261,43 @@ public class TableModel extends AbstractTableModel {
                                                        boolean isSelected, boolean hasFocus,
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            // 如果单元格被选中，保持选中颜色
+
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
                 return c;
             }
-            // 否则，根据状态码设置背景颜色
-            try {
-                if (value != null && !value.toString().equals("Pending")) {
-                    int statusCode = Integer.parseInt(value.toString());
-                    // 获取特定状态码的颜色，或获取状态码家族的颜色（例如 404 -> 400）
-                    Color color = STATUS_COLORS.get(statusCode);
-                    if (color == null && statusCode > 0) {
-                        // 尝试获取家族颜色（第一位数字后跟两个零）
-                        int statusFamily = (statusCode / 100) * 100;
-                        color = STATUS_COLORS.get(statusFamily);
-                    }
-                    if (color != null) {
-                        c.setBackground(color);
-                    } else {
-                        // 如果没有匹配项，默认使用未知状态颜色
-                        c.setBackground(STATUS_COLORS.get(0));
-                    }
+
+            // 使用预计算的颜色
+            int modelRow = table.convertRowIndexToModel(row);
+            ModifiedRequestResponse entry = getModifiedEntry(modelRow);
+
+            if (entry != null) {
+                Color bgColor = entry.getStatusCodeBackgroundColor();
+                if (bgColor != null) {
+                    c.setBackground(bgColor);
                 } else {
-                    // 对于"Pending"或null值
                     if (row % 2 == 0) {
                         c.setBackground(table.getBackground());
                     } else {
                         c.setBackground(new Color(251, 251, 251));
                     }
                 }
-            } catch (NumberFormatException e) {
-                // 对于非数字值，使用默认行背景
+            } else {
                 if (row % 2 == 0) {
                     c.setBackground(table.getBackground());
                 } else {
                     c.setBackground(new Color(251, 251, 251));
                 }
             }
+
             return c;
         }
     }
 
     // 为响应时间列创建自定义渲染器
-    public static class TimeCellRenderer extends DefaultTableCellRenderer {
-        // 为不同时间阈值定义颜色
-        private static final Color DEFAULT_COLOR = null; // 使用默认表格颜色
-        private static final Color LIGHT_GRAY = new Color(230, 230, 230); // #E6E6E6 - 超过1000ms的浅灰色
-        private static final Color MEDIUM_GRAY = new Color(211, 211, 211); // #D3D3D3 - 超过7000ms的中灰色
+    public class TimeCellRenderer extends DefaultTableCellRenderer {
+        private static final Color MEDIUM_GRAY = new Color(211, 211, 211);
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
@@ -377,37 +305,28 @@ public class TableModel extends AbstractTableModel {
                                                        int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-            // 如果单元格被选中，保持选中颜色
             if (isSelected) {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
                 return c;
             }
 
-            // 根据响应时间设置背景颜色
-            try {
-                if (value != null) {
-                    int responseTime = Integer.parseInt(value.toString());
+            // 使用预计算的颜色
+            int modelRow = table.convertRowIndexToModel(row);
+            ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
-                    if (responseTime > 7000) {
-                        c.setBackground(MEDIUM_GRAY);
-                    } else {
-                        if (row % 2 == 0) {
-                            c.setBackground(table.getBackground());
-                        } else {
-                            c.setBackground(new Color(251, 251, 251));
-                        }
-                    }
+            if (entry != null) {
+                Color bgColor = entry.getResponseTimeBackgroundColor();
+                if (bgColor != null) {
+                    c.setBackground(bgColor);
                 } else {
-                    // 对于null值，使用默认行背景
                     if (row % 2 == 0) {
                         c.setBackground(table.getBackground());
                     } else {
                         c.setBackground(new Color(251, 251, 251));
                     }
                 }
-            } catch (NumberFormatException e) {
-                // 对于非数字值，使用默认行背景
+            } else {
                 if (row % 2 == 0) {
                     c.setBackground(table.getBackground());
                 } else {
