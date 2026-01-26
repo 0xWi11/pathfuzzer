@@ -396,7 +396,9 @@ public class RequestResponseSaver {
             new DetectionPattern("id=\"sfWebDebugSymfony\"", "SYMFONY"),
             new DetectionPattern("HTTP/1.1 505 HTTP Version Not Supported", "505 HTTP Version"),
             new DetectionPattern("Request Header Fields Too Large", "431 Header Too Large"),
-            new DetectionPattern("URI Too Long", "URI Too Long")
+            new DetectionPattern("URI Too Long", "URI Too Long"),
+            new DetectionPattern("<ListBucketResult", "S3 List")
+
     );
 
     // Actuator检测的分段模式
