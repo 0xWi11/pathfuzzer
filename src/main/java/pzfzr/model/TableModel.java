@@ -1,6 +1,8 @@
 package pzfzr.model;
 
 import javax.swing.*;
+import javax.swing.event.RowSorterEvent;
+import javax.swing.event.RowSorterListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import burp.api.montoya.logging.Logging;
@@ -20,6 +22,13 @@ public class TableModel extends AbstractTableModel {
     private RequestResponseSaver requestResponseSaver;
     private final Logging logging;
 
+    // ============ 方案1核心：视图索引缓存 ============
+    // 缓存视图索引到模型索引的映射，避免频繁调用convertRowIndexToModel
+    private volatile int[] viewToModelCache = new int[0];
+    private final Object cacheLock = new Object();
+    private volatile boolean cacheValid = false;
+    // ============================================
+
     // 更新列名顺序：在ID后添加Orig.ID列
     private static final String[] COLUMN_NAMES = {
             "ID",
@@ -28,7 +37,7 @@ public class TableModel extends AbstractTableModel {
             "URL",
             "Test Type",
             "Param",
-            "Content Type",  // 新增列
+            "Content Type",
             "Payload",
             "Modif. Status",
             "Len Diff",
@@ -102,6 +111,56 @@ public class TableModel extends AbstractTableModel {
             "{path}\\.."
     ));
 
+    // ============ 方案1核心方法：重建视图索引缓存 ============
+    /**
+     * 重建视图索引到模型索引的缓存
+     * 在排序变化、数据变化时调用
+     */
+    private void rebuildViewToModelCache() {
+        if (associatedTable == null) {
+            return;
+        }
+
+        synchronized (cacheLock) {
+            int rowCount = associatedTable.getRowCount();
+            viewToModelCache = new int[rowCount];
+
+            for (int viewRow = 0; viewRow < rowCount; viewRow++) {
+                viewToModelCache[viewRow] = associatedTable.convertRowIndexToModel(viewRow);
+            }
+
+            cacheValid = true;
+        }
+    }
+
+    /**
+     * 获取缓存的模型索引
+     * @param viewRow 视图行索引
+     * @return 模型行索引，如果缓存无效则返回-1
+     */
+    private int getCachedModelIndex(int viewRow) {
+        synchronized (cacheLock) {
+            if (!cacheValid || viewRow < 0 || viewRow >= viewToModelCache.length) {
+                // 缓存无效，降级使用原方法
+                if (associatedTable != null) {
+                    return associatedTable.convertRowIndexToModel(viewRow);
+                }
+                return -1;
+            }
+            return viewToModelCache[viewRow];
+        }
+    }
+
+    /**
+     * 使缓存失效
+     */
+    private void invalidateCache() {
+        synchronized (cacheLock) {
+            cacheValid = false;
+        }
+    }
+    // ====================================================
+
     // 通用的自定义单元格渲染器，用于Payload、Modif len列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
         @Override
@@ -114,8 +173,8 @@ public class TableModel extends AbstractTableModel {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
-                // 使用预计算的颜色
-                int modelRow = table.convertRowIndexToModel(row);
+                // ============ 方案1优化：使用缓存的索引 ============
+                int modelRow = getCachedModelIndex(row);
                 ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
                 Color bgColor = null;
@@ -152,8 +211,8 @@ public class TableModel extends AbstractTableModel {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
-                // 使用预计算的颜色
-                int modelRow = table.convertRowIndexToModel(row);
+                // ============ 方案1优化：使用缓存的索引 ============
+                int modelRow = getCachedModelIndex(row);
                 ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
                 if (entry != null) {
@@ -268,8 +327,8 @@ public class TableModel extends AbstractTableModel {
                 return c;
             }
 
-            // 使用预计算的颜色
-            int modelRow = table.convertRowIndexToModel(row);
+            // ============ 方案1优化：使用缓存的索引 ============
+            int modelRow = getCachedModelIndex(row);
             ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
             if (entry != null) {
@@ -311,8 +370,8 @@ public class TableModel extends AbstractTableModel {
                 return c;
             }
 
-            // 使用预计算的颜色
-            int modelRow = table.convertRowIndexToModel(row);
+            // ============ 方案1优化：使用缓存的索引 ============
+            int modelRow = getCachedModelIndex(row);
             ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
             if (entry != null) {
@@ -340,7 +399,7 @@ public class TableModel extends AbstractTableModel {
 
     // 构造函数中接收 RequestResponseSaver 和 Logging
     public TableModel(RequestResponseSaver requestResponseSaver, Logging logging) {
-        this.requestResponseSaver = requestResponseSaver; // 初始化 RequestResponseSaver
+        this.requestResponseSaver = requestResponseSaver;
         this.logging = logging;
     }
 
@@ -399,7 +458,14 @@ public class TableModel extends AbstractTableModel {
             filteredEntries.addAll(tempFiltered);
         }
 
-        SwingUtilities.invokeLater(this::fireTableDataChanged);
+        // ============ 方案1优化：数据变化时使缓存失效 ============
+        invalidateCache();
+
+        SwingUtilities.invokeLater(() -> {
+            fireTableDataChanged();
+            // ============ 方案1优化：数据刷新后重建缓存 ============
+            rebuildViewToModelCache();
+        });
     }
 
     public synchronized OriginalRequestResponse createEntry(OriginalRequestResponse entry, int messageId) {
@@ -455,19 +521,15 @@ public class TableModel extends AbstractTableModel {
                 filteredEntries.add(modifiedEntry);
                 filteredIndex = filteredEntries.size() - 1;
             }
+
+            // ============ 方案1优化：插入数据时使缓存失效 ============
+            invalidateCache();
+
             fireTableRowsInserted(filteredIndex, filteredIndex);
 
-            // ============================================
-            // 关键修改：移除自动选中恢复逻辑
-            // ============================================
-            // 原因：
-            // 1. TableRowSorter 会自动维护选中状态的模型索引
-            // 2. 在倒序排序+高频插入时，手动恢复选中会导致：
-            //    - 视图索引变化导致选中错误的行
-            //    - 触发大量不必要的选择事件和数据加载
-            //    - 造成严重的UI卡顿
-            // 3. 移除后，用户的选中状态会自然保持，不会受影响
-            // ============================================
+            // ============ 方案1优化：延迟重建缓存，避免频繁重建 ============
+            // 在下一个EDT周期重建，可以合并多次插入
+            SwingUtilities.invokeLater(this::rebuildViewToModelCache);
         }
     }
 
@@ -475,10 +537,6 @@ public class TableModel extends AbstractTableModel {
         return originalRequestMap.get(messageId);
     }
 
-    /**
-     * 新增方法：根据 ID 查找 ModifiedRequestResponse
-     * 性能优化：使用 synchronized 块保护集合读取
-     */
     public ModifiedRequestResponse getModifiedEntryById(int id) {
         synchronized (modifiedEntries) {
             for (ModifiedRequestResponse entry : modifiedEntries) {
@@ -548,21 +606,20 @@ public class TableModel extends AbstractTableModel {
                 case 8:
                     return modifiedEntry.getStatusCode() != -1 ?
                             modifiedEntry.getStatusCode() : "Pending";
-                case 9: // Len Diff (修改：带符号显示)
-                    // 优化：直接返回缓存的 Len Diff
+                case 9:
                     return modifiedEntry.getCachedLenDiff();
-                case 10: // modif len(withoutheader)
+                case 10:
                     return modifiedEntry.getModifiedBodyLengthWithoutHeader() != -1 ?
                             modifiedEntry.getModifiedBodyLengthWithoutHeader() : "Pending";
-                case 11: // modif len+(withheader)
+                case 11:
                     return modifiedEntry.getModifiedBodyLength() != -1 ?
                             modifiedEntry.getModifiedBodyLength() : "Pending";
-                case 12: // origin len(withoutheader)
+                case 12:
                     return originalEntry != null && originalEntry.getOriginalResponseLenWithoutHeader() != -1 ?
                             originalEntry.getOriginalResponseLenWithoutHeader() : "Pending";
-                case 13: // Modif. Time
+                case 13:
                     return modifiedEntry.getResponseTime();
-                case 14: // Reflect
+                case 14:
                     return modifiedEntry.getReflectType();
                 default:
                     return null;
@@ -572,6 +629,7 @@ public class TableModel extends AbstractTableModel {
         }
     }
 
+    // ============ 方案1核心：在setupSorter中添加监听器 ============
     public void setupSorter(JTable table) {
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(this);
 
@@ -583,7 +641,7 @@ public class TableModel extends AbstractTableModel {
             return o1.toString().compareTo(o2.toString());
         });
 
-        // Len Diff 列（索引 9）的特殊排序器：去除符号后按数值排序
+        // Len Diff 列（索引 9）的特殊排序器
         sorter.setComparator(9, (Comparator<Object>) (o1, o2) -> {
             if (o1 == null && o2 == null) return 0;
             if (o1 == null) return -1;
@@ -606,7 +664,7 @@ public class TableModel extends AbstractTableModel {
         });
 
         for (int i = 0; i < getColumnCount(); i++) {
-            if (i != 14 && i != 9) {  // 排除 Reflect 和 Len Diff 列
+            if (i != 14 && i != 9) {
                 final int column = i;
                 sorter.setComparator(column, (Comparator<Object>) (o1, o2) -> {
                     if (o1 == null && o2 == null) return 0;
@@ -620,27 +678,32 @@ public class TableModel extends AbstractTableModel {
                 });
             }
         }
+
+        // ============ 方案1核心：添加RowSorter监听器，监听排序变化 ============
+        sorter.addRowSorterListener(new RowSorterListener() {
+            @Override
+            public void sorterChanged(RowSorterEvent e) {
+                // 排序变化时使缓存失效
+                if (e.getType() == RowSorterEvent.Type.SORTED) {
+                    invalidateCache();
+                    // 异步重建缓存，避免阻塞UI
+                    SwingUtilities.invokeLater(() -> rebuildViewToModelCache());
+                }
+            }
+        });
+
         table.setRowSorter(sorter);
+
+        // ============ 方案1优化：初始化时构建一次缓存 ============
+        SwingUtilities.invokeLater(this::rebuildViewToModelCache);
     }
 
-    // 更新setupTableRenderers方法，为Len Diff列设置专用渲染器
     public void setupTableRenderers(JTable table) {
-        // Reflect 列索引现在是 14
         table.getColumnModel().getColumn(14).setCellRenderer(new ReflectCellRenderer());
-
-        // Modif Status 列索引现在是 8
         table.getColumnModel().getColumn(8).setCellRenderer(new StatusCodeCellRenderer());
-
-        // Modif. Time 列索引现在是 13
         table.getColumnModel().getColumn(13).setCellRenderer(new TimeCellRenderer());
-
-        // Payload 列索引现在是 7
         table.getColumnModel().getColumn(7).setCellRenderer(new GrayBackgroundCellRenderer());
-
-        // Len Diff 列索引现在是 9 - 使用专用渲染器（带符号和颜色）
         table.getColumnModel().getColumn(9).setCellRenderer(new LenDiffCellRenderer());
-
-        // Modif. len 列索引现在是 10
         table.getColumnModel().getColumn(10).setCellRenderer(new GrayBackgroundCellRenderer());
     }
 
@@ -659,12 +722,16 @@ public class TableModel extends AbstractTableModel {
         }
     }
 
-    // 添加资源清理方法
     public void cleanup() {
         synchronized (modifiedEntries) {
             for (ModifiedRequestResponse entry : modifiedEntries) {
                 entry.cleanup();
             }
+        }
+        // ============ 方案1优化：清理时释放缓存 ============
+        synchronized (cacheLock) {
+            viewToModelCache = new int[0];
+            cacheValid = false;
         }
     }
 }
