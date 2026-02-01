@@ -49,6 +49,8 @@ public class PluginConfigManager {
         properties.setProperty("switch.headerfuzzer.enabled", "false");
         properties.setProperty("switch.cookiefuzzer.enabled", "false");
         properties.setProperty("switch.oobparamfuzzer.enabled", "false");
+        properties.setProperty("switch.cachefuzzer.enabled", "false");
+
     }
 
     // 基本配置获取方法
@@ -105,7 +107,9 @@ public class PluginConfigManager {
     public boolean isOOBParamFuzzerEnabled() {
         return Boolean.parseBoolean(properties.getProperty("switch.oobparamfuzzer.enabled", "false"));
     }
-
+    public boolean isCacheFuzzerEnabled() {
+        return Boolean.parseBoolean(properties.getProperty("switch.cachefuzzer.enabled", "false"));
+    }
     // 获取所有开关状态的便捷方法
     public SwitchConfigState getSwitchConfigState() {
         return new SwitchConfigState(
@@ -117,7 +121,8 @@ public class PluginConfigManager {
                 isParamCollectorEnabled(), // 新增
                 isHeaderFuzzerEnabled(),
                 isCookieFuzzerEnabled(),
-                isOOBParamFuzzerEnabled()
+                isOOBParamFuzzerEnabled(),
+                isCacheFuzzerEnabled() // 新增
         );
     }
 
@@ -134,12 +139,13 @@ public class PluginConfigManager {
         private final boolean headerFuzzerEnabled;
         private final boolean cookieFuzzerEnabled;
         private final boolean oobParamFuzzerEnabled;
+        private final boolean cacheFuzzerEnabled;
 
         public SwitchConfigState(boolean jsonListerEnabled, boolean routeFuzzerEnabled,
                                  boolean paramFuzzerEnabled, boolean paramDeleterEnabled,
                                  boolean paramAdderEnabled, boolean paramCollectorEnabled, // 新增参数
                                  boolean headerFuzzerEnabled, boolean cookieFuzzerEnabled,
-                                 boolean oobParamFuzzerEnabled) {
+                                 boolean oobParamFuzzerEnabled, boolean cacheFuzzerEnabled) {
             this.jsonListerEnabled = jsonListerEnabled;
             this.routeFuzzerEnabled = routeFuzzerEnabled;
             this.paramFuzzerEnabled = paramFuzzerEnabled;
@@ -149,6 +155,7 @@ public class PluginConfigManager {
             this.headerFuzzerEnabled = headerFuzzerEnabled;
             this.cookieFuzzerEnabled = cookieFuzzerEnabled;
             this.oobParamFuzzerEnabled = oobParamFuzzerEnabled;
+            this.cacheFuzzerEnabled = cacheFuzzerEnabled;
         }
 
         // Getters
@@ -161,5 +168,8 @@ public class PluginConfigManager {
         public boolean isHeaderFuzzerEnabled() { return headerFuzzerEnabled; }
         public boolean isCookieFuzzerEnabled() { return cookieFuzzerEnabled; }
         public boolean isOOBParamFuzzerEnabled() { return oobParamFuzzerEnabled; }
+        public boolean isCacheFuzzerEnabled() {
+            return cacheFuzzerEnabled;
+        }
     }
 }

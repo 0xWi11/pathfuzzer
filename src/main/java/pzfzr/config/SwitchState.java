@@ -10,12 +10,14 @@ public class SwitchState {
     private final boolean headerfuzzerSwitch;
     private final boolean cookiefuzzerSwitch;
     private final boolean oobparamfuzzerSwitch;
+    private final boolean cachefuzzerSwitch;
+
 
     public SwitchState(boolean masterSwitch, boolean jsonlisterSwitch,
                        boolean routefuzzerSwitch, boolean paramfuzzerSwitch,
                        boolean paramdeleterSwitch, boolean paramadderSwitch, // 新增参数
                        boolean headerfuzzerSwitch, boolean cookiefuzzerSwitch,
-                       boolean oobparamfuzzerSwitch) {
+                       boolean oobparamfuzzerSwitch, boolean cachefuzzerSwitch) {
         this.masterSwitch = masterSwitch;
         this.jsonlisterSwitch = jsonlisterSwitch;
         this.routefuzzerSwitch = routefuzzerSwitch;
@@ -25,6 +27,7 @@ public class SwitchState {
         this.headerfuzzerSwitch = headerfuzzerSwitch;
         this.cookiefuzzerSwitch = cookiefuzzerSwitch;
         this.oobparamfuzzerSwitch = oobparamfuzzerSwitch;
+        this.cachefuzzerSwitch = cachefuzzerSwitch;
     }
 
     public boolean isMasterSwitch() {
@@ -63,5 +66,8 @@ public class SwitchState {
     // 新增：OOBParamFuzzer的getter方法
     public boolean isOobparamfuzzerSwitch() {
         return oobparamfuzzerSwitch;
+    }
+    public boolean isCachefuzzerSwitch() {
+        return cachefuzzerSwitch;
     }
 }

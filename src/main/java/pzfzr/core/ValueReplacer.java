@@ -12,14 +12,7 @@ import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.logging.Logging;
 import pzfzr.config.ConfigManager;
 import pzfzr.config.SwitchState;
-import pzfzr.fuzzer.JsonLister;
-import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.ParamAdder; // 新增：ParamAdder导入
-import pzfzr.fuzzer.RouteFuzzer;
-import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer;
+import pzfzr.fuzzer.*;
 import pzfzr.model.ModifiedRequestResponse;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -45,6 +38,8 @@ public class ValueReplacer {
     private final HeaderFuzzer headerFuzzer;
     private final CookieFuzzer cookieFuzzer;
     private final OOBParamFuzzer oobParamFuzzer;
+    private final CacheFuzzer cacheFuzzer;
+
 
     private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(8);
 
@@ -67,6 +62,8 @@ public class ValueReplacer {
         this.headerFuzzer = new HeaderFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.cookieFuzzer = new CookieFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
         this.oobParamFuzzer = new OOBParamFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+        this.cacheFuzzer = new CacheFuzzer(api, tableModel, requestResponseSaver, rateLimiter, nextModifiedId);
+
     }
 
     public ParamFuzzer getParamFuzzer() {
@@ -93,6 +90,9 @@ public class ValueReplacer {
     // 新增：OOBParamFuzzer的getter方法
     public OOBParamFuzzer getOOBParamFuzzer() {
         return this.oobParamFuzzer;
+    }
+    public CacheFuzzer getCacheFuzzer() {
+        return this.cacheFuzzer;
     }
 
     public String extractHostFromRequest(String url) {
@@ -162,6 +162,9 @@ public class ValueReplacer {
             if (switchState.isOobparamfuzzerSwitch()) {
                 oobParamFuzzer.processRequest(originalRequest, messageId, host);
             }
+            if (switchState.isCachefuzzerSwitch()) {
+                cacheFuzzer.processRequest(originalRequest, messageId, host);
+            }
 
             host = null;
         } catch (Exception e) {
@@ -208,6 +211,10 @@ public class ValueReplacer {
             // 新增：OOBParamFuzzer支持
             if (switchState.isOobparamfuzzerSwitch()) {
                 oobParamFuzzer.processRequest(originalRequest, messageId, host);
+            }
+
+            if (switchState.isCachefuzzerSwitch()) {
+                cacheFuzzer.processRequest(originalRequest, messageId, host);
             }
 
             host = null;
@@ -318,6 +325,17 @@ public class ValueReplacer {
                     }
                 }, asyncExecutor);
                 futures.add(oobParamFuzzerFuture);
+            }
+
+            if (switchState.isCachefuzzerSwitch()) {
+                CompletableFuture<Void> cacheFuzzerFuture = CompletableFuture.runAsync(() -> {
+                    try {
+                        cacheFuzzer.processRequest(originalRequest, messageId, host);
+                    } catch (Exception e) {
+                        api.logging().logToError("Error in CacheFuzzer async execution: " + e.getMessage());
+                    }
+                }, asyncExecutor);
+                futures.add(cacheFuzzerFuture);
             }
 
             // 返回一个组合的 CompletableFuture，当所有任务完成时完成
@@ -447,6 +465,16 @@ public class ValueReplacer {
                 }
             } catch (Exception e) {
                 logging.logToError("[ValueReplacer] Error shutting down OOBParamFuzzer: " + e.getMessage());
+            }
+        }));
+
+        shutdownFutures.add(CompletableFuture.runAsync(() -> {
+            try {
+                if (cacheFuzzer != null) {
+                    cacheFuzzer.setShuttingDown(true);
+                }
+            } catch (Exception e) {
+                logging.logToError("[ValueReplacer] Error shutting down CacheFuzzer: " + e.getMessage());
             }
         }));
 

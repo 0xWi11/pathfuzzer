@@ -93,11 +93,13 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         HeaderFuzzer headerFuzzer = valueReplacer.getHeaderFuzzer();
         CookieFuzzer cookieFuzzer = valueReplacer.getCookieFuzzer();
         OOBParamFuzzer oobParamFuzzer = valueReplacer.getOOBParamFuzzer();
+        CacheFuzzer cacheFuzzer = valueReplacer.getCacheFuzzer();
+
 
         // 注册UI - 保存引用用于后续清理 - 传入 paramAdder
         this.mainPanel = new MainPanel(api, tableModel, configManager, requestResponseSaver, rateLimiter,
                 trafficHandler, cookieChanger, paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer,
-                oobParamFuzzer, paramCollector);
+                oobParamFuzzer, paramCollector, cacheFuzzer);
 
         api.userInterface().registerSuiteTab(pluginConfigManager.getPluginName(), mainPanel);
 
@@ -164,7 +166,9 @@ public class PathFuzzer implements BurpExtension, ExtensionUnloadingHandler {
         if (configState.isOOBParamFuzzerEnabled()) {
             enabledModules.append("OOBParamFuzzer, ");
         }
-
+        if (configState.isCacheFuzzerEnabled()) {
+            enabledModules.append("CacheFuzzer, ");
+        }
         if (enabledModules.length() > 0) {
             // 移除最后的逗号和空格
             enabledModules.setLength(enabledModules.length() - 2);

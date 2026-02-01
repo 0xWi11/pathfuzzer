@@ -5,12 +5,7 @@ import pzfzr.config.SwitchManager;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
-import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.ParamAdder;
-import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer;
+import pzfzr.fuzzer.*;
 import pzfzr.model.CSVExporter;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
@@ -31,6 +26,7 @@ public class SwitchPanel extends JPanel {
     private final JCheckBox headerFuzzerSwitch;
     private final JCheckBox cookieFuzzerSwitch;
     private final JCheckBox oobParamFuzzerSwitch;
+    private final JCheckBox cacheFuzzerSwitch;
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
@@ -46,6 +42,8 @@ public class SwitchPanel extends JPanel {
     private final HeaderFuzzer headerFuzzer;
     private final CookieFuzzer cookieFuzzer;
     private final OOBParamFuzzer oobParamFuzzer;
+    private final CacheFuzzer cacheFuzzer;
+
     private final JTextField newCapacityTextField;
     private final JTextField newRefillRateTextField;
     private final JTextField newUrlRateLimitTextField;
@@ -70,7 +68,7 @@ public class SwitchPanel extends JPanel {
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
                        ParamDeleter paramDeleter, ParamAdder paramAdder, HeaderFuzzer headerFuzzer,
-                       CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer) {
+                       CookieFuzzer cookieFuzzer, OOBParamFuzzer oobParamFuzzer, CacheFuzzer cacheFuzzer) {
         this.switchManager = SwitchManager.getInstance();
         this.pluginConfigManager = PluginConfigManager.getInstance();
         this.logging = logging;
@@ -84,6 +82,7 @@ public class SwitchPanel extends JPanel {
         this.headerFuzzer = headerFuzzer;
         this.cookieFuzzer = cookieFuzzer;
         this.oobParamFuzzer = oobParamFuzzer;
+        this.cacheFuzzer = cacheFuzzer;
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 
@@ -144,6 +143,12 @@ public class SwitchPanel extends JPanel {
                 selected -> switchManager.setOobparamfuzzerSwitch(selected));
         oobParamFuzzerSwitch.setEnabled(configState.isOOBParamFuzzerEnabled());
 
+        // 创建开关
+        cacheFuzzerSwitch = createSwitch("CacheFuzzer 测试开关",
+                switchManager.isCachefuzzerSwitch(),
+                selected -> switchManager.setCachefuzzerSwitch(selected));
+        cacheFuzzerSwitch.setEnabled(configState.isCacheFuzzerEnabled());
+
         // 根据配置设置开关是否可见
         if (!configState.isJsonListerEnabled()) {
             builtInSwitch.setVisible(false);
@@ -169,6 +174,12 @@ public class SwitchPanel extends JPanel {
         if (!configState.isOOBParamFuzzerEnabled()) {
             oobParamFuzzerSwitch.setVisible(false);
         }
+        // 根据配置设置可见性
+        if (!configState.isCacheFuzzerEnabled()) {
+            cacheFuzzerSwitch.setVisible(false);
+        }
+
+
 
         // 创建清除哈希按钮
         clearHashesButton = new JButton("清除URL缓存");
@@ -551,6 +562,11 @@ public class SwitchPanel extends JPanel {
             switchesPanel.add(Box.createVerticalStrut(5));
             switchesPanel.add(oobParamFuzzerSwitch);
         }
+        // 在添加开关时：
+        if (configState.isCacheFuzzerEnabled()) {
+            switchesPanel.add(Box.createVerticalStrut(5));
+            switchesPanel.add(cacheFuzzerSwitch);
+        }
 
         switchesPanel.add(Box.createVerticalStrut(10));
         switchesPanel.add(buttonsContainer);
@@ -619,6 +635,9 @@ public class SwitchPanel extends JPanel {
         }
         if (configState.isOOBParamFuzzerEnabled()) {
             oobParamFuzzerSwitch.setEnabled(masterState);
+        }
+        if (configState.isCacheFuzzerEnabled()) {
+            cacheFuzzerSwitch.setEnabled(masterState);
         }
     }
 

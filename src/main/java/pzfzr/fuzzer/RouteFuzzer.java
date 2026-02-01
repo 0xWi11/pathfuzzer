@@ -53,11 +53,14 @@ public class RouteFuzzer {
             "#",
             "\\",
             "?"
+            ,"{path}/;{fuzz}.css"
     ));
     // 定义ROUTE12类型的payload alias数组
     private static final Set<String> ROUTE12_ALIASES = new HashSet<>(Arrays.asList(
             "chaxx",
             "{path}/chaxx"
+            ,"{path}/{fuzz}.css"
+            ,"{path}.css"
     ));
 
     // 定义需要特殊处理的 Spring 类 Payload Alias 集合

@@ -397,7 +397,10 @@ public class RequestResponseSaver {
             new DetectionPattern("HTTP/1.1 505 HTTP Version Not Supported", "505 HTTP Version"),
             new DetectionPattern("Request Header Fields Too Large", "431 Header Too Large"),
             new DetectionPattern("URI Too Long", "URI Too Long"),
-            new DetectionPattern("<ListBucketResult", "S3 List")
+            new DetectionPattern("<ListBucketResult", "S3 List"),
+            new DetectionPattern("zcydyyyya", "XFFI")
+
+
 
     );
 
@@ -1419,6 +1422,15 @@ public class RequestResponseSaver {
             if ("Content-Length".equalsIgnoreCase(name)) {
                 if ("99999999".equals(value.trim())) {
                     results.add("Content too Large");
+                }
+                continue;
+            }
+
+            // Cached检测：header名称包含cache（不区分大小写），且值包含hit或cache（不区分大小写）
+            if (containsIgnoreCase(name, "cache") || containsIgnoreCase(name, "Server-Timing")) {
+                String valueLower = value.toLowerCase();
+                if (valueLower.contains("hit") || valueLower.contains("cache")) {
+                    results.add("Cached");
                 }
                 continue;
             }

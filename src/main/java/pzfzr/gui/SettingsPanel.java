@@ -5,15 +5,10 @@ import pzfzr.core.ParamCollector;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.RequestDeduplicator;
 import pzfzr.core.TrafficHandler;
+import pzfzr.fuzzer.*;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
 import burp.api.montoya.logging.Logging;
-import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.ParamAdder;
-import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -31,7 +26,8 @@ public class SettingsPanel extends JPanel {
                          RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                          TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
                          ParamAdder paramAdder, HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer,
-                         OOBParamFuzzer oobParamFuzzer, ParamCollector paramCollector) {
+                         OOBParamFuzzer oobParamFuzzer, ParamCollector paramCollector,
+                         CacheFuzzer cacheFuzzer) {
         setLayout(new BorderLayout());
 
         // 获取 RequestDeduplicator 实例

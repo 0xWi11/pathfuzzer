@@ -135,7 +135,10 @@ public class PayloadConstants {
             new PayloadInfo("%25%32%65%25%32%65%25%33%62", "tiktok3"),
             new PayloadInfo("{path}/..;", "tiktok4"),
 
-            new PayloadInfo("chaxx123", "chaxx"),
+            new PayloadInfo("{path}.css", "{path}.css"),
+            new PayloadInfo("{path}/{fuzz}.css", "{path}/{fuzz}.css"),
+            new PayloadInfo("{path}/;{fuzz}.css", "{path}/;{fuzz}.css"),
+
             new PayloadInfo("null", "null"),
             new PayloadInfo(".", "."),
             new PayloadInfo("%23", "#"),

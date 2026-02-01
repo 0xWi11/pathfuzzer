@@ -10,6 +10,7 @@ public class SwitchManager {
     private boolean headerfuzzerSwitch;
     private boolean cookiefuzzerSwitch;
     private boolean oobparamfuzzerSwitch;
+    private boolean cachefuzzerSwitch;
 
     private static SwitchManager instance;
 
@@ -23,6 +24,7 @@ public class SwitchManager {
         this.headerfuzzerSwitch = false;
         this.cookiefuzzerSwitch = false;
         this.oobparamfuzzerSwitch = false;
+        this.cachefuzzerSwitch = false; // 默认关闭
     }
 
     public static synchronized SwitchManager getInstance() {
@@ -106,6 +108,13 @@ public class SwitchManager {
     public void setOobparamfuzzerSwitch(boolean oobparamfuzzerSwitch) {
         this.oobparamfuzzerSwitch = oobparamfuzzerSwitch;
     }
+    public boolean isCachefuzzerSwitch() {
+        return cachefuzzerSwitch;
+    }
+
+    public void setCachefuzzerSwitch(boolean cachefuzzerSwitch) {
+        this.cachefuzzerSwitch = cachefuzzerSwitch;
+    }
 
     // 获取当前所有开关状态
     public SwitchState getCurrentState() {
@@ -118,7 +127,8 @@ public class SwitchManager {
                 paramadderSwitch, // 新增
                 headerfuzzerSwitch,
                 cookiefuzzerSwitch,
-                oobparamfuzzerSwitch
+                oobparamfuzzerSwitch,
+                cachefuzzerSwitch // 新增
         );
     }
 }

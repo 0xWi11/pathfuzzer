@@ -54,6 +54,7 @@
                 <switch.headerfuzzer.enabled>false</switch.headerfuzzer.enabled>
                 <switch.cookiefuzzer.enabled>false</switch.cookiefuzzer.enabled>
                 <switch.oobparamfuzzer.enabled>false</switch.oobparamfuzzer.enabled>
+                <switch.cachefuzzer.enabled>false</switch.cachefuzzer.enabled>
                 <final.jar.name>pathfuzzer</final.jar.name>
                 <shade.package.prefix>pathfuzzer</shade.package.prefix>
             </properties>
@@ -76,6 +77,7 @@
                 <switch.headerfuzzer.enabled>true</switch.headerfuzzer.enabled>
                 <switch.cookiefuzzer.enabled>true</switch.cookiefuzzer.enabled>
                 <switch.oobparamfuzzer.enabled>true</switch.oobparamfuzzer.enabled>
+                <switch.cachefuzzer.enabled>true</switch.cachefuzzer.enabled>
                 <final.jar.name>oobfuzzer</final.jar.name>
                 <shade.package.prefix>oobfuzzer</shade.package.prefix>
             </properties>
