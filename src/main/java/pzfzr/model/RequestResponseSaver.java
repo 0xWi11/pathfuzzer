@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 /**
  * RequestResponseSaver - SQLite版本，支持读写分离
@@ -414,6 +415,40 @@ public class RequestResponseSaver {
     // RXSS检测模式（需要字符串匹配）
     private static final String RXSS_PATTERN = "chaxx123'\">";
 
+    // SQL Error 预编译正则（仅匹配 bodyValue，程序启动时编译一次）
+    private static final Pattern SQL_ERROR_PATTERN = Pattern.compile(
+            "SQL syntax.*?MySQL|Warning.*?\\Wmysqli?_|MySQLSyntaxErrorException|valid MySQL result" +
+                    "|check the manual that (corresponds to|fits) your MySQL server version" +
+                    "|Unknown column '[^ ]+' in 'field list'|MySqlClient\\.|com\\.mysql\\.jdbc" +
+                    "|Zend_Db_(Adapter|Statement)_Mysqli_Exception|Pdo[./_\\\\]Mysql|MySqlException" +
+                    "|SQLSTATE\\[\\d+\\]: Syntax error or access violation" +
+                    "|check the manual that (corresponds to|fits) your MariaDB server version" +
+                    "|check the manual that (corresponds to|fits) your Drizzle server version" +
+                    "|MemSQL does not support this type of query|is not supported by MemSQL" +
+                    "|unsupported nested scalar subselect" +
+                    "|PostgreSQL.*?ERROR|Warning.*?\\Wpg_|valid PostgreSQL result|Npgsql\\." +
+                    "|PG::SyntaxError:|org\\.postgresql\\.util\\.PSQLException" +
+                    "|ERROR:\\s\\ssyntax error at or near|ERROR: parser: parse error at or near" +
+                    "|PostgreSQL query failed|org\\.postgresql\\.jdbc|Pdo[./_\\\\]Pgsql|PSQLException" +
+                    "|Driver.*? SQL[\\-\\_\\ ]*Server|OLE DB.*? SQL Server" +
+                    "|\\bSQL Server[^<\"]+Driver|Warning.*?\\W(mssql|sqlsrv)_" +
+                    "|\\bSQL Server[^<\"]+[0-9a-fA-F]{8}" +
+                    "|System\\.Data\\.SqlClient\\.SqlException\\.(SqlException|SqlConnection\\.OnError)" +
+                    "|(?s)Exception.*?\\bRoadhouse\\.Cms\\." +
+                    "|Microsoft SQL Native Client error '[0-9a-fA-F]{8}|\\[SQL Server\\]" +
+                    "|ODBC SQL Server Driver|ODBC Driver \\d+ for SQL Server|SQLServer JDBC Driver" +
+                    "|com\\.jnetdirect\\.jsql|macromedia\\.jdbc\\.sqlserver" +
+                    "|Zend_Db_(Adapter|Statement)_Sqlsrv_Exception|com\\.microsoft\\.sqlserver\\.jdbc" +
+                    "|Pdo[./_\\\\](Mssql|SqlSrv)|SQL(Srv|Server)Exception" +
+                    "|Unclosed quotation mark after the character string" +
+                    "|Microsoft Access (\\d+ )?Driver|JET Database Engine|Access Database Engine" +
+                    "|ODBC Microsoft Access|Syntax error \\(missing operator\\) in query expression" +
+                    "|\\bORA-\\d{5}|Oracle error|Oracle.*?Driver|Warning.*?\\W(oci|ora)_" +
+                    "|quoted string not properly terminated|SQL command not properly ended" +
+                    "|macromedia\\.jdbc\\.oracle|oracle\\.jdbc" +
+                    "|Zend_Db_(Adapter|Statement)_Oracle_Exception|Pdo[./_\\\\](Oracle|OCI)|OracleException",
+            Pattern.DOTALL
+    );
     // ========== 原有内部类 ==========
 
     /**
@@ -1317,6 +1352,13 @@ public class RequestResponseSaver {
             // 3. payloadAlias为"xml delay 7"且ResponseTime超过7s,标记为xml delay
             if ("xml delay 7".equals(payloadAlias) && responseTime > 7000) {
                 detectedTypes.add("xml delay");
+            }
+            // 4. payloadAlias为"1' OR 1/0; -- "且bodyValue匹配SQL错误正则,标记为sql error
+            if ("1' OR 1/0; -- ".equals(payloadAlias) && bodyBytes.length > 0) {
+                String bodyStr = new String(bodyBytes, StandardCharsets.UTF_8);
+                if (SQL_ERROR_PATTERN.matcher(bodyStr).find()) {
+                    detectedTypes.add("sql error");
+                }
             }
             // =================================================
 
