@@ -402,8 +402,8 @@ public class RequestResponseSaver {
             new DetectionPattern("Directory listing for ", "dir-listing"),
             new DetectionPattern("Index of /", "dir-listing"),
             new DetectionPattern("[To Parent Directory]", "dir-listing"),
-            new DetectionPattern("Directory: /", "dir-listing")
-
+            new DetectionPattern("Directory: /", "dir-listing"),
+            new DetectionPattern("Tomcat Manager", "Tomcat Manager")
 
     );
 
