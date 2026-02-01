@@ -30,6 +30,7 @@ public class SwitchPanel extends JPanel {
     private final JButton clearHashesButton;
     private final JButton exportCSVButton;
     private final JButton openFolderButton;
+    private final JButton setRateToZeroButton; // 新增：速率设置为0按钮
     private final SwitchManager switchManager;
     private final PluginConfigManager pluginConfigManager;
     private final Logging logging;
@@ -62,8 +63,8 @@ public class SwitchPanel extends JPanel {
     private final TrafficHandler trafficHandler;
     private final JLabel requestsPerHourLabel;
     private final JButton cancelActiveTasksButton;
-    private final JLabel successMessageLabel; // 新增：成功提示标签
-    private Timer successMessageTimer; // 新增：用于隐藏成功提示的定时器
+    private final JLabel successMessageLabel;
+    private Timer successMessageTimer;
 
     public SwitchPanel(Logging logging, TableModel tableModel, RequestResponseSaver requestResponseSaver,
                        RateLimiter rateLimiter, TrafficHandler trafficHandler, ParamFuzzer paramFuzzer,
@@ -506,6 +507,16 @@ public class SwitchPanel extends JPanel {
         rateLimitingContainer.add(buttonPanel);
         rateLimitingContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        // 新增：创建"速率设置为0"按钮（必须在 setRateLimitButton 和 newRefillRateTextField 初始化之后）
+        setRateToZeroButton = new JButton("速率设置为0");
+        setRateToZeroButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        setRateToZeroButton.addActionListener(e -> {
+            // 将速率文本框设置为0
+            newRefillRateTextField.setText("0");
+            // 直接触发应用设置
+            setRateLimitButton.doClick();
+        });
+
         // 创建按钮布局面板
         JPanel buttonsContainer = new JPanel();
         buttonsContainer.setLayout(new BoxLayout(buttonsContainer, BoxLayout.Y_AXIS));
@@ -518,10 +529,11 @@ public class SwitchPanel extends JPanel {
         firstButtonRow.add(clearTasksButton);
         firstButtonRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // 第二行
+        // 第二行 - 新增"速率设置为0"按钮
         JPanel secondButtonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
         secondButtonRow.add(exportCSVButton);
         secondButtonRow.add(openFolderButton);
+        secondButtonRow.add(setRateToZeroButton); // 新增按钮
         secondButtonRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         buttonsContainer.add(firstButtonRow);
