@@ -1166,7 +1166,7 @@ public class RequestResponseSaver {
                     if (modifiedEntry != null) {
                         int responseLength = calculateResponseLengthWithoutSetCookieValues(response);
 
-                        // 获取 MIME type，处理空值情况
+                        // 获取 MIME type,处理空值情况
                         String contentType = null;
                         try {
                             if (response.mimeType() != null) {
@@ -1176,14 +1176,19 @@ public class RequestResponseSaver {
                             logging.logToError("[RequestResponseSaver] Failed to get MIME type: " + e.getMessage());
                         }
 
+                        // ========== 修改:传入payloadAlias和testType ==========
+                        String payloadAlias = modifiedEntry.getPayloadAlias();
+                        String testType = modifiedEntry.getTestType();
+
                         modifiedEntry.setModifiedResponseAndCalculateMetadata(
                                 response.statusCode(),
                                 responseLength,
                                 response.body().length(),
-                                detectReflectType(response),
+                                detectReflectType(response, payloadAlias, testType, responseTime), // 传入新参数
                                 responseTime,
                                 contentType
                         );
+                        // ======================================================
                     }
                 }).exceptionally(ex -> {
                     logging.logToError("[RequestResponseSaver] Failed to process response for ID " + id + ": " + ex.getMessage());
@@ -1251,18 +1256,25 @@ public class RequestResponseSaver {
     // ========== 优化后的 detectReflectType 方法（5-10倍性能提升）==========
 
     /**
-     * 检测反射类型（极致优化版本）
+     * 检测反射类型(极致优化版本 + 精细化匹配)
      *
-     * 性能优化：
-     * 1. 单次遍历检测所有字节模式（类Aho-Corasick算法）
+     * 性能优化:
+     * 1. 单次遍历检测所有字节模式(类Aho-Corasick算法)
      * 2. 使用静态预编译的字节数组模式
-     * 3. 延迟字符串转换，优先使用字节级别匹配
+     * 3. 延迟字符串转换,优先使用字节级别匹配
      * 4. 合并header遍历
      * 5. 减少临时对象创建
+     * 6. 精细化匹配:仅在特定条件下执行额外检测
      *
-     * 性能提升：5-10倍
+     * 性能提升:5-10倍
+     *
+     * @param response HTTP响应对象
+     * @param payloadAlias payload别名,用于精细化匹配
+     * @param testType 测试类型,用于精细化匹配
+     * @param responseTime 响应时间(毫秒),用于时间相关的检测
+     * @return 检测到的类型字符串,多个类型用逗号分隔
      */
-    private String detectReflectType(HttpResponse response) {
+    private String detectReflectType(HttpResponse response, String payloadAlias, String testType, long responseTime) {
         if (response == null) {
             return "";
         }
@@ -1275,18 +1287,35 @@ public class RequestResponseSaver {
             // 单次遍历检测所有body模式
             detectAllBodyPatterns(bodyBytes, detectedTypes);
 
-            // Actuator特殊检测（需要两段匹配）
+            // Actuator特殊检测(需要两段匹配)
             if (detectActuator(bodyBytes)) {
                 detectedTypes.add("ACTUATOR");
             }
 
-            // RXSS检测（需要字符串操作）
+            // RXSS检测(需要字符串操作)
             if (containsBytesPattern(bodyBytes, RXSS_PATTERN.getBytes(StandardCharsets.UTF_8))) {
                 detectedTypes.add("RXSS");
             }
 
-            // Header检测（单次遍历）
-            detectHeaderPatterns(response.headers(), detectedTypes);
+            // Header检测(单次遍历) - 传入payloadAlias和testType用于精细化匹配
+            detectHeaderPatterns(response.headers(), detectedTypes, payloadAlias, testType);
+
+            // ========== 新增:精细化ResponseTime匹配 ==========
+            // 1. payloadAlias为"{path}CRLF"且ResponseTime超过10s,标记为LongTime-CRLF
+            if ("{path}CRLF".equals(payloadAlias) && responseTime > 10000) {
+                detectedTypes.add("LongTime-CRLF");
+            }
+
+            // 2. payloadAlias为"1' OR /*!sleep*/"且ResponseTime超过7s,标记为sql delay
+            if ("1' OR /*!sleep*/".equals(payloadAlias) && responseTime > 7000) {
+                detectedTypes.add("sql delay");
+            }
+
+            // 3. payloadAlias为"xml delay 7"且ResponseTime超过7s,标记为xml delay
+            if ("xml delay 7".equals(payloadAlias) && responseTime > 7000) {
+                detectedTypes.add("xml delay");
+            }
+            // =================================================
 
             // 高效返回
             return joinTypes(detectedTypes);
@@ -1295,7 +1324,6 @@ public class RequestResponseSaver {
             return "";
         }
     }
-
     /**
      * 单次遍历检测所有body模式
      * 使用状态机方式同时匹配多个模式
@@ -1411,9 +1439,14 @@ public class RequestResponseSaver {
     }
 
     /**
-     * Header检测（单次遍历）
+     * Header检测(单次遍历) - 增强版,支持精细化匹配
+     *
+     * @param headers HTTP响应头列表
+     * @param results 检测结果集合
+     * @param payloadAlias payload别名,用于精细化匹配
+     * @param testType 测试类型,用于精细化匹配
      */
-    private void detectHeaderPatterns(List<HttpHeader> headers, Set<String> results) {
+    private void detectHeaderPatterns(List<HttpHeader> headers, Set<String> results, String payloadAlias, String testType) {
         for (HttpHeader header : headers) {
             String name = header.name();
             String value = header.value();
@@ -1426,14 +1459,18 @@ public class RequestResponseSaver {
                 continue;
             }
 
-            // Cached检测：header名称包含cache（不区分大小写），且值包含hit或cache（不区分大小写）
-            if (containsIgnoreCase(name, "cache") || containsIgnoreCase(name, "Server-Timing")) {
-                String valueLower = value.toLowerCase();
-                if (valueLower.contains("hit") || valueLower.contains("cache")) {
-                    results.add("Cached");
+            // ========== 新增:精细化Cached检测 ==========
+            // 仅当testType为"CacheFuzz"时才进行Cached检测
+            if ("CacheFuzz".equals(testType)) {
+                if (containsIgnoreCase(name, "cache") || containsIgnoreCase(name, "Server-Timing")) {
+                    String valueLower = value.toLowerCase();
+                    if (valueLower.contains("hit") || valueLower.contains("cache")) {
+                        results.add("Cached");
+                    }
+                    continue; // 检测完成后继续下一个header
                 }
-                continue;
             }
+            // ===========================================
 
             // CRLF检测 - 优化字符串查找
             if (containsIgnoreCase(name, "c9w") ||
