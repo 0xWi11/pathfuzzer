@@ -5,14 +5,9 @@ import pzfzr.config.ConfigManager;
 import pzfzr.core.ParamCollector;
 import pzfzr.core.RateLimiter;
 import pzfzr.core.TrafficHandler;
+import pzfzr.fuzzer.*;
 import pzfzr.model.RequestResponseSaver;
 import pzfzr.model.TableModel;
-import pzfzr.fuzzer.ParamFuzzer;
-import pzfzr.fuzzer.ParamDeleter;
-import pzfzr.fuzzer.ParamAdder;
-import pzfzr.fuzzer.HeaderFuzzer;
-import pzfzr.fuzzer.CookieFuzzer;
-import pzfzr.fuzzer.OOBParamFuzzer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -26,7 +21,7 @@ public class ControlPanel extends JPanel {
                         RequestResponseSaver requestResponseSaver, RateLimiter rateLimiter,
                         TrafficHandler trafficHandler, ParamFuzzer paramFuzzer, ParamDeleter paramDeleter,
                         ParamAdder paramAdder, HeaderFuzzer headerFuzzer, CookieFuzzer cookieFuzzer,
-                        OOBParamFuzzer oobParamFuzzer, ParamCollector paramCollector) {
+                        OOBParamFuzzer oobParamFuzzer, ParamCollector paramCollector, CacheFuzzer cacheFuzzer) {
         setLayout(new BorderLayout());
 
         // 创建标签页面板
@@ -38,7 +33,7 @@ public class ControlPanel extends JPanel {
         // 初始化设置面板 - 传入 paramCollector 和 paramAdder
         settingsPanel = new SettingsPanel(configManager, api.logging(), tableModel, requestResponseSaver,
                 rateLimiter, trafficHandler, paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer,
-                oobParamFuzzer, paramCollector);
+                oobParamFuzzer, paramCollector, cacheFuzzer);
 
         // 初始化 Cookie 修改器面板
         cookieChangerPanel = new CookieChangerPanel(api);

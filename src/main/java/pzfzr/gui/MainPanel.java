@@ -31,7 +31,7 @@ public class MainPanel extends JSplitPane {
         // 创建控制面板 - 传入 paramCollector 和 paramAdder
         controlPanel = new ControlPanel(api, configManager, tableModel, requestResponseSaver,
                 rateLimiter, trafficHandler, paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer,
-                oobParamFuzzer, paramCollector);
+                oobParamFuzzer, paramCollector, cacheFuzzer);
 
         // 创建历史面板
         historyPanel = new HistoryPanel(tableModel,
