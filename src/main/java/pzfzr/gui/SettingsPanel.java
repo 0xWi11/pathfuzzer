@@ -42,7 +42,7 @@ public class SettingsPanel extends JPanel {
 
         // 创建开关面板
         switchPanel = new SwitchPanel(logging, tableModel, requestResponseSaver, rateLimiter, trafficHandler,
-                paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer, oobParamFuzzer);
+                paramFuzzer, paramDeleter, paramAdder, headerFuzzer, cookieFuzzer, oobParamFuzzer, cacheFuzzer);
 
         // 将switchPanel添加到一个滚动面板中以防内容过多
         JScrollPane switchScrollPane = new JScrollPane(switchPanel);
