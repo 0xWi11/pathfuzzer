@@ -52,6 +52,8 @@ public class HistoryPanel extends JPanel {
         JTable oobparamTable = createTable();
         JTable cookieTable = createTable();
         JTable headerTable = createTable();
+        JTable cacheFuzzTable = createTable();
+
 
         currentTable = allTable;
         tableModel.setAssociatedTable(currentTable);
@@ -67,6 +69,8 @@ public class HistoryPanel extends JPanel {
         tabbedPane.addTab("OOBPARAM", new JScrollPane(oobparamTable));
         tabbedPane.addTab("COOKIE", new JScrollPane(cookieTable));
         tabbedPane.addTab("HEADER", new JScrollPane(headerTable));
+        tabbedPane.addTab("CACHEFUZZ", new JScrollPane(cacheFuzzTable));
+
 
         // 添加标签切换监听器 - 更新为11个标签页
         tabbedPane.addChangeListener(e -> {
@@ -90,6 +94,7 @@ public class HistoryPanel extends JPanel {
                 case 8: tableModel.setFilter("PARAM-OOB"); break;
                 case 9: tableModel.setFilter("COOKIE"); break;
                 case 10: tableModel.setFilter("HEADER"); break;
+                case 11: tableModel.setFilter("CACHEFUZZ"); break; // 需要添加此行
             }
         });
 

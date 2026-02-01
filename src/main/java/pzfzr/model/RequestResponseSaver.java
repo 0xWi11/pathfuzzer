@@ -1467,7 +1467,7 @@ public class RequestResponseSaver {
             if ("CacheFuzz".equals(testType)) {
                 if (containsIgnoreCase(name, "cache") || containsIgnoreCase(name, "Server-Timing")) {
                     String valueLower = value.toLowerCase();
-                    if (valueLower.contains("hit") || valueLower.contains("cache")) {
+                    if (valueLower.contains("hit") || valueLower.contains("cached")) {
                         results.add("Cached");
                     }
                     continue; // 检测完成后继续下一个header
