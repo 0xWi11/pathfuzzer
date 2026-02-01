@@ -43,8 +43,8 @@ public class ModifiedRequestResponse implements Serializable {
     // 颜色常量
     private static final Color CHAXX_BACKGROUND_COLOR = new Color(217, 217, 217);
     private static final Color NEW_GRAY_BACKGROUND_COLOR = new Color(230, 230, 230);
-    private static final Color GREEN_FOREGROUND = new Color(0, 52, 0);
-    private static final Color RED_FOREGROUND = new Color(68, 0, 0);
+    private static final Color GREEN_FOREGROUND = new Color(0, 63, 0);
+    private static final Color RED_FOREGROUND = new Color(79, 0, 0);
     private static final Color MEDIUM_GRAY = new Color(211, 211, 211);
 
     public ModifiedRequestResponse(int id, Integer originalMessageId,
