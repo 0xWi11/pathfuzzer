@@ -128,6 +128,7 @@
         <plugin.package.prefix>pzfzr</plugin.package.prefix>
         <shade.package.prefix>pathfuzzer</shade.package.prefix>
         <switch.headerfuzzer.enabled>false</switch.headerfuzzer.enabled>
+        <switch.cachefuzzer.enabled>false</switch.cachefuzzer.enabled>
       </properties>
     </profile>
     <profile>
@@ -148,6 +149,7 @@
         <plugin.package.prefix>oobfzr</plugin.package.prefix>
         <shade.package.prefix>oobfuzzer</shade.package.prefix>
         <switch.headerfuzzer.enabled>true</switch.headerfuzzer.enabled>
+        <switch.cachefuzzer.enabled>true</switch.cachefuzzer.enabled>
       </properties>
     </profile>
   </profiles>
