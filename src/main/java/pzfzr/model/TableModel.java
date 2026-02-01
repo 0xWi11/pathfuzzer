@@ -11,6 +11,7 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TableModel extends AbstractTableModel {
     // 性能优化：使用 synchronizedList 替代 CopyOnWriteArrayList
@@ -27,6 +28,12 @@ public class TableModel extends AbstractTableModel {
     private volatile int[] viewToModelCache = new int[0];
     private final Object cacheLock = new Object();
     private volatile boolean cacheValid = false;
+    // ============================================
+
+    // ============ 新增：定时批量刷新机制 ============
+    private final AtomicBoolean pendingRefresh = new AtomicBoolean(false);
+    private final javax.swing.Timer refreshTimer; // 明确使用 javax.swing.Timer
+    private static final int REFRESH_INTERVAL_MS = 500; // 500ms批量刷新间隔
     // ============================================
 
     // 更新列名顺序：在ID后添加Orig.ID列
@@ -160,6 +167,32 @@ public class TableModel extends AbstractTableModel {
         }
     }
     // ====================================================
+
+    // ============ 新增：定时批量刷新方法 ============
+    /**
+     * 标记需要刷新，定时器会批量处理
+     */
+    private void scheduleRefresh() {
+        if (pendingRefresh.compareAndSet(false, true)) {
+            // 只在第一次调用时启动定时器
+            refreshTimer.restart();
+        }
+    }
+
+    /**
+     * 执行批量刷新
+     */
+    private void performBatchRefresh() {
+        if (pendingRefresh.getAndSet(false)) {
+            // 使缓存失效
+            invalidateCache();
+            // 触发表格刷新
+            fireTableDataChanged();
+            // 重建缓存
+            rebuildViewToModelCache();
+        }
+    }
+    // ============================================
 
     // 通用的自定义单元格渲染器，用于Payload、Modif len列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
@@ -401,6 +434,14 @@ public class TableModel extends AbstractTableModel {
     public TableModel(RequestResponseSaver requestResponseSaver, Logging logging) {
         this.requestResponseSaver = requestResponseSaver;
         this.logging = logging;
+
+        // ============ 新增：初始化定时刷新器 ============
+        this.refreshTimer = new javax.swing.Timer(REFRESH_INTERVAL_MS, e -> {
+            performBatchRefresh();
+            ((javax.swing.Timer)e.getSource()).stop(); // 执行完一次后停止，等待下次调度
+        });
+        this.refreshTimer.setRepeats(false); // 不自动重复
+        // ============================================
     }
 
     public void setRequestResponseSaver(RequestResponseSaver requestResponseSaver) {
@@ -479,6 +520,7 @@ public class TableModel extends AbstractTableModel {
      *
      * 性能优化：移除了自动选中状态恢复逻辑，避免在高频插入+倒序排序时的卡顿问题
      * 性能优化：使用 synchronized 块保护集合操作，减小锁粒度
+     * 性能优化：移除 SwingUtilities.invokeLater(this::rebuildViewToModelCache)，改用定时批量刷新
      */
     public void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
         if (SwingUtilities.isEventDispatchThread()) {
@@ -527,9 +569,11 @@ public class TableModel extends AbstractTableModel {
 
             fireTableRowsInserted(filteredIndex, filteredIndex);
 
-            // ============ 方案1优化：延迟重建缓存，避免频繁重建 ============
-            // 在下一个EDT周期重建，可以合并多次插入
-            SwingUtilities.invokeLater(this::rebuildViewToModelCache);
+            // ============ 关键修改：使用定时批量刷新，替代立即刷新 ============
+            // 移除：SwingUtilities.invokeLater(this::rebuildViewToModelCache);
+            // 改为：定时批量刷新机制
+            scheduleRefresh();
+            // ================================================================
         }
     }
 
@@ -723,6 +767,12 @@ public class TableModel extends AbstractTableModel {
     }
 
     public void cleanup() {
+        // ============ 新增：停止定时刷新器 ============
+        if (refreshTimer != null) {
+            refreshTimer.stop();
+        }
+        // ========================================
+
         synchronized (modifiedEntries) {
             for (ModifiedRequestResponse entry : modifiedEntries) {
                 entry.cleanup();
