@@ -398,8 +398,11 @@ public class RequestResponseSaver {
             new DetectionPattern("Request Header Fields Too Large", "431 Header Too Large"),
             new DetectionPattern("URI Too Long", "URI Too Long"),
             new DetectionPattern("<ListBucketResult", "S3 List"),
-            new DetectionPattern("zcydyyyya", "XFFI")
-
+            new DetectionPattern("zcydyyyya", "XFFI"),
+            new DetectionPattern("Directory listing for ", "dir-listing"),
+            new DetectionPattern("Index of /", "dir-listing"),
+            new DetectionPattern("[To Parent Directory]", "dir-listing"),
+            new DetectionPattern("Directory: /", "dir-listing")
 
 
     );
