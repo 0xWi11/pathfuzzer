@@ -49,7 +49,7 @@ public class TableModel extends AbstractTableModel {
     // =========================================================================
     private final List<ModifiedRequestResponse> pendingInserts = new CopyOnWriteArrayList<>();
     private final javax.swing.Timer batchInsertTimer;
-    private static final int BATCH_INSERT_INTERVAL_MS = 500;
+    private static final int BATCH_INSERT_INTERVAL_MS = 200;
 
     // 更新列名顺序：在ID后添加Orig.ID列
     private static final String[] COLUMN_NAMES = {
