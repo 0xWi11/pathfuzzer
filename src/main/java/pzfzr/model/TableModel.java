@@ -1,8 +1,6 @@
 package pzfzr.model;
 
 import javax.swing.*;
-import javax.swing.event.RowSorterEvent;
-import javax.swing.event.RowSorterListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import burp.api.montoya.logging.Logging;
@@ -11,10 +9,13 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TableModel extends AbstractTableModel {
-    // 性能优化：使用 synchronizedList 替代 CopyOnWriteArrayList
+    // =========================================================================
+    // 数据存储
+    // =========================================================================
     private final List<ModifiedRequestResponse> modifiedEntries = Collections.synchronizedList(new ArrayList<>());
     private final List<ModifiedRequestResponse> filteredEntries = Collections.synchronizedList(new ArrayList<>());
     private final Map<Integer, OriginalRequestResponse> originalRequestMap = new ConcurrentHashMap<>();
@@ -23,18 +24,32 @@ public class TableModel extends AbstractTableModel {
     private RequestResponseSaver requestResponseSaver;
     private final Logging logging;
 
-    // ============ 方案1核心：视图索引缓存 ============
-    // 缓存视图索引到模型索引的映射，避免频繁调用convertRowIndexToModel
-    private volatile int[] viewToModelCache = new int[0];
-    private final Object cacheLock = new Object();
-    private volatile boolean cacheValid = false;
-    // ============================================
-
-    // ============ 新增：定时批量刷新机制 ============
-    private final AtomicBoolean pendingRefresh = new AtomicBoolean(false);
-    private final javax.swing.Timer refreshTimer; // 明确使用 javax.swing.Timer
-    private static final int REFRESH_INTERVAL_MS = 500; // 500ms批量刷新间隔
-    // ============================================
+    // =========================================================================
+    // P0 修复：真正的批量插入机制
+    //
+    // 原问题：每条 entry 都调用 fireTableRowsInserted，在 50qps 下每个请求还会生成多个
+    // payload，实际 EDT 投递远超 50 次/秒。每次 fireTableRowsInserted 都让 TableRowSorter
+    // 重新处理插入位置，累积效应直接堵死 EDT。
+    //
+    // 修复方案：
+    //   1. addModifiedEntry 只往 pendingInserts 队列里放数据，不触发任何 UI 通知。
+    //   2. 定时器每 500ms 触发一次，把队列里所有新数据一次性 addAll 到 filteredEntries，
+    //      然后只发出一次 fireTableRowsInserted(startRow, endRow)。
+    //   3. 这样排序开销从 N 次降为 1 次。
+    //
+    // P1 修复：彻底移除 performBatchRefresh 里的 fireTableDataChanged。
+    //   fireTableDataChanged 会让 TableRowSorter 丢弃所有缓存并对全部数据重新排序，
+    //   O(N log N) 在 10w+ 行时极其昂贵。它现在只保留在 updateFilteredEntries（切换 Tab）
+    //   时使用，那是低频路径。
+    //
+    // P0 修复：彻底删除 viewToModelCache 及相关机制。
+    //   rebuildViewToModelCache 里的 for 循环在 100w 行时就是 100万次迭代，而且在 EDT 上
+    //   每 500ms 执行一次。这是堵死 EDT 的最大炸弹。JTable 内部的 convertRowIndexToModel
+    //   在有 TableRowSorter 时本质是数组映射查找，开销极低，完全不需要自己缓存。
+    // =========================================================================
+    private final List<ModifiedRequestResponse> pendingInserts = new CopyOnWriteArrayList<>();
+    private final javax.swing.Timer batchInsertTimer;
+    private static final int BATCH_INSERT_INTERVAL_MS = 500;
 
     // 更新列名顺序：在ID后添加Orig.ID列
     private static final String[] COLUMN_NAMES = {
@@ -118,81 +133,12 @@ public class TableModel extends AbstractTableModel {
             "{path}\\.."
     ));
 
-    // ============ 方案1核心方法：重建视图索引缓存 ============
-    /**
-     * 重建视图索引到模型索引的缓存
-     * 在排序变化、数据变化时调用
-     */
-    private void rebuildViewToModelCache() {
-        if (associatedTable == null) {
-            return;
-        }
-
-        synchronized (cacheLock) {
-            int rowCount = associatedTable.getRowCount();
-            viewToModelCache = new int[rowCount];
-
-            for (int viewRow = 0; viewRow < rowCount; viewRow++) {
-                viewToModelCache[viewRow] = associatedTable.convertRowIndexToModel(viewRow);
-            }
-
-            cacheValid = true;
-        }
-    }
-
-    /**
-     * 获取缓存的模型索引
-     * @param viewRow 视图行索引
-     * @return 模型行索引，如果缓存无效则返回-1
-     */
-    private int getCachedModelIndex(int viewRow) {
-        synchronized (cacheLock) {
-            if (!cacheValid || viewRow < 0 || viewRow >= viewToModelCache.length) {
-                // 缓存无效，降级使用原方法
-                if (associatedTable != null) {
-                    return associatedTable.convertRowIndexToModel(viewRow);
-                }
-                return -1;
-            }
-            return viewToModelCache[viewRow];
-        }
-    }
-
-    /**
-     * 使缓存失效
-     */
-    private void invalidateCache() {
-        synchronized (cacheLock) {
-            cacheValid = false;
-        }
-    }
-    // ====================================================
-
-    // ============ 新增：定时批量刷新方法 ============
-    /**
-     * 标记需要刷新，定时器会批量处理
-     */
-    private void scheduleRefresh() {
-        if (pendingRefresh.compareAndSet(false, true)) {
-            // 只在第一次调用时启动定时器
-            refreshTimer.restart();
-        }
-    }
-
-    /**
-     * 执行批量刷新
-     */
-    private void performBatchRefresh() {
-        if (pendingRefresh.getAndSet(false)) {
-            // 使缓存失效
-            invalidateCache();
-            // 触发表格刷新
-            fireTableDataChanged();
-            // 重建缓存
-            rebuildViewToModelCache();
-        }
-    }
-    // ============================================
+    // =========================================================================
+    // Cell Renderer 定义
+    // 所有 Renderer 直接使用 table.convertRowIndexToModel(row)，
+    // 不经过任何自定义缓存层。convertRowIndexToModel 在有 TableRowSorter 时
+    // 内部是 O(1) 数组索引查找，开销可忽略。
+    // =========================================================================
 
     // 通用的自定义单元格渲染器，用于Payload、Modif len列
     public class GrayBackgroundCellRenderer extends DefaultTableCellRenderer {
@@ -206,8 +152,7 @@ public class TableModel extends AbstractTableModel {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
-                // ============ 方案1优化：使用缓存的索引 ============
-                int modelRow = getCachedModelIndex(row);
+                int modelRow = table.convertRowIndexToModel(row);
                 ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
                 Color bgColor = null;
@@ -218,7 +163,6 @@ public class TableModel extends AbstractTableModel {
                 if (bgColor != null) {
                     c.setBackground(bgColor);
                 } else {
-                    // 使用默认的交替行背景色
                     if (row % 2 == 0) {
                         c.setBackground(table.getBackground());
                     } else {
@@ -244,8 +188,7 @@ public class TableModel extends AbstractTableModel {
                 c.setBackground(table.getSelectionBackground());
                 c.setForeground(table.getSelectionForeground());
             } else {
-                // ============ 方案1优化：使用缓存的索引 ============
-                int modelRow = getCachedModelIndex(row);
+                int modelRow = table.convertRowIndexToModel(row);
                 ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
                 if (entry != null) {
@@ -308,7 +251,6 @@ public class TableModel extends AbstractTableModel {
 
     // 为状态码列创建自定义渲染器
     public class StatusCodeCellRenderer extends DefaultTableCellRenderer {
-        // 将颜色映射表改为public static，供ModifiedRequestResponse使用
         public static final Map<Integer, Color> STATUS_COLORS = new HashMap<>();
         static {
             STATUS_COLORS.put(200, new Color(198, 255, 221));
@@ -360,8 +302,7 @@ public class TableModel extends AbstractTableModel {
                 return c;
             }
 
-            // ============ 方案1优化：使用缓存的索引 ============
-            int modelRow = getCachedModelIndex(row);
+            int modelRow = table.convertRowIndexToModel(row);
             ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
             if (entry != null) {
@@ -389,8 +330,6 @@ public class TableModel extends AbstractTableModel {
 
     // 为响应时间列创建自定义渲染器
     public class TimeCellRenderer extends DefaultTableCellRenderer {
-        private static final Color MEDIUM_GRAY = new Color(211, 211, 211);
-
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus,
@@ -403,8 +342,7 @@ public class TableModel extends AbstractTableModel {
                 return c;
             }
 
-            // ============ 方案1优化：使用缓存的索引 ============
-            int modelRow = getCachedModelIndex(row);
+            int modelRow = table.convertRowIndexToModel(row);
             ModifiedRequestResponse entry = getModifiedEntry(modelRow);
 
             if (entry != null) {
@@ -430,18 +368,21 @@ public class TableModel extends AbstractTableModel {
         }
     }
 
-    // 构造函数中接收 RequestResponseSaver 和 Logging
+    // =========================================================================
+    // 构造函数
+    // =========================================================================
     public TableModel(RequestResponseSaver requestResponseSaver, Logging logging) {
         this.requestResponseSaver = requestResponseSaver;
         this.logging = logging;
 
-        // ============ 新增：初始化定时刷新器 ============
-        this.refreshTimer = new javax.swing.Timer(REFRESH_INTERVAL_MS, e -> {
-            performBatchRefresh();
-            ((javax.swing.Timer)e.getSource()).stop(); // 执行完一次后停止，等待下次调度
+        // 批量插入定时器：每 500ms 检查一次 pendingInserts，
+        // 如果有积压数据就一次性 flush，触发单次 fireTableRowsInserted(start, end)。
+        // 执行完一次后停止，等下次 addModifiedEntry 调用时再 restart。
+        this.batchInsertTimer = new javax.swing.Timer(BATCH_INSERT_INTERVAL_MS, e -> {
+            flushPendingInserts();
+            ((javax.swing.Timer) e.getSource()).stop();
         });
-        this.refreshTimer.setRepeats(false); // 不自动重复
-        // ============================================
+        this.batchInsertTimer.setRepeats(false);
     }
 
     public void setRequestResponseSaver(RequestResponseSaver requestResponseSaver) {
@@ -459,12 +400,16 @@ public class TableModel extends AbstractTableModel {
         this.associatedTable = table;
     }
 
-    /**
-     * 更新过滤后的条目列表
-     * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
-     * 性能优化：使用 synchronized 块保护集合操作，确保线程安全
-     */
+    // =========================================================================
+    // 过滤刷新 — 仅在切换 Tab 时调用，此时用 fireTableDataChanged 是合理的，
+    // 因为 filteredEntries 的内容确实完全替换了。切换 Tab 是低频操作，不影响性能。
+    // =========================================================================
     private void updateFilteredEntries() {
+        // 切换 Tab 时需要先 flush 任何待处理的插入，确保数据一致
+        if (SwingUtilities.isEventDispatchThread()) {
+            flushPendingInserts();
+        }
+
         List<ModifiedRequestResponse> tempFiltered = new ArrayList<>();
 
         synchronized (modifiedEntries) {
@@ -473,15 +418,11 @@ public class TableModel extends AbstractTableModel {
             } else {
                 for (ModifiedRequestResponse entry : modifiedEntries) {
                     String entryTestType = entry.getTestType();
-
-                    // 检查条目是否应该在当前过滤器下显示
                     boolean shouldInclude = false;
 
                     if (entryTestType.equals(currentFilter)) {
-                        // 直接匹配当前过滤器
                         shouldInclude = true;
                     } else if ("ROUTE3".equals(entryTestType)) {
-                        // ROUTE3类型的条目在ROUTE1和ROUTE2标签页中都显示
                         if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
                             shouldInclude = true;
                         }
@@ -499,13 +440,11 @@ public class TableModel extends AbstractTableModel {
             filteredEntries.addAll(tempFiltered);
         }
 
-        // ============ 方案1优化：数据变化时使缓存失效 ============
-        invalidateCache();
-
         SwingUtilities.invokeLater(() -> {
+            // 切换 Tab 时用 fireTableDataChanged 是唯一合理的场景：
+            // filteredEntries 内容被完全替换，Sorter 必须重新排序。
+            // 这是低频操作（用户点击 Tab），开销可以接受。
             fireTableDataChanged();
-            // ============ 方案1优化：数据刷新后重建缓存 ============
-            rebuildViewToModelCache();
         });
     }
 
@@ -514,14 +453,13 @@ public class TableModel extends AbstractTableModel {
         return entry;
     }
 
-    /**
-     * 添加修改后的条目
-     * 修改此方法以支持ROUTE3类型在ROUTE1和ROUTE2标签页中都显示，以及PARAM_DELETE类型
-     *
-     * 性能优化：移除了自动选中状态恢复逻辑，避免在高频插入+倒序排序时的卡顿问题
-     * 性能优化：使用 synchronized 块保护集合操作，减小锁粒度
-     * 性能优化：移除 SwingUtilities.invokeLater(this::rebuildViewToModelCache)，改用定时批量刷新
-     */
+    // =========================================================================
+    // P0 核心修复：批量插入入口
+    //
+    // 调用路径：后台线程 -> addModifiedEntry -> (如果不在EDT) invokeLater -> addModifiedEntryInternal
+    // addModifiedEntryInternal 把数据放到 pendingInserts 队列里，然后 restart 定时器。
+    // 定时器到期时 flushPendingInserts 被调用（在 EDT 上执行），一次性处理所有积压数据。
+    // =========================================================================
     public void addModifiedEntry(ModifiedRequestResponse modifiedEntry) {
         if (SwingUtilities.isEventDispatchThread()) {
             addModifiedEntryInternal(modifiedEntry);
@@ -530,6 +468,11 @@ public class TableModel extends AbstractTableModel {
         }
     }
 
+    /**
+     * 在 EDT 上执行。
+     * 只做数据预处理和入队，不触发任何 UI 通知。
+     * 定时器到期后 flushPendingInserts 会统一处理。
+     */
     private void addModifiedEntryInternal(ModifiedRequestResponse modifiedEntry) {
         // 在添加前计算 Len Diff
         OriginalRequestResponse originalEntry = findByMessageId(modifiedEntry.getOriginalMessageId());
@@ -537,44 +480,76 @@ public class TableModel extends AbstractTableModel {
             modifiedEntry.updateLenDiff(originalEntry.getOriginalResponseLenWithoutHeader());
         }
 
-        // 性能优化：先添加到主列表
+        // 添加到主列表（对所有 Tab 的数据源）
         synchronized (modifiedEntries) {
             modifiedEntries.add(modifiedEntry);
         }
 
+        // 检查是否应该在当前过滤器下显示
         String entryTestType = modifiedEntry.getTestType();
         boolean shouldAdd = false;
 
-        // 检查是否应该在当前过滤器下添加条目
         if ("ALL".equals(currentFilter)) {
             shouldAdd = true;
         } else if (entryTestType.equals(currentFilter)) {
             shouldAdd = true;
         } else if ("ROUTE3".equals(entryTestType)) {
-            // ROUTE3类型的条目在ROUTE1和ROUTE2标签页中都显示
             if ("ROUTE1".equals(currentFilter) || "ROUTE2".equals(currentFilter)) {
                 shouldAdd = true;
             }
         }
 
         if (shouldAdd) {
-            int filteredIndex;
-            synchronized (filteredEntries) {
-                filteredEntries.add(modifiedEntry);
-                filteredIndex = filteredEntries.size() - 1;
+            // 只入队，不触发任何 fire* 方法
+            pendingInserts.add(modifiedEntry);
+
+            // 启动/重启定时器。如果定时器已在倒计时中，restart 会重置计时。
+            // 这意味着实际 flush 发生在"最后一次插入后 500ms"，确保尽量合并更多数据。
+            if (!batchInsertTimer.isRunning()) {
+                batchInsertTimer.start();
             }
-
-            // ============ 方案1优化：插入数据时使缓存失效 ============
-            invalidateCache();
-
-            fireTableRowsInserted(filteredIndex, filteredIndex);
-
-            // ============ 关键修改：使用定时批量刷新，替代立即刷新 ============
-            // 移除：SwingUtilities.invokeLater(this::rebuildViewToModelCache);
-            // 改为：定时批量刷新机制
-            scheduleRefresh();
-            // ================================================================
         }
+    }
+
+    /**
+     * 批量 flush — 在 EDT 上由定时器触发。
+     * 将 pendingInserts 中的所有条目一次性加入 filteredEntries，
+     * 然后发出一次 fireTableRowsInserted(startRow, endRow)。
+     * 排序器只需处理一次插入事件，而不是 N 次。
+     */
+    private void flushPendingInserts() {
+        if (pendingInserts.isEmpty()) {
+            return;
+        }
+
+        // 原子取出当前队列内容并清空
+        // CopyOnWriteArrayList 的迭代是快照，这里直接取全部然后清空是安全的
+        List<ModifiedRequestResponse> batch;
+        synchronized (pendingInserts) {
+            if (pendingInserts.isEmpty()) {
+                return;
+            }
+            batch = new ArrayList<>(pendingInserts);
+            pendingInserts.clear();
+        }
+
+        if (batch.isEmpty()) {
+            return;
+        }
+
+        int startRow;
+        int endRow;
+
+        synchronized (filteredEntries) {
+            startRow = filteredEntries.size();
+            filteredEntries.addAll(batch);
+            endRow = filteredEntries.size() - 1;
+        }
+
+        // 核心优化：一次性通知 Swing 新增了 [startRow, endRow] 这一段行。
+        // TableRowSorter 只需处理这一次插入，而不是逐条处理 N 次。
+        // 对于倒序排序模式，这把排序开销从 O(N * log(totalRows)) 降到 O(batchSize * log(totalRows))。
+        fireTableRowsInserted(startRow, endRow);
     }
 
     public synchronized OriginalRequestResponse findByMessageId(Integer messageId) {
@@ -673,7 +648,10 @@ public class TableModel extends AbstractTableModel {
         }
     }
 
-    // ============ 方案1核心：在setupSorter中添加监听器 ============
+    // =========================================================================
+    // Sorter 设置 — 删除了所有 viewToModelCache 相关逻辑和 RowSorterListener。
+    // Sorter 内部已经高效维护视图->模型映射，自己缓存反而是性能杀手。
+    // =========================================================================
     public void setupSorter(JTable table) {
         TableRowSorter<TableModel> sorter = new TableRowSorter<>(this);
 
@@ -723,23 +701,12 @@ public class TableModel extends AbstractTableModel {
             }
         }
 
-        // ============ 方案1核心：添加RowSorter监听器，监听排序变化 ============
-        sorter.addRowSorterListener(new RowSorterListener() {
-            @Override
-            public void sorterChanged(RowSorterEvent e) {
-                // 排序变化时使缓存失效
-                if (e.getType() == RowSorterEvent.Type.SORTED) {
-                    invalidateCache();
-                    // 异步重建缓存，避免阻塞UI
-                    SwingUtilities.invokeLater(() -> rebuildViewToModelCache());
-                }
-            }
-        });
+        // 不再添加 RowSorterListener。
+        // 原代码在 SORTED 事件中调用 rebuildViewToModelCache，
+        // 那是在 100w 行时每次排序都执行百万级循环的根本原因。
+        // 现在完全依赖 JTable 自身的映射机制，无需额外监听。
 
         table.setRowSorter(sorter);
-
-        // ============ 方案1优化：初始化时构建一次缓存 ============
-        SwingUtilities.invokeLater(this::rebuildViewToModelCache);
     }
 
     public void setupTableRenderers(JTable table) {
@@ -767,21 +734,18 @@ public class TableModel extends AbstractTableModel {
     }
 
     public void cleanup() {
-        // ============ 新增：停止定时刷新器 ============
-        if (refreshTimer != null) {
-            refreshTimer.stop();
+        // 停止批量插入定时器
+        if (batchInsertTimer != null) {
+            batchInsertTimer.stop();
         }
-        // ========================================
+
+        // 清理待处理队列
+        pendingInserts.clear();
 
         synchronized (modifiedEntries) {
             for (ModifiedRequestResponse entry : modifiedEntries) {
                 entry.cleanup();
             }
-        }
-        // ============ 方案1优化：清理时释放缓存 ============
-        synchronized (cacheLock) {
-            viewToModelCache = new int[0];
-            cacheValid = false;
         }
     }
 }

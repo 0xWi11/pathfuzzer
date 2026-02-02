@@ -123,9 +123,9 @@ public class CacheFuzzer {
         HEADER_BATCHES.add(new HeaderBatch("Cache Baocuo3", batch4));
 
         // 第五批：Cache Baocuo4
-        Map<String, String> batch5 = new LinkedHashMap<>();
-        batch5.put("\\", "wat");
-        HEADER_BATCHES.add(new HeaderBatch("Cache Baocuo4", batch5));
+//        Map<String, String> batch5 = new LinkedHashMap<>();
+//        batch5.put("\\", "wat");
+//        HEADER_BATCHES.add(new HeaderBatch("Cache Baocuo4", batch5));
     }
 
     public CacheFuzzer(MontoyaApi api, TableModel tableModel, RequestResponseSaver requestResponseSaver,

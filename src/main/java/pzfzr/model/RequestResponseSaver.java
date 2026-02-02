@@ -1353,13 +1353,13 @@ public class RequestResponseSaver {
             if ("xml delay 7".equals(payloadAlias) && responseTime > 7000) {
                 detectedTypes.add("xml delay");
             }
-            // 4. payloadAlias为"1' OR 1/0; -- "且bodyValue匹配SQL错误正则,标记为sql error
-            if ("1' OR 1/0; -- ".equals(payloadAlias) && bodyBytes.length > 0) {
-                String bodyStr = new String(bodyBytes, StandardCharsets.UTF_8);
-                if (SQL_ERROR_PATTERN.matcher(bodyStr).find()) {
-                    detectedTypes.add("sql error");
-                }
-            }
+//            // 4. payloadAlias为"1' OR 1/0; -- "且bodyValue匹配SQL错误正则,标记为sql error
+//            if ("1' OR 1/0; -- ".equals(payloadAlias) && bodyBytes.length > 0) {
+//                String bodyStr = new String(bodyBytes, StandardCharsets.UTF_8);
+//                if (SQL_ERROR_PATTERN.matcher(bodyStr).find()) {
+//                    detectedTypes.add("sql error");
+//                }
+//            }
             // =================================================
 
             // 高效返回
