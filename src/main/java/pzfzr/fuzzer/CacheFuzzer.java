@@ -57,32 +57,32 @@ public class CacheFuzzer {
     static {
         // 第一批：Cache XFF
         Map<String, String> batch1 = new LinkedHashMap<>();
-        batch1.put("X-Forwarded-Host", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-Server", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-For", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-By", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Real-IP", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Remote-IP", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Remote-Addr", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Host", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-HTTP-Host-Override", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Original-Host", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Originating-IP", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Client-IP", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Cluster-Client-IP", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("Client-IP", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-Uri", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-URL", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-Path", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-Prefix", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Forwarded-Context", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Rewrite-URL", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Rewrite-URI", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Rewrite-Path", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Rewritten-URL", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Real-URI", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("X-Original-Url", "zcydyyyya.yyya.tejq8.zcyy.fun");
-        batch1.put("Replaced-Path", "zcydyyyya.yyya.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-Host", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-Server", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-For", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-By", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Real-IP", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Remote-IP", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Remote-Addr", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Host", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-HTTP-Host-Override", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Original-Host", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Originating-IP", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Client-IP", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Cluster-Client-IP", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("Client-IP", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-Uri", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-URL", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-Path", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-Prefix", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Forwarded-Context", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Rewrite-URL", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Rewrite-URI", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Rewrite-Path", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Rewritten-URL", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Real-URI", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("X-Original-Url", "zcydyyyya.{hash}.tejq8.zcyy.fun");
+        batch1.put("Replaced-Path", "zcydyyyya.{hash}.tejq8.zcyy.fun");
         HEADER_BATCHES.add(new HeaderBatch("Cache XFF", batch1));
 
         // 第二批：Cache Baocuo1
@@ -90,7 +90,7 @@ public class CacheFuzzer {
         batch2.put("X-Forwarded-SSL", "wat");
         batch2.put("X-Forwarded-Port", "9993");
         batch2.put("x-forwarded-proto", "wat");
-        batch2.put("x-amz-website-redirect-location", "zcydyyyya.yyya.tejq8.zcyy.fun");
+        batch2.put("x-amz-website-redirect-location", "zcydyyyya.{hash}.tejq8.zcyy.fun");
         batch2.put("x-forwarded-scheme", "http");
         batch2.put("x-http-method-override", "HEAD");
         batch2.put("fastly-ssl", "wat");
@@ -110,7 +110,7 @@ public class CacheFuzzer {
 
         // 第四批：Cache Baocuo3
         Map<String, String> batch4 = new LinkedHashMap<>();
-        batch4.put("Host", "zcydyyyya.yyya.tejq8.zcyy.fun");
+        batch4.put("Host", "zcydyyyya.{hash}.tejq8.zcyy.fun");
         batch4.put("api-version", "wat");
         batch4.put("Server-Name", "wat");
         batch4.put("Path-Info", "wat");
@@ -196,9 +196,11 @@ public class CacheFuzzer {
             // 首先添加dontpoisonallpeople参数到GET请求的URI
             HttpRequest modifiedRequest = addDontPoisonParameter(originalRequest);
 
-            // 添加批次中的所有headers
+            // 添加批次中的所有headers，并处理{hash}占位符
             for (Map.Entry<String, String> entry : batch.headers.entrySet()) {
-                HttpHeader header = HttpHeader.httpHeader(entry.getKey(), entry.getValue());
+                // 处理header值中的{hash}占位符
+                String processedValue = processPayload(entry.getValue(), "");
+                HttpHeader header = HttpHeader.httpHeader(entry.getKey(), processedValue);
                 modifiedRequest = modifiedRequest.withAddedHeader(header);
             }
 
@@ -238,6 +240,15 @@ public class CacheFuzzer {
         } catch (Exception e) {
             logging.logToError("[CacheFuzzer] sendBatchTestRequest error: " + e.getMessage());
         }
+    }
+
+    /**
+     * 使用统一的PayloadConstants处理payload
+     * 与ParamFuzzer完全一致的实现
+     */
+    private String processPayload(String payload, String paramValue) {
+        // 使用统一的PayloadConstants.PayloadProcessor进行通用处理
+        return PayloadConstants.PayloadProcessor.processCommonReplacements(payload, paramValue);
     }
 
     /**

@@ -39,12 +39,13 @@ public class RouteFuzzer {
     // 定义ROUTE1类型的payload alias数组
     private static final Set<String> ROUTE1_ALIASES = new HashSet<>(Arrays.asList(
             "null",
-            ".%2f{path}",
+
             "{param}&chaxx=cha",
             "{param}%26chaxx=cha",
             "{path}@host",
             "{path1}{path2}",
             "{path}..",
+            "{path}%0D%0A",
             "ng crlf",
             "ng crlf2",
             "ng crlf3",
@@ -57,10 +58,9 @@ public class RouteFuzzer {
     ));
     // 定义ROUTE12类型的payload alias数组
     private static final Set<String> ROUTE12_ALIASES = new HashSet<>(Arrays.asList(
-            "chaxx",
-            "{path}/chaxx"
-            ,"{path}/{fuzz}.css"
+            "{path}/{fuzz}.css"
             ,"{path}.css"
+//            , ".%2f{path}"
     ));
 
     // 定义需要特殊处理的 Spring 类 Payload Alias 集合

@@ -145,7 +145,6 @@ public class TrafficHandler implements HttpHandler {
         if (!switchManager.isMasterSwitch()) {
             return ResponseReceivedAction.continueWith(responseReceived);
         }
-//        valueReplacer.collectResponseHeaders(responseReceived.headers());
 
         if (configManager.shouldFilter(responseReceived.initiatingRequest().withBody(""))) {
             return ResponseReceivedAction.continueWith(responseReceived);
@@ -154,11 +153,20 @@ public class TrafficHandler implements HttpHandler {
             if (!(requestDeduplicator.shouldSkipRequest(responseReceived.initiatingRequest().method(),
                     responseReceived.initiatingRequest().url(),"response"))) {
 
-                // 添加异常捕获 - 主要修改部分
                 try {
                     OriginalRequestResponse original = tableModel.findByMessageId(responseReceived.messageId());
                     if (original != null) {
+                        // 设置原始响应
                         original.setOriginalResponse(responseReceived);
+
+                        // ★★★ 新增：触发批量更新所有相关的Modified条目 ★★★
+                        int newOriginalLength = original.getOriginalResponseLenWithoutHeader();
+                        if (newOriginalLength != -1) {
+                            tableModel.onOriginalResponseUpdated(
+                                    responseReceived.messageId(),
+                                    newOriginalLength
+                            );
+                        }
                     } else {
                         api.logging().logToError("[TrafficHandler] Cannot find OriginalRequestResponse entry for messageId: " +
                                 responseReceived.messageId() + ", URL: " + responseReceived.initiatingRequest().url());
@@ -173,7 +181,6 @@ public class TrafficHandler implements HttpHandler {
                             ", Error: " + e.getMessage());
                 }
             }
-//            processResponse(responseReceived);
         }
 
         return ResponseReceivedAction.continueWith(responseReceived);
