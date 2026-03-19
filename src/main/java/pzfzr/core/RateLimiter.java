@@ -40,6 +40,8 @@ public class RateLimiter {
     // 令牌桶状态
     private AtomicInteger tokens;          // 当前令牌数
     private volatile long lastRefillTime;  // 上次添加令牌的时间
+    // [CHANGED] 精确追踪当前阻塞在 notEmpty 上的线程数，用于精确唤醒
+    private final AtomicInteger waitingCount = new AtomicInteger(0);
 
     // URL访问控制映射：URL -> [访问次数, 上次重置时间]
     private final Map<String, UrlThrottleInfo> urlThrottleMap = new ConcurrentHashMap<>();
@@ -174,14 +176,18 @@ public class RateLimiter {
         lock.lock();
         try {
             while (tokens.get() <= 0) {
+                // [CHANGED] 进入等待前计数 +1，退出后 -1，供 refillTokens 精确唤醒使用
+                waitingCount.incrementAndGet();
                 try {
-                    notEmpty.await(100, TimeUnit.MILLISECONDS); // 等待令牌
-                    if (isShutdown) {
-                        return;
-                    }
+                    notEmpty.await(100, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     logging.logToError("[RateLimiter] Waiting for token was interrupted");
+                    return;
+                } finally {
+                    waitingCount.decrementAndGet();
+                }
+                if (isShutdown) {
                     return;
                 }
             }
@@ -225,14 +231,18 @@ public class RateLimiter {
         lock.lock();
         try {
             while (tokens.get() <= 0) {
+                // [CHANGED] 进入等待前计数 +1，退出后 -1，供 refillTokens 精确唤醒使用
+                waitingCount.incrementAndGet();
                 try {
-                    notEmpty.await(100, TimeUnit.MILLISECONDS); // 等待令牌
-                    if (isShutdown) {
-                        return;
-                    }
+                    notEmpty.await(100, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     logging.logToError("[RateLimiter] Waiting for token was interrupted");
+                    return;
+                } finally {
+                    waitingCount.decrementAndGet();
+                }
+                if (isShutdown) {
                     return;
                 }
             }
@@ -307,7 +317,18 @@ public class RateLimiter {
     }
 
     /**
-     * 根据经过的时间补充令牌
+     * 根据经过的时间补充令牌，并精确唤醒对应数量的等待线程。
+     *
+     * <p>原实现使用 {@code notEmpty.signalAll()}，每次补 token 时唤醒全部等待线程，
+     * 在高并发下会触发惊群效应（thundering herd）：大量线程争锁、只有少数能拿到 token、
+     * 其余再次睡回去，造成周期性 CPU/锁竞争尖峰。
+     *
+     * <p>改进策略（总速率不变）：
+     * <ol>
+     *   <li>用 {@code waitingCount} 精确记录当前阻塞线程数（在 acquire 的 await 前后维护）。</li>
+     *   <li>每次只 {@code signal()} {@code min(tokensToAdd, waitingCount)} 次，
+     *       让"新增了几个 token 就放行几个线程"，不再全部叫醒。</li>
+     * </ol>
      */
     private void refillTokens() {
         // 如果速率为0，则不添加任何令牌
@@ -330,8 +351,13 @@ public class RateLimiter {
                 tokens.set(newTokens);
                 lastRefillTime = now;
 
-                // 通知等待的线程有新令牌可用
-                notEmpty.signalAll();
+                // [CHANGED] 精确唤醒：最多唤醒 min(tokensToAdd, waitingCount) 个线程，
+                // 避免 signalAll() 引发的惊群效应。
+                // waitingCount 在持锁期间读取，值是稳定的。
+                int toWake = Math.min(tokensToAdd, waitingCount.get());
+                for (int i = 0; i < toWake; i++) {
+                    notEmpty.signal();
+                }
             } finally {
                 lock.unlock();
             }
@@ -352,8 +378,8 @@ public class RateLimiter {
                 int diff = currentCount - lastCount;
                 double rate = diff / 20.0; // 20秒内的请求速率
 
-                logging.logToOutput(String.format("[RateLimiter]        Current rate: %.2f requests/sec, Total requests: %d, Tokens: %d/%d, URL rate limit: %d requests/sec, different URL Count: %d, Token refill interval: %d ms",
-                        rate, currentCount, tokens.get(), capacity, urlRateLimit, urlThrottleMap.size(), refillIntervalMillis));
+                logging.logToOutput(String.format("[RateLimiter]        Current rate: %.2f requests/sec, Total requests: %d, Tokens: %d/%d, Waiting threads: %d, URL rate limit: %d requests/sec, different URL Count: %d, Token refill interval: %d ms",
+                        rate, currentCount, tokens.get(), capacity, waitingCount.get(), urlRateLimit, urlThrottleMap.size(), refillIntervalMillis));
 
                 lastCount = currentCount;
             } catch (InterruptedException e) {
@@ -436,7 +462,11 @@ public class RateLimiter {
             int currentTokens = tokens.get();
             if (newCapacity > currentTokens) {
                 tokens.set(Math.min(currentTokens + (newCapacity - currentTokens) / 2, newCapacity));
-                notEmpty.signalAll(); // 通知等待的线程有新令牌可用
+                // [CHANGED] 配置更新后也只唤醒实际等待的线程数，而非全部
+                int toWake = Math.min(tokens.get(), waitingCount.get());
+                for (int i = 0; i < toWake; i++) {
+                    notEmpty.signal();
+                }
             }
         } finally {
             lock.unlock();
@@ -491,6 +521,7 @@ public class RateLimiter {
     public int getTotalRequests() {
         return requestCount.get();
     }
+
     // 新增getter方法
     public int getMaxHeadersPerBatch() {
         return maxHeadersPerBatch;
@@ -504,6 +535,13 @@ public class RateLimiter {
     }
 
     /**
+     * 获取当前等待令牌的线程数（用于监控）
+     */
+    public int getWaitingThreadCount() {
+        return waitingCount.get();
+    }
+
+    /**
      * 关闭速率限制器
      */
     public void shutdown() {
@@ -512,7 +550,8 @@ public class RateLimiter {
 
         lock.lock();
         try {
-            notEmpty.signalAll(); // 唤醒所有等待的线程
+            // [CHANGED] shutdown 时仍需全部唤醒，让阻塞线程能感知到关闭信号退出
+            notEmpty.signalAll();
         } finally {
             lock.unlock();
         }
