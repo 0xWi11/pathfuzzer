@@ -38,6 +38,11 @@ public class CacheFuzzer {
     private final NettyManager nettyManager;
     private final NettyHelper nettyHelper;
 
+    // 随机字符串生成器
+    private static final Random RANDOM = new Random();
+    private static final String HASH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+    private static final int HASH_LENGTH = 8;
+
     /**
      * 内部类：Header批次定义
      */
@@ -147,6 +152,17 @@ public class CacheFuzzer {
     }
 
     /**
+     * 生成指定长度的随机字母数字字符串，用于替换 {hash} 占位符
+     */
+    private static String generateRandomHash() {
+        StringBuilder sb = new StringBuilder(HASH_LENGTH);
+        for (int i = 0; i < HASH_LENGTH; i++) {
+            sb.append(HASH_CHARS.charAt(RANDOM.nextInt(HASH_CHARS.length())));
+        }
+        return sb.toString();
+    }
+
+    /**
      * 主要的测试方法
      */
     public void processRequest(HttpRequest originalRequest, int messageId, String host) {
@@ -186,6 +202,8 @@ public class CacheFuzzer {
 
     /**
      * 发送批次测试请求
+     * 每个批次生成一个唯一的随机 hash，批次内所有 {hash} 占位符使用同一个值，
+     * 便于通过 DNS 回调将请求与具体批次关联。
      */
     private void sendBatchTestRequest(HttpRequest originalRequest, int messageId, String host, HeaderBatch batch) {
         if (isShuttingDown) {
@@ -196,10 +214,13 @@ public class CacheFuzzer {
             // 首先添加dontpoisonallpeople参数到GET请求的URI
             HttpRequest modifiedRequest = addDontPoisonParameter(originalRequest);
 
+            // 每个批次生成一个随机 hash，批次内所有 header 共用同一个值
+            String batchHash = generateRandomHash();
+
             // 添加批次中的所有headers，并处理{hash}占位符
             for (Map.Entry<String, String> entry : batch.headers.entrySet()) {
-                // 处理header值中的{hash}占位符
-                String processedValue = processPayload(entry.getValue(), "");
+                // 处理header值中的{hash}占位符，传入本批次的随机hash
+                String processedValue = processPayload(entry.getValue(), "", batchHash);
                 HttpHeader header = HttpHeader.httpHeader(entry.getKey(), processedValue);
                 modifiedRequest = modifiedRequest.withAddedHeader(header);
             }
@@ -243,12 +264,24 @@ public class CacheFuzzer {
     }
 
     /**
-     * 使用统一的PayloadConstants处理payload
-     * 与ParamFuzzer完全一致的实现
+     * 使用统一的PayloadConstants处理payload，并额外替换 {hash} 占位符。
+     *
+     * @param payload    原始 payload 字符串
+     * @param paramValue 当前参数值（传给 PayloadConstants 使用）
+     * @param hash       本批次随机生成的 hash，用于替换 {hash} 占位符
+     */
+    private String processPayload(String payload, String paramValue, String hash) {
+        // 先用统一的 PayloadConstants 进行通用替换
+        String processed = PayloadConstants.PayloadProcessor.processCommonReplacements(payload, paramValue);
+        // 再替换 {hash} 占位符为本批次随机字符串
+        return processed.replace("{hash}", hash);
+    }
+
+    /**
+     * 兼容原有无 hash 参数的调用入口（内部不再使用，保留以防其他地方引用）
      */
     private String processPayload(String payload, String paramValue) {
-        // 使用统一的PayloadConstants.PayloadProcessor进行通用处理
-        return PayloadConstants.PayloadProcessor.processCommonReplacements(payload, paramValue);
+        return processPayload(payload, paramValue, generateRandomHash());
     }
 
     /**

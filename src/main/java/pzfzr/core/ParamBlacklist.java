@@ -5,16 +5,13 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * 参数黑名单管理类
- * 用于管理需要跳过测试的参数（支持JSONPath和参数名）
- * 支持完全匹配和前缀匹配两种模式
+ * JSON 参数路径遵循 JSONPath 约定，以 $ 开头（如 $.user.info.name）。
+ * 内部存储时保留 $ 前缀；匹配时对两侧路径统一规范化，兼容有无 $ 的写法。
  */
 public class ParamBlacklist {
     private static ParamBlacklist instance;
 
-    // 使用线程安全的Set存储黑名单，提供O(1)查找效率
     private final Set<String> blacklist;
-
-    // 监听器列表，用于通知UI更新
     private final List<BlacklistChangeListener> listeners;
 
     private ParamBlacklist() {
@@ -22,9 +19,6 @@ public class ParamBlacklist {
         this.listeners = new ArrayList<>();
     }
 
-    /**
-     * 获取单例实例
-     */
     public static synchronized ParamBlacklist getInstance() {
         if (instance == null) {
             instance = new ParamBlacklist();
@@ -32,87 +26,82 @@ public class ParamBlacklist {
         return instance;
     }
 
+    // -------------------------------------------------------------------------
+    // ★ 核心：路径规范化
+    //    JSON 路径（含 "." 或 "[" 的路径，或显式以 "$" 开头）统一补全为 "$." 前缀。
+    //    普通参数名（如 username、id）保持原样。
+    // -------------------------------------------------------------------------
+
     /**
-     * 添加黑名单项
-     * @param item 黑名单项（参数名或JSONPath）
-     * @return 是否成功添加（false表示已存在）
+     * 规范化一个路径字符串：
+     * <ul>
+     *   <li>若已是 "$." 开头 → 保持不变</li>
+     *   <li>若以 "$" 开头但无 "." → 补成 "$."（如 "$foo" → "$.foo"）</li>
+     *   <li>若含 "." 或 "[" 但无 "$" → 补上 "$." 前缀（如 "user.name" → "$.user.name"）</li>
+     *   <li>其余纯参数名 → 原样返回</li>
+     * </ul>
      */
+    private static String normalizePath(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return s;
+
+        // 已有标准 "$." 前缀
+        if (s.startsWith("$.")) {
+            return s;
+        }
+        // 以 "$" 开头但后面没有 "."（容错）
+        if (s.startsWith("$")) {
+            return "$." + s.substring(1);
+        }
+        // 不含 "$"，但看起来是 JSON 路径（含 "." 或 "["）
+        if (s.contains(".") || s.contains("[")) {
+            return "$." + s;
+        }
+        // 纯参数名，原样返回
+        return s;
+    }
+
+    // -------------------------------------------------------------------------
+    // CRUD
+    // -------------------------------------------------------------------------
+
     public boolean addItem(String item) {
-        if (item == null || item.trim().isEmpty()) {
-            return false;
-        }
-
-        String trimmedItem = item.trim();
-        boolean added = blacklist.add(trimmedItem);
-
-        if (added) {
-            notifyListeners();
-        }
-
+        if (item == null || item.trim().isEmpty()) return false;
+        boolean added = blacklist.add(normalizePath(item));
+        if (added) notifyListeners();
         return added;
     }
 
-    /**
-     * 批量添加黑名单项
-     * @param items 黑名单项列表
-     * @return 成功添加的数量
-     */
     public int addItems(Collection<String> items) {
-        if (items == null || items.isEmpty()) {
-            return 0;
-        }
-
-        int addedCount = 0;
+        if (items == null || items.isEmpty()) return 0;
+        int count = 0;
         for (String item : items) {
-            if (addItem(item)) {
-                addedCount++;
-            }
+            if (addItem(item)) count++;
         }
-
-        return addedCount;
+        return count;
     }
 
-    /**
-     * 从文本内容批量添加（每行一个）
-     * @param text 文本内容
-     * @return 成功添加的数量
-     */
     public int addFromText(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return 0;
-        }
-
-        String[] lines = text.split("\\r?\\n");
+        if (text == null || text.trim().isEmpty()) return 0;
         List<String> items = new ArrayList<>();
-
-        for (String line : lines) {
+        for (String line : text.split("\\r?\\n")) {
             String trimmed = line.trim();
-            if (!trimmed.isEmpty()) {
-                items.add(trimmed);
-            }
+            if (!trimmed.isEmpty()) items.add(trimmed);
         }
-
         return addItems(items);
     }
 
-    /**
-     * 从文本内容重新设置黑名单（清空后重新添加）
-     * @param text 文本内容
-     */
     public void setFromText(String text) {
         Set<String> newItems = new HashSet<>();
-
         if (text != null && !text.trim().isEmpty()) {
-            String[] lines = text.split("\\r?\\n");
-            for (String line : lines) {
+            for (String line : text.split("\\r?\\n")) {
                 String trimmed = line.trim();
                 if (!trimmed.isEmpty()) {
-                    newItems.add(trimmed);
+                    newItems.add(normalizePath(trimmed)); // ★ 存储时规范化
                 }
             }
         }
-
-        // 检查是否有变化
         if (!blacklist.equals(newItems)) {
             blacklist.clear();
             blacklist.addAll(newItems);
@@ -120,28 +109,13 @@ public class ParamBlacklist {
         }
     }
 
-    /**
-     * 移除黑名单项
-     * @param item 要移除的项
-     * @return 是否成功移除
-     */
     public boolean removeItem(String item) {
-        if (item == null) {
-            return false;
-        }
-
-        boolean removed = blacklist.remove(item.trim());
-
-        if (removed) {
-            notifyListeners();
-        }
-
+        if (item == null) return false;
+        boolean removed = blacklist.remove(normalizePath(item));
+        if (removed) notifyListeners();
         return removed;
     }
 
-    /**
-     * 清空黑名单
-     */
     public void clear() {
         if (!blacklist.isEmpty()) {
             blacklist.clear();
@@ -149,129 +123,81 @@ public class ParamBlacklist {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // 查询
+    // -------------------------------------------------------------------------
+
     /**
-     * 检查项是否在黑名单中（支持完全匹配和前缀匹配）
-     * @param item 要检查的项
-     * @return 是否在黑名单中
+     * 检查路径是否在黑名单中（完全匹配 + 前缀匹配）。
+     * 查询路径会先规范化，因此 "user.name" 与 "$.user.name" 等价。
      */
     public boolean isBlacklisted(String item) {
-        if (item == null || item.trim().isEmpty()) {
-            return false;
+        if (item == null || item.trim().isEmpty()) return false;
+
+        String normalized = normalizePath(item.trim()); // ★ 查询侧规范化
+
+        // 1. 完全匹配
+        if (blacklist.contains(normalized)) return true;
+
+        // 2. 前缀匹配
+        for (String entry : blacklist) {
+            if (isPrefixMatch(normalized, entry)) return true;
         }
-
-        String trimmedItem = item.trim();
-
-        // 1. 完全匹配检查
-        if (blacklist.contains(trimmedItem)) {
-            return true;
-        }
-
-        // 2. 前缀匹配检查（支持跳过整个对象）
-        // 例如：黑名单中有 "tasks[0]"，则 "tasks[0].task_id" 会被跳过
-        for (String blacklistItem : blacklist) {
-            if (isPrefixMatch(trimmedItem, blacklistItem)) {
-                return true;
-            }
-        }
-
         return false;
     }
 
     /**
-     * 检查是否为前缀匹配
-     * @param fullPath 完整路径（如 tasks[0].task_id）
-     * @param prefix 前缀（如 tasks[0]）
-     * @return 是否匹配
+     * 前缀匹配：判断 fullPath 是否以 prefix 为前缀（对象属性或数组元素）。
      */
     private boolean isPrefixMatch(String fullPath, String prefix) {
-        if (fullPath.equals(prefix)) {
-            return true;
-        }
-
-        // 检查是否以 prefix. 开头（对象属性）
-        if (fullPath.startsWith(prefix + ".")) {
-            return true;
-        }
-
-        // 检查是否以 prefix[ 开头（数组元素）
-        if (fullPath.startsWith(prefix + "[")) {
-            return true;
-        }
-
+        if (fullPath.equals(prefix)) return true;
+        if (fullPath.startsWith(prefix + ".")) return true;
+        if (fullPath.startsWith(prefix + "[")) return true;
         return false;
     }
 
-    /**
-     * 获取所有黑名单项（返回副本）
-     * @return 黑名单项列表
-     */
+    // -------------------------------------------------------------------------
+    // 工具方法
+    // -------------------------------------------------------------------------
+
     public List<String> getAll() {
         return new ArrayList<>(blacklist);
     }
 
-    /**
-     * 获取黑名单项数量
-     * @return 数量
-     */
     public int size() {
         return blacklist.size();
     }
 
-    /**
-     * 检查黑名单是否为空
-     * @return 是否为空
-     */
     public boolean isEmpty() {
         return blacklist.isEmpty();
     }
 
-    /**
-     * 获取所有项的文本表示（每行一个）
-     * @return 文本内容
-     */
+    /** 返回排序后的文本，每行一项（已含规范化的 $ 前缀）。 */
     public String toText() {
-        if (blacklist.isEmpty()) {
-            return "";
-        }
-
+        if (blacklist.isEmpty()) return "";
         List<String> sorted = new ArrayList<>(blacklist);
         Collections.sort(sorted);
-
         return String.join("\n", sorted);
     }
 
-    /**
-     * 添加监听器
-     */
+    // -------------------------------------------------------------------------
+    // 监听器
+    // -------------------------------------------------------------------------
+
     public void addListener(BlacklistChangeListener listener) {
-        if (listener != null && !listeners.contains(listener)) {
-            listeners.add(listener);
-        }
+        if (listener != null && !listeners.contains(listener)) listeners.add(listener);
     }
 
-    /**
-     * 移除监听器
-     */
     public void removeListener(BlacklistChangeListener listener) {
         listeners.remove(listener);
     }
 
-    /**
-     * 通知所有监听器
-     */
     private void notifyListeners() {
-        for (BlacklistChangeListener listener : listeners) {
-            try {
-                listener.onBlacklistChanged();
-            } catch (Exception e) {
-                // 忽略监听器异常
-            }
+        for (BlacklistChangeListener l : listeners) {
+            try { l.onBlacklistChanged(); } catch (Exception ignored) {}
         }
     }
 
-    /**
-     * 黑名单变化监听器接口
-     */
     public interface BlacklistChangeListener {
         void onBlacklistChanged();
     }
